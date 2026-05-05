@@ -208,6 +208,32 @@ Descripción en minúsculas, sin punto final, en español. Una sola línea salvo
 
 No commitear `.env`, `logs/`, ni archivos generados por `alembic/versions/` sin su migración correspondiente.
 
+### CHANGELOG
+
+El proyecto mantiene un archivo [CHANGELOG.md](CHANGELOG.md) en el formato de [Keep a Changelog](https://keepachangelog.com/). **Toda versión que se cree debe actualizarse en el CHANGELOG antes de mergear a `main`.**
+
+Estructura del CHANGELOG:
+- Una sección `## [VERSION] - YYYY-MM-DD` por cada versión
+- Subsecciones: `### Added`, `### Changed`, `### Fixed`, `### Removed`, `### Deprecated`
+- Descripciones claras y observables desde la perspectiva del usuario
+- Agrupar por categoría, no por archivo
+
+Ejemplo de entrada:
+```markdown
+## [0.2.0] - 2026-05-15
+
+### Added
+- Nuevo scraper `olx.py` para Olx Chile
+- Comando `carflipper market` para estadísticas de mercado
+
+### Fixed
+- Manejar timeout en Facebook Marketplace durante login
+- Corregir parseo de precios con miles separator en Yapo
+
+### Changed
+- Aumentar delay mínimo entre requests de 2s a 3s
+```
+
 ### Versión del paquete (`pyproject.toml`)
 
 El proyecto sigue **Semantic Versioning** (`MAJOR.MINOR.PATCH`). Versión actual: `0.1.0`.
