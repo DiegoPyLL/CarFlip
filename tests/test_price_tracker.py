@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from carflipper.database.price_tracker import _delta_pct
+from carflip.database.price_tracker import _delta_pct
 
 
 def test_delta_pct_price_drop():

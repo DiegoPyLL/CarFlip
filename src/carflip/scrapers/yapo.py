@@ -8,7 +8,7 @@ from decimal import Decimal, InvalidOperation
 from loguru import logger
 from playwright.async_api import Browser, async_playwright
 
-from carflipper.scrapers.base import BaseScraper, CarListing
+from carflip.scrapers.base import BaseScraper, CarListing
 
 BASE_URL = "https://www.yapo.cl"
 SEARCH_URL = f"{BASE_URL}/region_metropolitana/autos"

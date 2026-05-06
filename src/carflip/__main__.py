@@ -15,8 +15,8 @@ import sys
 import click
 from loguru import logger
 
-from carflipper.config import settings
-from carflipper import credentials as creds_module
+from carflip.config import settings
+from carflip import credentials as creds_module
 
 
 def _setup_logging() -> None:
@@ -36,7 +36,7 @@ def cli() -> None:
 @cli.command()
 def start() -> None:
     """Inicia el scheduler automático."""
-    from carflipper.scheduler.runner import run_all_scrapers, start_scheduler
+    from carflip.scheduler.runner import run_all_scrapers, start_scheduler
     logger.info("Ejecutando primer ciclo antes de iniciar el scheduler...")
     asyncio.run(run_all_scrapers())
     start_scheduler(settings.scrape_interval_hours)
@@ -45,7 +45,7 @@ def start() -> None:
 @cli.command("run")
 def run_once() -> None:
     """Ejecuta todos los scrapers una sola vez."""
-    from carflipper.scheduler.runner import run_all_scrapers
+    from carflip.scheduler.runner import run_all_scrapers
     asyncio.run(run_all_scrapers())
 
 
@@ -86,8 +86,8 @@ def credentials_list() -> None:
 @click.argument("year", type=int)
 def market(brand: str, model: str, year: int) -> None:
     """Muestra estadísticas de mercado para una combinación marca/modelo/año."""
-    from carflipper.database.price_tracker import get_market_summary
-    from carflipper.database.session import AsyncSessionLocal
+    from carflip.database.price_tracker import get_market_summary
+    from carflip.database.session import AsyncSessionLocal
 
     async def _run():
         async with AsyncSessionLocal() as session:

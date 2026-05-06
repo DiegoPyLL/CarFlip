@@ -12,8 +12,8 @@ from playwright.async_api import async_playwright
 from playwright_stealth import stealth_async
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from carflipper import credentials
-from carflipper.scrapers.base import BaseScraper, CarListing
+from carflip import credentials
+from carflip.scrapers.base import BaseScraper, CarListing
 
 LOGIN_URL = "https://www.facebook.com/login"
 MARKETPLACE_URL = "https://www.facebook.com/marketplace/santiago/vehicles"

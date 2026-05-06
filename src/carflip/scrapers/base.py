@@ -8,7 +8,7 @@ from decimal import Decimal
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from carflipper.config import settings
+from carflip.config import settings
 
 
 @dataclass

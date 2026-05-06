@@ -12,8 +12,8 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-from carflipper.database.models import Base  # noqa: E402
-from carflipper.config import settings  # noqa: E402
+from carflip.database.models import Base  # noqa: E402
+from carflip.config import settings  # noqa: E402
 
 target_metadata = Base.metadata
 

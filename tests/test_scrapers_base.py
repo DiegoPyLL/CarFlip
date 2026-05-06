@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from carflipper.scrapers.autosusados import _parse_price, _parse_km
+from carflip.scrapers.autosusados import _parse_price, _parse_km
 
 
 def test_parse_price_clp():

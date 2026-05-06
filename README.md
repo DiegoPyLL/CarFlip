@@ -1,8 +1,8 @@
-![CarFlip Logo](carflip_logo.png)
-
-# CarFlip
+# CarFlip (TODO(MODIFICAR AL FINAL))
 
 Plataforma integral de inteligencia de mercado automotriz con agregación y análisis de datos en tiempo real desde múltiples portales de venta en Chile.
+
+![CarFlip Logo](https://file+.vscode-resource.vscode-cdn.net/d%3A/Trabajos/ProyectosPersonales/CarFlipper/carflip_logo.png)
 
 ## Propuesta de Valor
 

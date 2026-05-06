@@ -14,7 +14,7 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from carflipper.database.models import SessionCookie
+from carflip.database.models import SessionCookie
 
 _fernet_key: bytes | None = None
 
@@ -24,7 +24,7 @@ _fernet_key: bytes | None = None
 def _get_secret_from_aws(secret_name: str) -> dict:
     """Recupera un secreto JSON desde AWS Secrets Manager."""
     import boto3
-    from carflipper.config import settings
+    from carflip.config import settings
 
     client = boto3.client("secretsmanager", region_name=settings.aws_region)
     response = client.get_secret_value(SecretId=secret_name)
@@ -32,7 +32,7 @@ def _get_secret_from_aws(secret_name: str) -> dict:
 
 
 def _full_secret_name(name: str) -> str:
-    from carflipper.config import settings
+    from carflip.config import settings
     return f"{settings.secrets_manager_prefix}/{name}"
 
 
@@ -44,7 +44,7 @@ def _get_fernet() -> Fernet:
     if _fernet_key:
         return Fernet(_fernet_key)
 
-    from carflipper.config import settings
+    from carflip.config import settings
 
     if settings.use_secrets_manager:
         secret = _get_secret_from_aws(_full_secret_name("fernet-key"))
@@ -71,7 +71,7 @@ def _get_fernet() -> Fernet:
 
 def get_credentials(source: str) -> tuple[str, str] | None:
     """Retorna (email, password) o None si no están configuradas."""
-    from carflipper.config import settings
+    from carflip.config import settings
 
     if settings.use_secrets_manager:
         try:
@@ -91,7 +91,7 @@ def get_credentials(source: str) -> tuple[str, str] | None:
 
 def set_credentials(source: str, email: str, password: str) -> None:
     """Guarda credenciales. En cloud mode: AWS Secrets Manager. En local: muestra instrucción."""
-    from carflipper.config import settings
+    from carflip.config import settings
 
     if settings.use_secrets_manager:
         import boto3
@@ -115,7 +115,7 @@ def set_credentials(source: str, email: str, password: str) -> None:
 
 def delete_credentials(source: str) -> None:
     """Elimina credenciales. En cloud mode: marca el secreto para eliminación."""
-    from carflipper.config import settings
+    from carflip.config import settings
 
     if settings.use_secrets_manager:
         import boto3
@@ -135,7 +135,7 @@ def delete_credentials(source: str) -> None:
 
 def list_configured_sources() -> dict[str, bool]:
     """Retorna {source: tiene_credenciales} para los sitios conocidos."""
-    from carflipper.config import settings
+    from carflip.config import settings
 
     sources = ["facebook", "yapo", "chileautos", "autosusados", "mercadolibre"]
     result = {}

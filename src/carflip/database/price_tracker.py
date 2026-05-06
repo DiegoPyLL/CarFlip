@@ -10,9 +10,9 @@ from loguru import logger
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from carflipper.config import settings
-from carflipper.database.models import Listing, PriceHistory, ScrapedRun
-from carflipper.scrapers.base import CarListing, ScrapeResult
+from carflip.config import settings
+from carflip.database.models import Listing, PriceHistory, ScrapedRun
+from carflip.scrapers.base import CarListing, ScrapeResult
 
 
 async def upsert_listings(session: AsyncSession, result: ScrapeResult) -> None:

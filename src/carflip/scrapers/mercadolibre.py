@@ -8,7 +8,7 @@ from decimal import Decimal
 import httpx
 from loguru import logger
 
-from carflipper.scrapers.base import BaseScraper, CarListing
+from carflip.scrapers.base import BaseScraper, CarListing
 
 SITE_ID = "MLC"
 API_BASE = "https://api.mercadolibre.com"

@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 from loguru import logger
 
-from carflipper.scrapers.base import BaseScraper, CarListing
+from carflip.scrapers.base import BaseScraper, CarListing
 
 BASE_URL = "https://www.autosusados.cl"
 SEARCH_URL = f"{BASE_URL}/autos-usados"

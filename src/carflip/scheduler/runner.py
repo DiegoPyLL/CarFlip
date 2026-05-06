@@ -2,13 +2,13 @@ import asyncio
 
 from loguru import logger
 
-from carflipper.database import price_tracker
-from carflipper.database.session import AsyncSessionLocal
-from carflipper.scrapers.autosusados import AutosUsadosScraper
-from carflipper.scrapers.chileautos import ChileautosScraper
-from carflipper.scrapers.facebook import FacebookScraper
-from carflipper.scrapers.mercadolibre import MercadoLibreScraper
-from carflipper.scrapers.yapo import YapoScraper
+from carflip.database import price_tracker
+from carflip.database.session import AsyncSessionLocal
+from carflip.scrapers.autosusados import AutosUsadosScraper
+from carflip.scrapers.chileautos import ChileautosScraper
+from carflip.scrapers.facebook import FacebookScraper
+from carflip.scrapers.mercadolibre import MercadoLibreScraper
+from carflip.scrapers.yapo import YapoScraper
 
 
 async def run_all_scrapers() -> None:
