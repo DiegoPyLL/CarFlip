@@ -12,51 +12,53 @@ from carflip.config import settings
 
 
 @dataclass
-class CarListing:
+class AvisoAuto:
     """Datos normalizados de un aviso de auto."""
 
-    source: str
-    external_id: str
+    fuente: str
+    id_externo: str
     url: str
-    title: str
-    price: Decimal | None = None
-    currency: str = "CLP"
-    brand: str | None = None
-    model: str | None = None
-    year: int | None = None
+    titulo: str
+    precio: Decimal | None = None
+    moneda: str = "CLP"
+    marca: str | None = None
+    modelo: str | None = None
+    anio: int | None = None
     km: int | None = None
-    location: str | None = None
+    ubicacion: str | None = None
+    combustible: str | None = None
+    url_imagen: str | None = None
 
 
 @dataclass
-class ScrapeResult:
-    source: str
-    started_at: datetime = field(default_factory=datetime.now)
-    finished_at: datetime | None = None
-    listings: list[CarListing] = field(default_factory=list)
-    errors: int = 0
+class ResultadoScraping:
+    fuente: str
+    iniciado_en: datetime = field(default_factory=datetime.now)
+    finalizado_en: datetime | None = None
+    avisos: list[AvisoAuto] = field(default_factory=list)
+    errores: int = 0
 
 
-class BaseScraper(ABC):
-    source: str = ""
+class ScraperBase(ABC):
+    fuente: str = ""
 
-    async def run(self, session: AsyncSession) -> ScrapeResult:
-        result = ScrapeResult(source=self.source)
-        logger.info(f"[{self.source}] Iniciando scraping")
+    async def ejecutar(self, _sesion: AsyncSession) -> ResultadoScraping:
+        resultado = ResultadoScraping(fuente=self.fuente)
+        logger.info(f"[{self.fuente}] Iniciando scraping")
         try:
-            listings = await self.scrape()
-            result.listings = listings
-            logger.info(f"[{self.source}] {len(listings)} avisos obtenidos")
+            avisos = await self.scrape()
+            resultado.avisos = avisos
+            logger.info(f"[{self.fuente}] {len(avisos)} avisos obtenidos")
         except Exception as exc:
-            result.errors += 1
-            logger.error(f"[{self.source}] Error fatal: {exc}")
-        result.finished_at = datetime.now()
-        return result
+            resultado.errores += 1
+            logger.error(f"[{self.fuente}] Error fatal: {exc}")
+        resultado.finalizado_en = datetime.now()
+        return resultado
 
     @abstractmethod
-    async def scrape(self) -> list[CarListing]:
+    async def scrape(self) -> list[AvisoAuto]:
         """Implementar la lógica de scraping de cada sitio."""
 
-    async def random_delay(self) -> None:
-        delay = random.uniform(settings.min_delay_seconds, settings.max_delay_seconds)
-        await asyncio.sleep(delay)
+    async def espera_aleatoria(self) -> None:
+        espera = random.uniform(settings.min_delay_seconds, settings.max_delay_seconds)
+        await asyncio.sleep(espera)
