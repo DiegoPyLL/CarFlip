@@ -21,9 +21,9 @@ COPY alembic.ini ./
 RUN uv run playwright install chromium --with-deps
 
 # Ejecutar como usuario no-root
-RUN useradd -m -u 1000 carflipper && chown -R carflipper /app
+RUN useradd -m -u 1000 carflip && chown -R carflipper /app
 USER carflipper
 
 # Por defecto ejecuta un ciclo de scraping y termina (EventBridge dispara esto cada 6h)
-ENTRYPOINT ["uv", "run", "carflipper"]
+ENTRYPOINT ["uv", "run", "carflip"]
 CMD ["run"]
