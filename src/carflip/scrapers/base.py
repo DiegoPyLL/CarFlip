@@ -27,7 +27,8 @@ class AvisoAuto:
     km: int | None = None
     ubicacion: str | None = None
     combustible: str | None = None
-    url_imagen: str | None = None
+    descripcion: str | None = None
+    url_imagen: str | None = None    
 
 
 @dataclass
