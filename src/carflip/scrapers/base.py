@@ -28,7 +28,9 @@ class AvisoAuto:
     ubicacion: str | None = None
     combustible: str | None = None
     descripcion: str | None = None
-    url_imagen: str | None = None    
+    url_imagen: str | None = None
+    disponible: bool| None = None   
+    fecha_publicacion: str | None = None 
 
 
 @dataclass
