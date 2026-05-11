@@ -1,5 +1,7 @@
 import asyncio
+import hashlib
 import random
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -29,8 +31,24 @@ class AvisoAuto:
     combustible: str | None = None
     descripcion: str | None = None
     url_imagen: str | None = None
-    disponible: bool| None = None   
-    fecha_publicacion: str | None = None 
+    disponible: bool| None = None
+    fecha_publicacion: str | None = None
+
+    @property
+    def nombre_normalizado(self) -> str:
+        def slug(s: str) -> str:
+            return re.sub(r"[^\w]", "_", s.lower()).strip("_")
+
+        url_hash = hashlib.sha256(self.url.encode()).hexdigest()[:8]
+        partes = [self.fuente]
+        if self.marca:
+            partes.append(slug(self.marca))
+        if self.modelo:
+            partes.append(slug(self.modelo))
+        if self.anio:
+            partes.append(str(self.anio))
+        partes.append(url_hash)
+        return "_".join(partes)
 
 
 @dataclass

@@ -1,0 +1,18 @@
+# Dependencias para el cliente MercadoLibre
+
+# HTTP client asincrónico
+httpx>=0.27
+
+# User-Agent rotativo para evitar detección como bot
+fake-useragent>=1.5
+
+# Logging estructurado
+loguru>=0.7
+
+# Validación y configuración
+pydantic>=2.7
+pydantic-settings>=2.3
+
+# (Opcional) Para desarrollo y testing
+pytest>=8.2
+pytest-asyncio>=0.23
