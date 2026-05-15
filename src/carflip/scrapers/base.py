@@ -31,7 +31,7 @@ class AvisoAuto:
     combustible: str | None = None
     descripcion: str | None = None
     url_imagen: str | None = None
-    disponible: bool| None = None
+    disponible: bool | None = None
     fecha_publicacion: str | None = None
 
     @property
@@ -62,14 +62,21 @@ class ResultadoScraping:
 
 class ScraperBase(ABC):
     fuente: str = ""
+    model_class: type | None = None  # tabla Supabase destino, declarada en cada scraper
 
-    async def ejecutar(self, _sesion: AsyncSession) -> ResultadoScraping:
+    async def ejecutar(self, sesion: AsyncSession) -> ResultadoScraping:
+        from carflip.database.uploader import upsert_avisos
+
         resultado = ResultadoScraping(fuente=self.fuente)
         logger.info(f"[{self.fuente}] Iniciando scraping")
         try:
             avisos = await self.scrape()
             resultado.avisos = avisos
             logger.info(f"[{self.fuente}] {len(avisos)} avisos obtenidos")
+
+            if avisos and self.model_class is not None:
+                n = await upsert_avisos(sesion, avisos, self.model_class)
+                logger.info(f"[{self.fuente}] {n} avisos subidos a Supabase ({self.model_class.__tablename__})")
         except Exception as exc:
             resultado.errores += 1
             logger.error(f"[{self.fuente}] Error fatal: {exc}")

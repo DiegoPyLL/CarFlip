@@ -32,11 +32,22 @@ No hay linter configurado aún. El type check se puede correr con `mypy src/` si
 
 ### Patrón de scrapers
 
-Todos los scrapers heredan de `BaseScraper` en [src/carflipper/scrapers/base.py](src/carflipper/scrapers/base.py). El método abstracto a implementar es `scrape() -> list[CarListing]`. El método `run()` de la clase base gestiona logging, timing y manejo de errores — no sobreescribirlo.
+Todos los scrapers heredan de `ScraperBase` en [src/carflip/scrapers/base.py](src/carflip/scrapers/base.py). El método abstracto a implementar es `scrape() -> list[AvisoAuto]`. El método `ejecutar()` de la clase base gestiona logging, timing, manejo de errores y el **upload automático a Supabase** — no sobreescribirlo.
 
-`CarListing` es el modelo normalizado de salida. Todo scraper debe mapear sus datos al mismo dataclass, independiente del formato de origen.
+`AvisoAuto` es el dataclass normalizado de salida. Todo scraper debe mapear sus datos a `AvisoAuto`, independiente del formato de origen.
 
-Siempre llamar `await self.random_delay()` entre requests para respetar el rate limiting. El rango de delay está en `settings.min_delay_seconds` / `settings.max_delay_seconds`.
+Cada scraper declara un atributo de clase `model_class` apuntando a su modelo SQLAlchemy (tabla en Supabase). Sin `model_class`, `ejecutar()` igual funciona pero no sube a la BD:
+
+```python
+class ScraperAutocosmos(ScraperBase):
+    fuente = "autocosmos"
+    model_class = AutocosmosListing  # → tabla autocosmos_listings en Supabase
+
+    async def scrape(self) -> list[AvisoAuto]:
+        ...
+```
+
+Siempre llamar `await self.espera_aleatoria()` entre requests para respetar el rate limiting. El rango de delay está en `settings.min_delay_seconds` / `settings.max_delay_seconds`.
 
 ### Scrapers HTTP vs. Playwright
 
@@ -45,22 +56,23 @@ Siempre llamar `await self.random_delay()` entre requests para respetar el rate 
 
 Nunca usar Playwright donde alcanza httpx — es más lento y consume más recursos.
 
-### Credenciales y sesiones
+### Base de datos — tablas por scraper
 
-Dos mecanismos, cada uno para un propósito distinto — no mezclarlos:
+ORM: SQLAlchemy 2.0 async con `AsyncSession`. Siempre usar el context manager de `AsyncSessionLocal` de [src/carflip/database/session.py](src/carflip/database/session.py).
 
-- **keyring** (`credentials.py`): passwords de usuarios en el Windows Credential Manager. Nunca escribir passwords en archivos, variables de entorno ni logs.
-- **Fernet + PostgreSQL** (`session_cookies`): cookies de sesión del browser cifradas. La clave Fernet también se guarda en el llavero del OS, nunca en `.env`.
-
-### Base de datos
-
-ORM: SQLAlchemy 2.0 async con `AsyncSession`. Siempre usar el context manager de `AsyncSessionLocal` de [src/carflipper/database/session.py](src/carflipper/database/session.py).
-
-Modelos en [src/carflipper/database/models.py](src/carflipper/database/models.py):
-- `Listing` — aviso normalizado (upsert por `source` + `external_id`)
-- `PriceHistory` — historial de precios con `delta_pct`
+Modelos en [src/carflip/database/models.py](src/carflip/database/models.py):
+- `ListingMixin` — columnas compartidas por todas las tablas de avisos
+- `AutocosmosListing` → tabla `autocosmos_listings`
+- `MercadoLibreListing` → tabla `mercadolibre_listings`
 - `ScrapedRun` — log de ejecuciones por fuente
 - `SessionCookie` — cookies cifradas por fuente
+
+**Cada scraper tiene su propia tabla en Supabase.** Al agregar un nuevo scraper:
+1. Crear `class NuevoSitioListing(ListingMixin, Base)` con su `__tablename__`
+2. Crear migración Alembic con `_crear_tabla_avisos("nuevositio_listings")`
+3. Declarar `model_class = NuevoSitioListing` en el scraper
+
+El upsert se hace en [src/carflip/database/uploader.py](src/carflip/database/uploader.py) con `INSERT ... ON CONFLICT (id_externo) DO UPDATE`. Al detectar cambio de precio, actualiza `precio_anterior` y `delta_pct` automáticamente.
 
 Toda modificación de esquema va por Alembic. Nunca modificar tablas con DDL directo en producción.
 

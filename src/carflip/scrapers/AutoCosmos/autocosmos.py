@@ -15,7 +15,7 @@ from fake_useragent import UserAgent
 from loguru import logger
 
 from carflip.config import settings
-from carflip.scrapers.base import AvisoAuto
+from carflip.scrapers.base import AvisoAuto, ScraperBase
 
 BASE_URL = "https://www.autocosmos.cl"
 URL_USADOS = f"{BASE_URL}/auto/usado"
@@ -146,16 +146,18 @@ class AutocosmosClient:
             disponible=True,
         )
 
-    async def fetch_usados(self, max_paginas: int = 10) -> list[AvisoAuto]:
+    async def fetch_usados(self, max_paginas: int | None = None) -> list[AvisoAuto]:
         """Obtiene avisos sin guardar. Útil cuando sólo se necesita la lista."""
         avisos: list[AvisoAuto] = []
+        vistos: set[str] = set()
         logger.info("[Autocosmos] Iniciando fetch de autos usados")
+        pagina = 1
 
-        for pagina in range(1, max_paginas + 1):
-            params = {"pidx": pagina} if pagina > 1 else None
+        while max_paginas is None or pagina <= max_paginas:
+            params = {"pidx": pagina}
             try:
                 html = await self._hacer_request(URL_USADOS, params)
-                cards = self._extraer_cards(html)
+                cards = self._extraer_cards(html, vistos)
                 if not cards:
                     logger.info(f"[Autocosmos] Página {pagina}: sin resultados, deteniendo")
                     break
@@ -170,6 +172,7 @@ class AutocosmosClient:
 
                 logger.debug(f"[Autocosmos] Página {pagina}: {len(cards)} avisos")
                 await asyncio.sleep(random.uniform(settings.min_delay_seconds, settings.max_delay_seconds))
+                pagina += 1
 
             except Exception as e:
                 logger.error(f"[Autocosmos] Error en página {pagina}: {e}")
@@ -178,21 +181,21 @@ class AutocosmosClient:
         logger.info(f"[Autocosmos] {len(avisos)} avisos obtenidos en total")
         return avisos
 
-    def _extraer_cards(self, html: str) -> list[Tag]:
-        """Extrae y deduplica los <a> de aviso de una página HTML."""
+    def _extraer_cards(self, html: str, vistos: set[str] | None = None) -> list[Tag]:
+        """Extrae los <a> de aviso de una página HTML, excluyendo hrefs ya vistos."""
         soup = BeautifulSoup(html, "lxml")
-        vistos: set[str] = set()
+        local: set[str] = vistos if vistos is not None else set()
         cards: list[Tag] = []
         for a in soup.find_all("a", href=True):
             h = str(a.get("href", ""))
-            if _PATRON_AVISO.match(h) and h not in vistos:
-                vistos.add(h)
+            if _PATRON_AVISO.match(h) and h not in local:
+                local.add(h)
                 cards.append(a)
         return cards
 
     async def fetch_todo(
         self,
-        max_paginas: int = 10,
+        max_paginas: int | None = None,
         guardar: bool = True,
         ruta_destino: Path | None = None,
     ) -> dict[str, list[AvisoAuto]]:
@@ -210,13 +213,15 @@ class AutocosmosClient:
         carpeta_imagenes.mkdir(parents=True, exist_ok=True)
 
         avisos: list[AvisoAuto] = []
+        vistos: set[str] = set()
         logger.info("[Autocosmos] Iniciando fetch con guardado inline")
+        pagina = 1
 
-        for pagina in range(1, max_paginas + 1):
-            params = {"pidx": pagina} if pagina > 1 else None
+        while max_paginas is None or pagina <= max_paginas:
+            params = {"pidx": pagina}
             try:
                 html = await self._hacer_request(URL_USADOS, params)
-                cards = self._extraer_cards(html)
+                cards = self._extraer_cards(html, vistos)
                 if not cards:
                     logger.info(f"[Autocosmos] Página {pagina}: sin resultados, deteniendo")
                     break
@@ -249,6 +254,7 @@ class AutocosmosClient:
 
                 logger.debug(f"[Autocosmos] Página {pagina}: {len(cards)} avisos procesados")
                 await asyncio.sleep(random.uniform(settings.min_delay_seconds, settings.max_delay_seconds))
+                pagina += 1
 
             except Exception as e:
                 logger.error(f"[Autocosmos] Error en página {pagina}: {e}")
@@ -298,14 +304,41 @@ def _construir_markdown_aviso(aviso: AvisoAuto, ruta_img: Path | None) -> str:
     return "\n".join(lineas)
 
 
+class ScraperAutocosmos(ScraperBase):
+    """Adaptador de AutocosmosClient a ScraperBase para integración con el runner."""
+
+    fuente = "autocosmos"
+
+    def __init__(self, max_paginas: int | None = None) -> None:
+        self.max_paginas = max_paginas
+
+    @property
+    def model_class(self) -> type:  # type: ignore[override]
+        from carflip.database.models import AutocosmosListing
+        return AutocosmosListing
+
+    async def scrape(self) -> list[AvisoAuto]:
+        async with AutocosmosClient() as client:
+            return await client.fetch_usados(max_paginas=self.max_paginas)
+
+
 if __name__ == "__main__":
     async def _main() -> None:
-        max_paginas = int(sys.argv[1]) if len(sys.argv) > 1 else 3
+        from carflip.database.models import AutocosmosListing
+        from carflip.database.session import AsyncSessionLocal
+        from carflip.database.uploader import upsert_avisos
+
+        max_paginas = int(sys.argv[1]) if len(sys.argv) > 1 else None
         async with AutocosmosClient() as client:
             resultados = await client.fetch_todo(max_paginas=max_paginas, guardar=True)
         usados = resultados["usados"]
         logger.info(f"Usados: {len(usados)}")
         for aviso in usados[:3]:
             logger.info(f"  {aviso.titulo} — ${aviso.precio} | {aviso.km} km | {aviso.anio}")
+
+        if usados:
+            async with AsyncSessionLocal() as session:
+                n = await upsert_avisos(session, usados, AutocosmosListing)
+            logger.info(f"[Autocosmos] {n} avisos subidos a la BD")
 
     asyncio.run(_main())

@@ -1,51 +1,45 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Numeric, String, Text, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, Integer, Numeric, String, Text, func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
     pass
 
 
-class Listing(Base):
-    __tablename__ = "listings"
+class ListingMixin:
+    """Columnas compartidas por todas las tablas de avisos por fuente."""
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    source: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    external_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    id_externo: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
     url: Mapped[str] = mapped_column(Text, nullable=False)
-    title: Mapped[str] = mapped_column(Text, nullable=False)
-    brand: Mapped[str | None] = mapped_column(String(100), index=True)
-    model: Mapped[str | None] = mapped_column(String(100), index=True)
-    year: Mapped[int | None] = mapped_column(index=True)
-    km: Mapped[int | None] = mapped_column()
-    price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), index=True)
-    currency: Mapped[str] = mapped_column(String(10), default="CLP")
-    location: Mapped[str | None] = mapped_column(String(200))
-    deal: Mapped[bool] = mapped_column(Boolean, default=False)
-    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    last_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    titulo: Mapped[str] = mapped_column(Text, nullable=False)
+    precio: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True, index=True)
+    moneda: Mapped[str] = mapped_column(String(10), nullable=False, server_default="CLP")
+    marca: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    modelo: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    anio: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    km: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    ubicacion: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    combustible: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    descripcion: Mapped[str | None] = mapped_column(Text, nullable=True)
+    url_imagen: Mapped[str | None] = mapped_column(Text, nullable=True)
+    disponible: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    fecha_publicacion: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    precio_anterior: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    delta_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    primera_vez_visto: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    ultima_vez_visto: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    price_history: Mapped[list["PriceHistory"]] = relationship(back_populates="listing", cascade="all, delete-orphan")
 
-    __table_args__ = (
-        {"schema": None},
-    )
+class AutocosmosListing(ListingMixin, Base):
+    __tablename__ = "autocosmos_listings"
 
 
-class PriceHistory(Base):
-    __tablename__ = "price_history"
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    listing_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("listings.id", ondelete="CASCADE"), nullable=False, index=True)
-    price: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    delta_pct: Mapped[float | None] = mapped_column()
-
-    listing: Mapped["Listing"] = relationship(back_populates="price_history")
+class MercadoLibreListing(ListingMixin, Base):
+    __tablename__ = "mercadolibre_listings"
 
 
 class ScrapedRun(Base):
@@ -67,4 +61,4 @@ class SessionCookie(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     source: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     encrypted_cookies: Mapped[bytes | None] = mapped_column()
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

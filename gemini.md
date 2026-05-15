@@ -143,30 +143,24 @@ Particularidad: incluye particulares además de automotoras, lo que aporta varie
 
 ## Arquitectura
 
-### Flujo de datos (híbrido)
+### Flujo de datos
 
 ```
 CLI (carflip run / carflip start)
     │
     ▼
-runner.ejecutar_todos_los_scrapers()
+runner.run_all_scrapers()
     │
-    ├─ Para cada scraper:
-    │     scraper.ejecutar(sesion)
-    │       └─ scraper.scrape()          ← lógica específica del sitio
-    │             ├─ HTTP request (httpx)
-    │             ├─ Parse (BS4 o JSON)
-    │             ├─ espera_aleatoria()   ← rate limiting entre requests
-    │             └─ return list[AvisoAuto]
-    │
-    ├─ Guardar CSV raw en data/raw/{fuente}_{fecha}.csv   ← BACKUP
-    │
-    ├─ price_tracker.upsert_avisos(sesion, resultado)
-    │     ├─ INSERT/UPDATE en listings (clave: source + external_id)
-    │     └─ Si cambió precio → INSERT en price_history con delta_pct
-    │
-    └─ price_tracker.marcar_deals(sesion)
-          └─ Marca listings con caída > deal_threshold_pct
+    └─ Para cada scraper (ScraperBase.ejecutar(sesion)):
+          ├─ scraper.scrape()              ← lógica específica del sitio
+          │     ├─ HTTP request (httpx)
+          │     ├─ Parse (BS4 o JSON)
+          │     ├─ espera_aleatoria()      ← rate limiting entre requests
+          │     └─ return list[AvisoAuto]
+          │
+          └─ uploader.upsert_avisos(sesion, avisos, model_class)
+                ├─ INSERT INTO {fuente}_listings ... ON CONFLICT (id_externo) DO UPDATE
+                └─ Si cambió precio → actualiza precio_anterior y delta_pct inline
 ```
 
 ### Patrón de scrapers
@@ -348,40 +342,42 @@ pytest --cov=src/carflip
 
 ## Base de datos
 
-### Tablas activas
+### Diseño: tabla por scraper
 
-**listings** — estado actual de cada aviso
+Cada scraper tiene su propia tabla en Supabase. No existe una tabla `listings` unificada. El esquema compartido viene de `ListingMixin` en `src/carflip/database/models.py`.
+
+**Tablas activas de avisos** (mismas columnas vía `ListingMixin`):
+- `autocosmos_listings`
+- `mercadolibre_listings`
+
+Para agregar un nuevo scraper: crear `NuevoSitioListing(ListingMixin, Base)` + migración Alembic + declarar `model_class` en el scraper.
+
+**Columnas de cada tabla de avisos** (`ListingMixin`):
 
 | Columna | Tipo | Notas |
 |---------|------|-------|
 | id | BigInteger PK | autoincrement |
-| source | String(50) | fuente del aviso, indexado |
-| external_id | String(200) | ID del aviso en la fuente |
+| id_externo | String(200) | ID único del aviso, clave de upsert |
 | url | Text | link al aviso original |
-| title | Text | título del aviso |
-| brand | String(100) | marca, indexado |
-| model | String(100) | modelo, indexado |
-| year | Integer | año, indexado |
+| titulo | Text | título del aviso |
+| precio | Numeric(14,2) | precio actual, indexado |
+| moneda | String(10) | default "CLP" |
+| marca | String(100) | marca, indexado |
+| modelo | String(100) | modelo, indexado |
+| anio | Integer | año, indexado |
 | km | Integer | kilometraje |
-| price | Numeric(14,2) | precio actual, indexado |
-| currency | String(10) | default "CLP" |
-| location | String(200) | ubicación |
-| deal | Boolean | marcado por price_tracker |
-| first_seen_at | DateTime(tz) | primera vez visto |
-| last_seen_at | DateTime(tz) | última actualización |
-| last_price | Numeric(14,2) | precio anterior (para delta) |
+| ubicacion | String(200) | ciudad / región |
+| combustible | String(50) | bencina, diesel, eléctrico, etc. |
+| descripcion | Text | descripción libre |
+| url_imagen | Text | URL de la imagen principal |
+| disponible | Boolean | si el aviso sigue activo |
+| fecha_publicacion | String(50) | fecha del aviso en la fuente |
+| precio_anterior | Numeric(14,2) | precio antes del último cambio |
+| delta_pct | Float | % cambio de precio (negativo = bajó) |
+| primera_vez_visto | DateTime(tz) | primera inserción |
+| ultima_vez_visto | DateTime(tz) | última actualización |
 
-Clave única: `(source, external_id)`
-
-**price_history** — registro de cambios de precio
-
-| Columna | Tipo | Notas |
-|---------|------|-------|
-| id | BigInteger PK | autoincrement |
-| listing_id | BigInteger FK | → listings.id |
-| price | Numeric(14,2) | precio registrado |
-| recorded_at | DateTime(tz) | cuándo se detectó |
-| delta_pct | Float | porcentaje de cambio |
+Clave única: `id_externo` (por tabla). El upsert se gestiona en `src/carflip/database/uploader.py`.
 
 **scrape_runs** — bitácora de ejecuciones
 
@@ -394,9 +390,7 @@ Clave única: `(source, external_id)`
 | items_found | Integer | avisos obtenidos |
 | errors | Integer | errores en el ciclo |
 
-### Tabla a eliminar
-
-**session_cookies** — ya no se necesita sin Facebook/Playwright login.
+**session_cookies** — cookies cifradas (reserva para scrapers con login).
 
 ---
 
