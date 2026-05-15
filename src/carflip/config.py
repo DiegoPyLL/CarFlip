@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_file: str = "logs/carflipper.log"
 
+    use_ssl: bool = False
+
     output_dir: str = r"C:\Users\Laptop\Desktop\Trabajos\Duoc\3er Anio\1er Semestre\Gestion De Datos IA\CarFlip\Archivos locales"
 
     # Cloud mode — usar AWS Secrets Manager en vez de variables de entorno locales
