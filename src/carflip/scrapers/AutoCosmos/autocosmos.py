@@ -193,7 +193,7 @@ class AutocosmosClient:
                 cards.append(a)
         return cards
 
-    async def fetch_todo(
+    async def fetch_all(
         self,
         max_paginas: int | None = None,
         guardar: bool = True,
@@ -330,7 +330,7 @@ if __name__ == "__main__":
 
         max_paginas = int(sys.argv[1]) if len(sys.argv) > 1 else None
         async with AutocosmosClient() as client:
-            resultados = await client.fetch_todo(max_paginas=max_paginas, guardar=True)
+            resultados = await client.fetch_all(max_paginas=max_paginas, guardar=True)
         usados = resultados["usados"]
         logger.info(f"Usados: {len(usados)}")
         for aviso in usados[:3]:

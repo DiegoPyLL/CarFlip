@@ -1,0 +1,67 @@
+---
+import Base from '@layouts/Base.astro';
+import CardAviso from '@components/CardAviso.astro';
+import FiltrosBarra from '@components/FiltrosBarra.astro';
+import Paginacion from '@components/Paginacion.astro';
+import { obtenerAvisos, obtenerFiltrosDisponibles, obtenerEstadisticas } from '@lib/db';
+import { parsearFiltrosUrl } from '@lib/filtros';
+import { formatearPrecio, formatearFecha } from '@lib/formato';
+
+const params = Astro.url.searchParams;
+const filtros = parsearFiltrosUrl(params);
+
+const [resultado, disponibles, estadisticas] = await Promise.all([
+  obtenerAvisos(filtros),
+  obtenerFiltrosDisponibles(),
+  obtenerEstadisticas(),
+]);
+---
+
+<Base titulo="CarFlip — Autos en venta en Chile">
+  <!-- Stats row -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <p class="text-xs text-gray-500 mb-1">Total avisos</p>
+      <p class="text-2xl font-bold text-gray-900">{estadisticas.total_avisos.toLocaleString('es-CL')}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <p class="text-xs text-gray-500 mb-1">Precio promedio</p>
+      <p class="text-xl font-bold text-gray-900">
+        {estadisticas.precio_promedio ? formatearPrecio(Math.round(estadisticas.precio_promedio)) : '—'}
+      </p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <p class="text-xs text-gray-500 mb-1">Autocosmos</p>
+      <p class="text-2xl font-bold text-orange-600">{estadisticas.total_autocosmos.toLocaleString('es-CL')}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <p class="text-xs text-gray-500 mb-1">Última actualización</p>
+      <p class="text-sm font-medium text-gray-700">{formatearFecha(estadisticas.ultima_actualizacion)}</p>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <FiltrosBarra filtros={filtros} disponibles={disponibles} total={resultado.total} />
+
+  <!-- Grid de avisos -->
+  {resultado.items.length > 0 ? (
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+      {resultado.items.map((aviso) => (
+        <CardAviso aviso={aviso} />
+      ))}
+    </div>
+  ) : (
+    <div class="text-center py-16 text-gray-500">
+      <p class="text-4xl mb-4" aria-hidden="true">🔍</p>
+      <p class="text-lg font-medium">No se encontraron avisos</p>
+      <p class="text-sm mt-1">Prueba con otros filtros o <a href="/" class="text-blue-700 hover:underline">ver todos</a></p>
+    </div>
+  )}
+
+  <!-- Paginación -->
+  <Paginacion
+    pagina={resultado.pagina}
+    total_paginas={resultado.total_paginas}
+    params={params}
+  />
+</Base>

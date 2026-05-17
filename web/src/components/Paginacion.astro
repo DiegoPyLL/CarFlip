@@ -1,0 +1,105 @@
+---
+interface Props {
+  pagina: number;
+  total_paginas: number;
+  params: URLSearchParams;
+}
+
+const { pagina, total_paginas, params } = Astro.props;
+
+function urlPagina(n: number): string {
+  const p = new URLSearchParams(params);
+  p.set('pagina', String(n));
+  return `/?${p.toString()}`;
+}
+
+function calcularVentana(actual: number, total: number): (number | '...')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const paginas: (number | '...')[] = [];
+  const delta = 2;
+  const izq = Math.max(2, actual - delta);
+  const der = Math.min(total - 1, actual + delta);
+
+  paginas.push(1);
+  if (izq > 2) paginas.push('...');
+  for (let i = izq; i <= der; i++) paginas.push(i);
+  if (der < total - 1) paginas.push('...');
+  paginas.push(total);
+
+  return paginas;
+}
+
+const ventana = calcularVentana(pagina, total_paginas);
+---
+
+{total_paginas > 1 && (
+  <nav aria-label="Paginación de resultados" class="flex justify-center mt-8">
+    <ul class="flex items-center gap-1">
+      <!-- Anterior -->
+      <li>
+        {pagina > 1 ? (
+          <a
+            href={urlPagina(pagina - 1)}
+            class="px-3 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+            aria-label="Página anterior"
+          >
+            ‹
+          </a>
+        ) : (
+          <span
+            aria-disabled="true"
+            class="px-3 py-2 text-sm rounded-lg text-gray-300 cursor-not-allowed"
+            aria-label="Página anterior (deshabilitada)"
+          >
+            ‹
+          </span>
+        )}
+      </li>
+
+      <!-- Números -->
+      {ventana.map((item) => (
+        <li>
+          {item === '...' ? (
+            <span class="px-2 py-2 text-sm text-gray-400" aria-hidden="true">…</span>
+          ) : item === pagina ? (
+            <span
+              aria-current="page"
+              class="px-3 py-2 text-sm font-semibold bg-blue-700 text-white rounded-lg"
+            >
+              {item}
+            </span>
+          ) : (
+            <a
+              href={urlPagina(item)}
+              class="px-3 py-2 text-sm rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+              aria-label={`Página ${item}`}
+            >
+              {item}
+            </a>
+          )}
+        </li>
+      ))}
+
+      <!-- Siguiente -->
+      <li>
+        {pagina < total_paginas ? (
+          <a
+            href={urlPagina(pagina + 1)}
+            class="px-3 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+            aria-label="Página siguiente"
+          >
+            ›
+          </a>
+        ) : (
+          <span
+            aria-disabled="true"
+            class="px-3 py-2 text-sm rounded-lg text-gray-300 cursor-not-allowed"
+            aria-label="Página siguiente (deshabilitada)"
+          >
+            ›
+          </span>
+        )}
+      </li>
+    </ul>
+  </nav>
+)}

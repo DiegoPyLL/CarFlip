@@ -1,0 +1,106 @@
+---
+import type { FiltrosAviso, FiltrosDisponibles } from '@lib/tipos';
+
+interface Props {
+  filtros: FiltrosAviso;
+  disponibles: FiltrosDisponibles;
+  total: number;
+}
+
+const { filtros, disponibles, total } = Astro.props;
+---
+
+<section class="bg-white rounded-xl shadow-sm p-4 mb-6">
+  <form method="GET" action="/" role="search" class="space-y-4">
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+      <!-- Fuente -->
+      <div class="flex flex-col gap-1">
+        <label for="fuente" class="text-xs font-medium text-gray-600">Fuente</label>
+        <select id="fuente" name="fuente" class="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Todas</option>
+          <option value="autocosmos" selected={filtros.fuente === 'autocosmos'}>Autocosmos</option>
+          <option value="mercadolibre" selected={filtros.fuente === 'mercadolibre'}>MercadoLibre</option>
+        </select>
+      </div>
+
+      <!-- Marca -->
+      <div class="flex flex-col gap-1">
+        <label for="marca" class="text-xs font-medium text-gray-600">Marca</label>
+        <select id="marca" name="marca" class="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Todas</option>
+          {disponibles.marcas.map((m) => (
+            <option value={m} selected={filtros.marca === m}>{m}</option>
+          ))}
+        </select>
+      </div>
+
+      <!-- Año -->
+      <div class="flex flex-col gap-1">
+        <label for="anio" class="text-xs font-medium text-gray-600">Año</label>
+        <select id="anio" name="anio" class="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Todos</option>
+          {disponibles.anios.map((a) => (
+            <option value={a} selected={filtros.anio === a}>{a}</option>
+          ))}
+        </select>
+      </div>
+
+      <!-- Combustible -->
+      <div class="flex flex-col gap-1">
+        <label for="combustible" class="text-xs font-medium text-gray-600">Combustible</label>
+        <select id="combustible" name="combustible" class="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Todos</option>
+          {disponibles.combustibles.map((c) => (
+            <option value={c} selected={filtros.combustible === c}>{c}</option>
+          ))}
+        </select>
+      </div>
+
+      <!-- Precio mínimo -->
+      <div class="flex flex-col gap-1">
+        <label for="precio_min" class="text-xs font-medium text-gray-600">Precio mín.</label>
+        <input
+          id="precio_min"
+          type="number"
+          name="precio_min"
+          min="0"
+          step="100000"
+          value={filtros.precio_min ?? ''}
+          placeholder="0"
+          class="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <!-- Precio máximo -->
+      <div class="flex flex-col gap-1">
+        <label for="precio_max" class="text-xs font-medium text-gray-600">Precio máx.</label>
+        <input
+          id="precio_max"
+          type="number"
+          name="precio_max"
+          min="0"
+          step="100000"
+          value={filtros.precio_max ?? ''}
+          placeholder="Sin límite"
+          class="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button
+        type="submit"
+        class="bg-blue-700 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-blue-800 transition-colors"
+      >
+        Filtrar
+      </button>
+      <a href="/" class="text-sm text-gray-500 hover:text-gray-700 transition-colors">
+        Limpiar filtros
+      </a>
+    </div>
+  </form>
+
+  <p role="status" aria-live="polite" class="mt-3 text-sm text-gray-500">
+    {total === 0 ? 'Sin resultados' : `${total.toLocaleString('es-CL')} aviso${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`}
+  </p>
+</section>

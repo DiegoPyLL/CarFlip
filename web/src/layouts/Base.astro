@@ -1,0 +1,70 @@
+---
+interface Props {
+  titulo: string;
+  descripcion?: string;
+  urlCanonica?: string;
+  urlImagen?: string;
+  tipo?: string;
+}
+
+const {
+  titulo,
+  descripcion = 'CarFlip — Encuentra oportunidades de autos en Chile. Comparamos precios de Autocosmos y MercadoLibre en tiempo real.',
+  urlCanonica = Astro.url.href,
+  urlImagen = '/og-default.png',
+  tipo = 'website',
+} = Astro.props;
+
+const tituloCompleto = titulo.endsWith('CarFlip') ? titulo : `${titulo} — CarFlip`;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1d4ed8" />
+
+    <title>{tituloCompleto}</title>
+    <meta name="description" content={descripcion} />
+    <link rel="canonical" href={urlCanonica} />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content={tipo} />
+    <meta property="og:title" content={tituloCompleto} />
+    <meta property="og:description" content={descripcion} />
+    <meta property="og:image" content={urlImagen} />
+    <meta property="og:locale" content="es_CL" />
+    <meta property="og:site_name" content="CarFlip" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={tituloCompleto} />
+    <meta name="twitter:description" content={descripcion} />
+    <meta name="twitter:image" content={urlImagen} />
+
+    <slot name="head" />
+  </head>
+  <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col">
+    <header class="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+        <a href="/" class="font-bold text-xl text-blue-700 tracking-tight">CarFlip</a>
+        <nav aria-label="Navegación principal">
+          <ul class="flex gap-6 text-sm font-medium text-gray-600">
+            <li><a href="/" class="hover:text-blue-700 transition-colors">Avisos</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+      <slot />
+    </main>
+
+    <footer class="border-t border-gray-200 bg-white mt-8">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-sm text-gray-500">
+        &copy; {new Date().getFullYear()} CarFlip &mdash; Comparador de precios de autos en Chile
+      </div>
+    </footer>
+  </body>
+</html>

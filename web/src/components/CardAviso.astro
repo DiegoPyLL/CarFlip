@@ -1,0 +1,62 @@
+---
+import type { Aviso } from '@lib/tipos';
+import { formatearPrecio, formatearKm, signosDelta } from '@lib/formato';
+
+interface Props {
+  aviso: Aviso;
+}
+
+const { aviso } = Astro.props;
+const delta = signosDelta(aviso.delta_pct);
+
+const badgeFuente = aviso.fuente === 'autocosmos'
+  ? { texto: 'Autocosmos', clases: 'bg-orange-100 text-orange-700' }
+  : { texto: 'MercadoLibre', clases: 'bg-yellow-100 text-yellow-700' };
+
+const metaItems = [
+  aviso.anio ? String(aviso.anio) : null,
+  formatearKm(aviso.km) !== '—' ? formatearKm(aviso.km) : null,
+  aviso.ubicacion ?? null,
+  aviso.combustible ?? null,
+].filter(Boolean);
+---
+
+<article class="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200">
+  <a href={`/auto/${aviso.id}`} aria-label={`Ver ${aviso.titulo}`}>
+    <div class="aspect-[4/3] bg-gray-100 rounded-t-xl overflow-hidden">
+      {aviso.url_imagen ? (
+        <img
+          src={aviso.url_imagen}
+          alt={aviso.titulo}
+          width={400}
+          height={300}
+          loading="lazy"
+          class="w-full h-full object-cover"
+        />
+      ) : (
+        <div class="w-full h-full flex items-center justify-center text-gray-400 text-sm">Sin imagen</div>
+      )}
+    </div>
+    <div class="p-4">
+      <div class="flex flex-wrap gap-1.5 mb-2">
+        <span class={`text-xs font-medium px-2 py-0.5 rounded-full ${badgeFuente.clases}`}>
+          {badgeFuente.texto}
+        </span>
+        {delta && (
+          <span class={`text-xs font-medium px-2 py-0.5 rounded-full ${delta.clases}`}>
+            {delta.texto}
+          </span>
+        )}
+      </div>
+      <h2 class="text-sm font-semibold text-gray-900 line-clamp-2 mb-2">{aviso.titulo}</h2>
+      <p class="text-lg font-bold text-blue-700 mb-3">
+        {aviso.precio ? formatearPrecio(aviso.precio, aviso.moneda) : 'Precio a consultar'}
+      </p>
+      {metaItems.length > 0 && (
+        <p class="text-xs text-gray-500 truncate">
+          {metaItems.join(' · ')}
+        </p>
+      )}
+    </div>
+  </a>
+</article>

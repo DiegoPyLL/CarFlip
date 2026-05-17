@@ -19,16 +19,21 @@ from carflip.database.models import AutocosmosListing, MercadoLibreListing
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 USE_SSL = os.environ.get("USE_SSL", "false").lower() == "true"
 
-_connect_args: dict = {}
-if USE_SSL:
-    _connect_args = {"ssl": "require", "prepared_statement_cache_size": 0}
+_engine = None
+_SessionLocal = None
 
-engine = create_async_engine(
-    DATABASE_URL,
-    poolclass=NullPool,
-    connect_args=_connect_args,
-)
-SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+
+def _get_session_factory() -> async_sessionmaker:
+    global _engine, _SessionLocal
+    if _SessionLocal is None:
+        if not DATABASE_URL:
+            raise RuntimeError("DATABASE_URL environment variable is not set")
+        connect_args: dict = {}
+        if USE_SSL:
+            connect_args = {"ssl": "require", "prepared_statement_cache_size": 0}
+        _engine = create_async_engine(DATABASE_URL, poolclass=NullPool, connect_args=connect_args)
+        _SessionLocal = async_sessionmaker(_engine, expire_on_commit=False, class_=AsyncSession)
+    return _SessionLocal
 
 app = FastAPI(title="CarFlip", description="Dashboard de avisos de autos en Chile")
 
@@ -78,7 +83,7 @@ async def get_listings(
     limit: int = Query(50, ge=1, le=200),
 ):
     results = []
-    async with SessionLocal() as session:
+    async with _get_session_factory()() as session:
         for src_name, model in _SOURCES.items():
             if source and src_name != source:
                 continue
@@ -100,7 +105,7 @@ async def get_listings(
 @app.get("/api/sources")
 async def get_sources():
     counts = []
-    async with SessionLocal() as session:
+    async with _get_session_factory()() as session:
         for src_name, model in _SOURCES.items():
             try:
                 total = (await session.execute(select(func.count()).select_from(model))).scalar_one()
