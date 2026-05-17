@@ -1,26 +1,14 @@
-# Autocosmos Scraper
+# Autocosmos Scraper — Cloud Pipeline
 
-Scraper asincrónico HTTP para [autocosmos.cl](https://www.autocosmos.cl). Obtiene avisos de autos usados con paginación automática y rate limiting.
+Scraper asincrónico HTTP para [autocosmos.cl](https://www.autocosmos.cl) con pipeline cloud completo.
+Cubre las cuatro etapas del pipeline CarFlip dentro de un solo `scrape()`:
 
-**Ubicación del módulo:** `src/carflip/scrapers/AutoCosmos/`
-
----
-
-## Instalación de dependencias
-
-### Opción 1: Desde el proyecto principal (recomendado)
-
-```bash
-uv sync
+```
+INGESTA → LIMPIEZA → VALIDACIÓN → retorno para CARGA
 ```
 
-### Opción 2: Solo este módulo
-
-```bash
-pip install -r src/carflip/scrapers/AutoCosmos/requirements.txt
-# o con uv
-uv pip install -r src/carflip/scrapers/AutoCosmos/requirements.txt
-```
+**Módulo principal:** `src/carflip/scrapers/AutoCosmos/autocosmosCloud.py`
+**Clase:** `ScraperAutocosmosCloud`
 
 ---
 
@@ -28,102 +16,95 @@ uv pip install -r src/carflip/scrapers/AutoCosmos/requirements.txt
 
 ### Integrado al runner (producción)
 
-El scraper se registra automáticamente y se ejecuta via `carflipper run` o `carflipper start`.
-No requiere configuración adicional.
+El scraper se registra en `runner.py` y se ejecuta vía los comandos CLI del proyecto.
 
 ```bash
-carflipper run       # ejecuta todos los scrapers una vez
-carflipper start     # inicia el scheduler (cada 6h)
+carflip run      # ejecuta todos los scrapers una vez
+carflip start    # inicia el scheduler (cada 6h)
 ```
 
-### Standalone — solo fetch, sin guardar
+### Standalone desde línea de comandos
+
+```bash
+# 2 páginas (por defecto)
+.venv\Scripts\python src/carflip/scrapers/AutoCosmos/autocosmosCloud.py
+
+# N páginas
+.venv\Scripts\python src/carflip/scrapers/AutoCosmos/autocosmosCloud.py 5
+```
+
+### Standalone desde Python
 
 ```python
 import asyncio
-from carflip.scrapers.AutoCosmos.autocosmos import AutocosmosClient
+from carflip.scrapers.AutoCosmos.autocosmosCloud import ScraperAutocosmosCloud
+from carflip.database.session import AsyncSessionLocal
 
 async def main():
-    async with AutocosmosClient() as client:
-        avisos = await client.fetch_usados(max_paginas=5)
-
-    for aviso in avisos:
-        print(f"{aviso.titulo} — ${aviso.precio} | {aviso.km} km | {aviso.anio}")
+    scraper = ScraperAutocosmosCloud(max_paginas=3, guardar_raw=True)
+    async with AsyncSessionLocal() as sesion:
+        resultado = await scraper.ejecutar(sesion)
+    print(f"{len(resultado.avisos)} avisos, {resultado.errores} errores")
 
 asyncio.run(main())
 ```
 
-### Standalone — fetch + exportar Markdown + descargar imágenes
-
-```python
-import asyncio
-from carflip.scrapers.AutoCosmos.autocosmos import AutocosmosClient
-
-async def main():
-    async with AutocosmosClient() as client:
-        resultados = await client.fetch_todo(max_paginas=5, guardar=True)
-
-    print(f"{len(resultados['usados'])} avisos exportados")
-
-asyncio.run(main())
-```
-
-> Esta funcionalidad (`fetch_todo`) es una utilidad de desarrollo/exploración. En producción
-> el runner usa solo `fetch_usados` + upsert a la BD.
-
-### Desde línea de comandos (script directo)
-
-```bash
-# Todas las páginas + upsert a BD
-.venv\Scripts\python -m carflip.scrapers.AutoCosmos.autocosmos
-
-# Limitar a N páginas
-.venv\Scripts\python -m carflip.scrapers.AutoCosmos.autocosmos 5
-```
-
 ---
 
-## Métodos disponibles
+## Pipeline interno de `scrape()`
 
-| Método | Descripción |
-|---|---|
-| `fetch_usados(max_paginas=None)` | Obtiene todos los avisos usados con paginación. Uso en producción. |
-| `fetch_todo(max_paginas=None, guardar=True, ruta_destino=None)` | Fetch + exporta a Markdown con imágenes. Solo para desarrollo/exploración. |
+### 1. Ingesta
 
----
+- Paginación HTTP sobre `https://www.autocosmos.cl/auto/usado?pidx=N`
+- Parseo de cards `<a href="/auto/usado/...">` con BeautifulSoup + lxml
+- Deduplicación de hrefs durante la paginación (un aviso no se procesa dos veces aunque aparezca en múltiples páginas)
+- Por página: guarda `pagina_NNN.json` en `data/raw/autocosmos_{fecha}/` y descarga imágenes en `fotos/`
+- User-Agent rotativo vía `fake-useragent`
 
-## Salida generada por `fetch_todo`
+### 2. Limpieza
 
-Por cada ejecución se crea en `settings.output_dir`:
+- Deduplicación por `id_externo` sobre el batch completo; los duplicados van a FAIL LOG con `etapa="dedup_json"`
 
+### 3. Validación
+
+Validación estructural:
+- `anio`: entero de 4 dígitos
+- `precio`: > 0
+- `km`: ≥ 0
+- `fecha_publicacion`: formato `YYYY-MM-DD`, no puede ser futura
+
+Validación semántica:
+- `anio`: entre 1970 y año actual
+- `precio`: entre $500.000 y $250.000.000 CLP
+
+Advertencia no bloqueante:
+- `km > 100.000` en autos de 2022 en adelante → `logger.warning`, el aviso igual pasa
+
+Los avisos que no superan la validación van a FAIL LOG con `etapa="validacion_json"`.
+
+### 4. FAIL LOG
+
+Al final del scrape, todos los registros de fallo se consolidan en `fail_logs.json` dentro de la carpeta del run:
+
+```json
+[
+  {
+    "timestamp": "2026-05-16T12:00:00+00:00",
+    "etapa": "validacion_json",
+    "motivo": "precio 300000 fuera de rango [500.000, 100.000.000] CLP",
+    "id_externo": "12345678",
+    "fuente": "autocosmos"
+  }
+]
 ```
-Archivos locales/
-├── autocosmos_marca_modelo_anio_<hash>.md   ← campos de cada aviso
-└── imagenes/
-    ├── autocosmos_toyota_corolla_2020_<hash>.jpg
-    └── ...
-```
 
-El Markdown incluye todos los campos de `AvisoAuto` — los nulos se muestran como `—`.
+Etapas posibles: `dedup_fotos`, `dedup_json`, `validacion_json`.
 
----
+### 5. Carga
 
-## Configuración
+`scrape()` retorna `list[AvisoAuto]` con los avisos válidos. La carga a PostgreSQL la delega `ScraperBase.ejecutar()` vía `uploader.upsert_avisos()`.
 
-Variables de entorno en `.env`:
-
-```env
-MIN_DELAY_SECONDS=2.0   # Delay mínimo entre requests (segundos)
-MAX_DELAY_SECONDS=6.0   # Delay máximo entre requests (segundos)
-OUTPUT_DIR=output        # Directorio de salida para fetch_todo
-```
-
----
-
-## Rate limiting
-
-- Delay aleatorio entre cada página: `MIN_DELAY_SECONDS` a `MAX_DELAY_SECONDS`
-- User-Agent rotativo en cada request via `fake-useragent`
-- No requiere autenticación (avisos públicos)
+La subida a S3/R2 está declarada en `_cargar_a_s3_con_retry()` pero **pendiente de implementar** (lanza `NotImplementedError`).
 
 ---
 
@@ -134,38 +115,60 @@ Cada aviso se mapea a `AvisoAuto`:
 | Campo | Fuente | Notas |
 |---|---|---|
 | `fuente` | — | Siempre `"autocosmos"` |
-| `id_externo` | URL | Segmento numérico final de la URL |
+| `id_externo` | URL | Segmento numérico final: `/auto/usado/{marca}/{modelo}/{anio}/{id}` |
 | `url` | URL | Enlace directo al aviso |
-| `titulo` | `<img alt>` | Alt de la imagen de portada; fallback al texto del card |
-| `precio` | Texto del card | Regex sobre `$` en pesos CLP |
+| `titulo` | `<img alt>` | Alt de la imagen; fallback al texto completo del card (200 chars) |
+| `precio` | Texto del card | Regex sobre `$N.NNN` en CLP |
 | `moneda` | — | Siempre `"CLP"` |
-| `marca` | URL | Segmento 4 (`/auto/usado/{marca}/...`) |
-| `modelo` | URL | Segmento 5 |
+| `marca` | URL | Segmento 4 del path, title-cased |
+| `modelo` | URL | Segmento 5 del path, title-cased |
 | `anio` | Texto del card | Regex `\b(19\|20)\d{2}\b` |
 | `km` | Texto del card | Regex sobre `N km` |
 | `ubicacion` | Texto del card | Primera parte no numérica separada por `\|` |
-| `combustible` | — | No disponible en listado; requiere visitar el detalle |
+| `combustible` | — | No disponible en el listado |
+| `descripcion` | — | No disponible en el listado |
 | `url_imagen` | `<img src>` o `data-src` | Thumbnail de portada |
-| `disponible` | — | Siempre `True` (solo se listan activos) |
-| `fecha_publicacion` | — | No disponible en listado |
+| `disponible` | — | Siempre `True` |
+| `fecha_publicacion` | — | No disponible en el listado |
 
 ---
 
-## Paginación
+## Raw data generado
 
-Autocosmos usa el parámetro `?pidx=N`:
+Con `guardar_raw=True` (por defecto) se crea en `settings.output_dir`:
 
 ```
-https://www.autocosmos.cl/auto/usado?pidx=1   ← página 1
-https://www.autocosmos.cl/auto/usado?pidx=2   ← página 2
+data/raw/
+└── autocosmos_20260516_120000/
+    ├── pagina_001.json
+    ├── pagina_002.json
+    ├── ...
+    ├── fail_logs.json
+    └── fotos/
+        ├── 12345678.jpg
+        └── ...
 ```
 
-El scraper itera hasta que la página no devuelva cards. El parámetro `max_paginas` permite
-limitar la cantidad (`None` = sin límite, valor por defecto).
+Con `guardar_raw=False` el scrape sigue funcionando pero no persiste nada en disco.
 
-La deduplicación se hace por URL a lo largo de todas las páginas mediante un `set` compartido
-entre iteraciones — si el mismo aviso aparece en el sidebar de múltiples páginas, se procesa
-una sola vez.
+---
+
+## Parámetros del constructor
+
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `max_paginas` | `int \| None` | `None` | Límite de páginas. `None` = sin límite (hasta que no haya más cards) |
+| `guardar_raw` | `bool` | `True` | Si guarda JSON y fotos en `data/raw/` |
+
+---
+
+## Configuración (`.env`)
+
+```env
+MIN_DELAY_SECONDS=2.0   # Delay mínimo entre páginas
+MAX_DELAY_SECONDS=6.0   # Delay máximo entre páginas
+OUTPUT_DIR=data/raw     # Directorio de salida para raw data
+```
 
 ---
 
@@ -178,21 +181,21 @@ una sola vez.
 | `lxml` | ≥5.2 | Backend rápido para BeautifulSoup |
 | `fake-useragent` | ≥1.5 | Rotación de User-Agent |
 | `loguru` | ≥0.7 | Logging estructurado |
-| `pydantic-settings` | ≥2.3 | Lectura de configuración desde `.env` |
-| `sqlalchemy[asyncio]` | ≥2.0 | ORM async (necesario para el bloque `__main__`) |
+| `pydantic-settings` | ≥2.3 | Lectura de `.env` |
+| `sqlalchemy[asyncio]` | ≥2.0 | ORM async |
 | `asyncpg` | ≥0.29 | Driver PostgreSQL async |
+
+Instalar con `uv sync` desde la raíz del proyecto.
 
 ---
 
 ## Limitaciones conocidas
 
-- Solo scrapea autos **usados** públicos — no requiere login.
+- Solo scrapea la sección de autos **usados** públicos.
 - `combustible`, `descripcion` y `fecha_publicacion` no están disponibles en el listado; requieren visitar el detalle de cada aviso (no implementado).
-- La extracción de `marca` y `modelo` se hace desde la URL, no desde el HTML. Si el sitio cambia el formato de URL, actualizar `_PATRON_AVISO` en `autocosmos.py`.
-- La extracción de precio, km y año se hace sobre el texto completo del card — si el sitio mueve estos datos fuera del `<a>` de la tarjeta, dejarán de extraerse.
-- No hay retry ante errores de red: un error en la página N detiene el scrape desde esa página en adelante.
-
-Ver [TODO.md](TODO.md) para el detalle completo de mejoras pendientes.
+- `marca` y `modelo` se extraen de la URL — si el sitio cambia el formato de path, actualizar `_PATRON_AVISO`.
+- La subida a S3/R2 (`_cargar_a_s3_con_retry`) está pendiente de implementar.
+- Un error de red en la página N detiene el scrape desde esa página en adelante (no hay retry por página).
 
 ---
 
@@ -200,9 +203,9 @@ Ver [TODO.md](TODO.md) para el detalle completo de mejoras pendientes.
 
 ```
 src/carflip/scrapers/AutoCosmos/
-├── autocosmos.py     ← Cliente HTTP y adaptador ScraperBase
-├── __init__.py       ← Exporta AutocosmosClient y ScraperAutocosmos
-├── requirements.txt  ← Dependencias para uso standalone
-├── TODO.md           ← Mejoras pendientes y deuda técnica
-└── README.md         ← Este archivo
+├── autocosmosCloud.py  ← Pipeline cloud completo (este módulo)
+├── autocosmos.py       ← Implementación anterior (a eliminar en Fase 1)
+├── __init__.py
+├── requirements.txt    ← Dependencias para uso standalone
+└── README.md           ← Este archivo
 ```

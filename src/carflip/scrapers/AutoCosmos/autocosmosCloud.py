@@ -36,11 +36,9 @@ URL_USADOS = f"{BASE_URL}/auto/usado"
 _PATRON_AVISO = re.compile(r"^/auto/usado/[^/]+/[^/]+/[^/]+/(\d+)")
 _PATRON_FECHA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-_AÑO_MINIMO = 1990
+_AÑO_MINIMO = 1970
 _PRECIO_MINIMO = 500_000
-_PRECIO_MAXIMO = 100_000_000
-_KM_ALTO_UMBRAL = 100_000
-_AÑO_AUTO_NUEVO = 2022
+_PRECIO_MAXIMO = 250_000_000
 
 _S3_MAX_REINTENTOS = 12   # 12 × 10 min = 2 horas
 _S3_INTERVALO_SEG  = 600  # 10 minutos
@@ -431,17 +429,6 @@ class ScraperAutocosmosCloud(ScraperBase):
         avisos_validos: list[AvisoAuto] = []
         rechazados = 0
         for aviso in avisos_unicos:
-            # Advertencia no bloqueante: km alto en auto reciente
-            if (
-                aviso.km is not None
-                and aviso.anio is not None
-                and aviso.km > _KM_ALTO_UMBRAL
-                and aviso.anio >= _AÑO_AUTO_NUEVO
-            ):
-                logger.warning(
-                    f"[autocosmos] id={aviso.id_externo} km={aviso.km:,} alto para año {aviso.anio}"
-                )
-
             errores = _validar_aviso(aviso)
             if errores:
                 logger.error(f"[autocosmos] Aviso rechazado id={aviso.id_externo}: {errores}")
