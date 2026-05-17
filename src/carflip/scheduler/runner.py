@@ -13,7 +13,7 @@ _SCRAPERS = [
 
 
 async def run_all_scrapers() -> None:
-    """Ejecuta todos los scrapers y sube los avisos a Supabase."""
+    """Ejecuta todos los scrapers y sube los avisos a PostgreSQL."""
     async with AsyncSessionLocal() as session:
         for scraper_cls in _SCRAPERS:
             scraper = scraper_cls()

@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    database_url: str = "postgresql+asyncpg://user:password@localhost:5432/carflipper"
+    database_url: str = "postgresql+asyncpg://user:password@localhost:5432/carflip"
 
     mercadolibre_app_id: str = ""
     mercadolibre_client_secret: str = ""
@@ -15,16 +15,11 @@ class Settings(BaseSettings):
     deal_threshold_pct: float = 15.0
 
     log_level: str = "INFO"
-    log_file: str = "logs/carflipper.log"
+    log_file: str = "logs/carflip.log"
 
     use_ssl: bool = False
 
-    output_dir: str = r"C:\Users\Laptop\Desktop\Trabajos\Duoc\3er Anio\1er Semestre\Gestion De Datos IA\CarFlip\Archivos locales"
-
-    # Cloud mode — usar AWS Secrets Manager en vez de variables de entorno locales
-    use_secrets_manager: bool = False
-    aws_region: str = "us-east-1"
-    secrets_manager_prefix: str = "carflipper/prod"
+    output_dir: str = "data/raw"
 
 
 settings = Settings()

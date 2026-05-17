@@ -76,7 +76,7 @@ class ScraperBase(ABC):
 
             if avisos and self.model_class is not None:
                 n = await upsert_avisos(sesion, avisos, self.model_class)
-                logger.info(f"[{self.fuente}] {n} avisos subidos a Supabase ({self.model_class.__tablename__})")
+                logger.info(f"[{self.fuente}] {n} avisos subidos a PostgreSQL ({self.model_class.__tablename__})")
         except Exception as exc:
             resultado.errores += 1
             logger.error(f"[{self.fuente}] Error fatal: {exc}")

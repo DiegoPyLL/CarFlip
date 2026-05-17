@@ -51,14 +51,3 @@ class ScrapedRun(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     items_found: Mapped[int] = mapped_column(default=0)
     errors: Mapped[int] = mapped_column(default=0)
-
-
-class SessionCookie(Base):
-    """Cookies de sesión cifradas para sitios que requieren login."""
-
-    __tablename__ = "session_cookies"
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    source: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
-    encrypted_cookies: Mapped[bytes | None] = mapped_column()
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

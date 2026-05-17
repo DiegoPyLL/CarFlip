@@ -1,5 +1,5 @@
 [project]
-name = "carflipper"
+name = "carflip"
 version = "0.1.0"
 description = "Scraper automático de portales de venta de autos en Chile"
 requires-python = ">=3.12"
@@ -16,17 +16,15 @@ dependencies = [
     "pydantic>=2.7",
     "pydantic-settings>=2.3",
     "apscheduler>=3.10",
-    "cryptography>=42.0",
     "loguru>=0.7",
     "click>=8.1",
-    "boto3>=1.34",
     "fastapi>=0.111",
     "uvicorn>=0.30",
     "jinja2>=3.1",
 ]
 
 [project.scripts]
-carflipper = "carflip.__main__:cli"
+carflip = "carflip.__main__:cli"
 
 [build-system]
 requires = ["hatchling"]
@@ -36,9 +34,6 @@ build-backend = "hatchling.build"
 packages = ["src/carflip"]
 
 [dependency-groups]
-local = [
-    "keyring>=25.2",
-]
 dev = [
     "pytest>=8.2",
     "pytest-asyncio>=0.23",
