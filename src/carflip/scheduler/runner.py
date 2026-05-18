@@ -6,10 +6,14 @@ from loguru import logger
 from carflip.database.session import AsyncSessionLocal
 from carflip.scrapers.AutoCosmos.autocosmos import ScraperAutocosmos
 from carflip.scrapers.AutoCosmos.autocosmosCloud import ScraperAutocosmosCloud
+from carflip.scrapers.Yapo.yapo import ScraperYapo
+from carflip.scrapers.Yapo.yapoCloud import ScraperYapoCloud
 
 _SCRAPERS = {
     "autocosmos": ScraperAutocosmos,
     "autocosmosCloud": ScraperAutocosmosCloud,
+    "yapo": ScraperYapo,
+    "yapoCloud": ScraperYapoCloud,
 }
 
 

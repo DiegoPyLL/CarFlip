@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: carflipper
+      POSTGRES_PASSWORD: localpassword
+      POSTGRES_DB: carflipper
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U carflipper"]
+      interval: 5s
+      retries: 5
+
+  carflipper:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      USE_SECRETS_MANAGER: "false"
+      DATABASE_URL: "postgresql+asyncpg://carflipper:localpassword@db:5432/carflipper"
+      FERNET_KEY: "${FERNET_KEY}"
+      FACEBOOK_EMAIL: "${FACEBOOK_EMAIL:-}"
+      FACEBOOK_PASSWORD: "${FACEBOOK_PASSWORD:-}"
+      MERCADOLIBRE_APP_ID: "${MERCADOLIBRE_APP_ID:-}"
+      MERCADOLIBRE_CLIENT_SECRET: "${MERCADOLIBRE_CLIENT_SECRET:-}"
+      LOG_LEVEL: "${LOG_LEVEL:-DEBUG}"
+    volumes:
+      - ./src:/app/src
+    command: ["run"]
+
+volumes:
+  pgdata:
