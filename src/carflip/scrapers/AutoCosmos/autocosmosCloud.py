@@ -8,11 +8,6 @@ Etapas cubiertas en scrape():
   4. CARGA        — delegada a ScraperBase.ejecutar() vía uploader.upsert_avisos()
 """
 
-
-#TODO (Definir formato de archivo para el log )
-
-
-
 import asyncio
 import hashlib
 import json
@@ -157,7 +152,7 @@ def _validar_aviso(aviso: AvisoAuto) -> list[str]:
 
 
 def _carpeta_run(base: Path, fecha_str: str) -> Path:
-    carpeta = base / f"autocosmos_{fecha_str}"
+    carpeta = base / fecha_str / "raw"
     (carpeta / "fotos").mkdir(parents=True, exist_ok=True)
     return carpeta
 
@@ -367,7 +362,7 @@ class ScraperAutocosmosCloud(ScraperBase):
         paginas_procesadas = 0
 
         fecha_str = inicio.strftime("%H-%M-%S_%d-%m-%Y")
-        carpeta = _carpeta_run(Path(settings.output_dir), fecha_str) if self.guardar_raw else None
+        carpeta = _carpeta_run(Path("autocosmos"), fecha_str) if self.guardar_raw else None
         ruta_jsonl = carpeta / "avisos.jsonl" if carpeta else None
 
 
@@ -534,7 +529,7 @@ class ScraperAutocosmosCloud(ScraperBase):
 
         # ── PROCESADOS (limpieza + validación superada) ──────────────────────
         if self.guardar_raw and avisos_validos:
-            carpeta_procesados = Path(settings.processed_dir) / f"autocosmos_{fecha_str}"
+            carpeta_procesados = Path("autocosmos") / fecha_str / "processed"
             carpeta_procesados.mkdir(parents=True, exist_ok=True)
             ruta_procesados = carpeta_procesados / "avisos.jsonl"
             ok = _append_avisos_jsonl(avisos_validos, ruta_procesados)
