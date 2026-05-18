@@ -42,6 +42,10 @@ class MercadoLibreListing(ListingMixin, Base):
     __tablename__ = "mercadolibre_listings"
 
 
+class YapoListing(ListingMixin, Base):
+    __tablename__ = "yapo_listings"
+
+
 class ScrapedRun(Base):
     __tablename__ = "scrape_runs"
 
