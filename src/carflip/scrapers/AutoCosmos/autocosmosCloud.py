@@ -524,7 +524,6 @@ class ScraperAutocosmosCloud(ScraperBase):
             f" ({rechazados} rechazados)"
         )
 
-<<<<<<< Updated upstream
 
 
 
@@ -533,7 +532,6 @@ class ScraperAutocosmosCloud(ScraperBase):
 
 
 
-=======
         # ── PROCESADOS (limpieza + validación superada) ──────────────────────
         if self.guardar_raw and avisos_validos:
             carpeta_procesados = Path(settings.processed_dir) / f"autocosmos_{fecha_str}"
@@ -546,7 +544,6 @@ class ScraperAutocosmosCloud(ScraperBase):
                 )
             else:
                 logger.error(f"[autocosmos] Error al escribir avisos procesados en {ruta_procesados}")
->>>>>>> Stashed changes
 
         # ── FAIL LOGs consolidados ────────────────────────────────────────────
         if fail_logs:
@@ -569,36 +566,6 @@ class ScraperAutocosmosCloud(ScraperBase):
                     f"[autocosmos] {len(fail_logs)} FAIL LOGs generados (guardar_raw=False, no persistidos)"
                 )
 
-<<<<<<< Updated upstream
-        fin = datetime.now()
-        duracion = (fin - inicio).total_seconds()
-
-        # ── RESULTADO DEL SCRAPE ──────────────────────────────────────────────
-        if self.guardar_raw and carpeta:
-            resultado_scrape = {
-                "fuente": "autocosmos",
-                "inicio": inicio.isoformat(),
-                "fin": fin.isoformat(),
-                "duracion_seg": round(duracion, 1),
-                "paginas_procesadas": paginas_procesadas,
-                "avisos_raw": len(avisos_raw),
-                "avisos_unicos": len(avisos_unicos),
-                "avisos_validos": len(avisos_validos),
-                "rechazados": rechazados,
-                "fail_logs_count": len(fail_logs),
-                "exitoso": rechazados == 0 and len(avisos_validos) > 0,
-            }
-            ruta_resultado = carpeta / "resultado_scrape.json"
-            try:
-                ruta_resultado.write_text(
-                    json.dumps(resultado_scrape, ensure_ascii=False, indent=2),
-                    encoding="utf-8",
-                )
-                logger.info(f"[autocosmos] Resultado guardado en {ruta_resultado.name}")
-            except Exception as e:
-                logger.error(f"[autocosmos] No se pudo escribir resultado_scrape.json: {e}")
-
-=======
         # ── Metadata JSONL ────────────────────────────────────────────────────
         if self.guardar_raw and ruta_jsonl and ruta_jsonl.exists():
             await _cargar_a_s3_con_retry(
@@ -607,7 +574,6 @@ class ScraperAutocosmosCloud(ScraperBase):
             )
 
         duracion = (datetime.now() - inicio).total_seconds()
->>>>>>> Stashed changes
         logger.info(
             f"[autocosmos] Scrape finalizado — {len(avisos_validos)} avisos válidos"
             f" listos para carga ({duracion:.1f}s)"
