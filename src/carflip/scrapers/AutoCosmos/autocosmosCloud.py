@@ -9,6 +9,7 @@ Etapas cubiertas en scrape():
 """
 
 import asyncio
+import hashlib
 import json
 import re
 import sys
@@ -141,7 +142,7 @@ def _carpeta_run(base: Path, fecha_str: str) -> Path:
     return carpeta
 
 
-def _aviso_a_dict(aviso: AvisoAuto) -> dict:
+def _aviso_a_dict(aviso: AvisoAuto, foto_local: str | None = None) -> dict:
     return {
         "fuente": aviso.fuente,
         "id_externo": aviso.id_externo,
@@ -157,22 +158,32 @@ def _aviso_a_dict(aviso: AvisoAuto) -> dict:
         "combustible": aviso.combustible,
         "descripcion": aviso.descripcion,
         "url_imagen": aviso.url_imagen,
+        "foto_local": foto_local,
         "disponible": aviso.disponible,
         "fecha_publicacion": aviso.fecha_publicacion,
     }
 
 
-def _guardar_json_pagina(avisos: list[AvisoAuto], pagina: int, carpeta: Path) -> bool:
-    ruta = carpeta / f"pagina_{pagina:03d}.json"
+def _append_avisos_jsonl(
+    avisos: list[AvisoAuto],
+    ruta_jsonl: Path,
+    fotos: dict[str, str] | None = None,
+) -> bool:
+    """Append avisos a un JSONL, una línea por aviso."""
+    if fotos is None:
+        fotos = {}
     try:
-        ruta.write_text(
-            json.dumps([_aviso_a_dict(a) for a in avisos], ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        logger.debug(f"[autocosmos] JSON página {pagina} guardado → {ruta.name}")
+        with open(ruta_jsonl, "a", encoding="utf-8") as f:
+            for aviso in avisos:
+                linea = json.dumps(
+                    _aviso_a_dict(aviso, foto_local=fotos.get(aviso.id_externo)),
+                    ensure_ascii=False,
+                )
+                f.write(linea + "\n")
+        logger.debug(f"[autocosmos] {len(avisos)} avisos appended a {ruta_jsonl.name}")
         return True
     except Exception as e:
-        logger.error(f"[autocosmos] Error guardando JSON página {pagina}: {e}")
+        logger.error(f"[autocosmos] Error appending avisos a JSONL: {e}")
         return False
 
 
@@ -185,9 +196,10 @@ async def _descargar_imagen(
     if not aviso.url_imagen:
         return None
     ext = Path(aviso.url_imagen.split("?")[0]).suffix or ".jpg"
-    ruta = carpeta_fotos / f"{aviso.id_externo}{ext}"
+    sha256 = hashlib.sha256(aviso.url_imagen.encode()).hexdigest()
+    ruta = carpeta_fotos / f"{sha256}{ext}"
     if ruta.exists():
-        logger.debug(f"[autocosmos] Imagen ya existe: {ruta.name}")
+        logger.debug(f"[autocosmos] Imagen ya existe (hash={sha256[:16]}...): {ruta.name}")
         return ruta
     try:
         resp = await cliente.get(aviso.url_imagen, headers={"User-Agent": ua.random}, timeout=20.0)
@@ -331,6 +343,7 @@ class ScraperAutocosmosCloud(ScraperBase):
 
         fecha_str = inicio.strftime("%Y%m%d_%H%M%S")
         carpeta = _carpeta_run(Path(settings.output_dir), fecha_str) if self.guardar_raw else None
+        ruta_jsonl = carpeta / "avisos.jsonl" if carpeta else None
 
         # ── INGESTA ──────────────────────────────────────────────────────────
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as cliente:
@@ -366,17 +379,9 @@ class ScraperAutocosmosCloud(ScraperBase):
                     except Exception as e:
                         logger.warning(f"[autocosmos] Error parseando card en página {pagina}: {e}")
 
-                # Batch: guardar JSON + descargar fotos antes de avanzar página
+                # Batch: descargar fotos antes de avanzar página
+                fotos_pagina: dict[str, str] = {}
                 if self.guardar_raw and carpeta and avisos_pagina:
-                    ok = _guardar_json_pagina(avisos_pagina, pagina, carpeta)
-                    if not ok:
-                        for aviso in avisos_pagina:
-                            fail_logs.append(FailLog(
-                                etapa="dedup_json",
-                                motivo=f"Error al serializar JSON página {pagina}",
-                                id_externo=aviso.id_externo,
-                            ))
-
                     carpeta_fotos = carpeta / "fotos"
                     tareas_img = [
                         _descargar_imagen(cliente, a, carpeta_fotos, self._ua)
@@ -387,12 +392,25 @@ class ScraperAutocosmosCloud(ScraperBase):
                         resultados = await asyncio.gather(*tareas_img, return_exceptions=True)
                         avisos_con_imagen = [a for a in avisos_pagina if a.url_imagen]
                         for aviso, resultado in zip(avisos_con_imagen, resultados):
-                            if resultado is None or isinstance(resultado, Exception):
+                            if isinstance(resultado, Path):
+                                fotos_pagina[aviso.id_externo] = resultado.name
+                            elif resultado is None or isinstance(resultado, Exception):
                                 fail_logs.append(FailLog(
                                     etapa="dedup_fotos",
                                     motivo="Descarga de imagen fallida",
                                     id_externo=aviso.id_externo,
                                 ))
+
+                # Append JSONL
+                if self.guardar_raw and ruta_jsonl and avisos_pagina:
+                    ok = _append_avisos_jsonl(avisos_pagina, ruta_jsonl, fotos=fotos_pagina)
+                    if not ok:
+                        for aviso in avisos_pagina:
+                            fail_logs.append(FailLog(
+                                etapa="dedup_json",
+                                motivo=f"Error al serializar JSONL página {pagina}",
+                                id_externo=aviso.id_externo,
+                            ))
 
                 avisos_raw.extend(avisos_pagina)
                 logger.debug(f"[autocosmos] Página {pagina}: {len(avisos_pagina)} avisos obtenidos")
