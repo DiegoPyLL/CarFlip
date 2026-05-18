@@ -1,3 +1,3 @@
-from carflip.scrapers.AutoCosmos.autocosmos import AutocosmosClient, ScraperAutocosmos
+from carflip.scrapers.AutoCosmos.autocosmosCloud import ScraperAutocosmosCloud
 
-__all__ = ["AutocosmosClient", "ScraperAutocosmos"]
+__all__ = ["ScraperAutocosmosCloud"]

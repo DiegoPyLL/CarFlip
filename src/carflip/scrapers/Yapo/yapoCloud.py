@@ -1,12 +1,19 @@
 """
 Pipeline cloud completo para Yapo Chile.
+
+Etapas cubiertas en scrape():
+  1. INGESTA      — navegación Playwright, extracción JS, descarga de fotos, guardado JSON por aviso
+  2. LIMPIEZA     — deduplicación por id_externo
+  3. VALIDACIÓN   — validación estructural y semántica; avisos inválidos van a FAIL LOG
+  4. CARGA        — delegada a ScraperBase.ejecutar() vía uploader.upsert_avisos()
 """
 
 import asyncio
 import json
 import re
+import sys
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -16,10 +23,6 @@ from playwright.async_api import async_playwright
 from carflip.config import settings
 from carflip.database.models import YapoListing
 from carflip.scrapers.base import AvisoAuto, ScraperBase
-
-BASE_DIR = Path(__file__).parents[4]
-RAW_DIR = BASE_DIR / "data" / "raw"
-RAW_DIR.mkdir(parents=True, exist_ok=True)
 
 YAPO_BASE = "https://www.yapo.cl"
 _AÑO_MINIMO = 1970
@@ -36,6 +39,9 @@ _HEADERS_HTTP = {
 }
 
 
+# ─── FAIL LOG ────────────────────────────────────────────────────────────────
+
+
 @dataclass
 class FailLog:
     etapa: str
@@ -43,6 +49,9 @@ class FailLog:
     id_externo: str
     fuente: str = "yapo"
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+# ─── CARGA R2 ────────────────────────────────────────────────────────────────
 
 
 async def _cargar_a_r2_con_retry(ruta_local: Path, clave_r2: str) -> bool:
@@ -67,11 +76,44 @@ async def _cargar_a_r2_con_retry(ruta_local: Path, clave_r2: str) -> bool:
                 return True
             except Exception as exc:
                 if intento < _R2_MAX_REINTENTOS:
-                    logger.warning(f"[yapo] R2 upload fallido intento {intento}/{_R2_MAX_REINTENTOS}: {exc}. Reintentando.")
+                    logger.warning(
+                        f"[yapo] R2 upload fallido intento {intento}/{_R2_MAX_REINTENTOS}"
+                        f" — {clave_r2}: {exc}. Reintentando en {_R2_INTERVALO_SEG // 60} min."
+                    )
                     await asyncio.sleep(_R2_INTERVALO_SEG)
                 else:
-                    logger.error(f"[yapo] R2 upload agotó reintentos: {clave_r2} — {exc}")
+                    logger.error(
+                        f"[yapo] R2 upload agotó {_R2_MAX_REINTENTOS} reintentos: {clave_r2} — {exc}"
+                    )
     return False
+
+
+# ─── HELPERS DE ALMACENAMIENTO RAW ───────────────────────────────────────────
+
+
+def _aviso_a_dict(aviso: AvisoAuto) -> dict:
+    return {
+        "fuente": aviso.fuente,
+        "id_externo": aviso.id_externo,
+        "url": aviso.url,
+        "titulo": aviso.titulo,
+        "precio": str(aviso.precio) if aviso.precio is not None else None,
+        "moneda": aviso.moneda,
+        "marca": aviso.marca,
+        "modelo": aviso.modelo,
+        "anio": aviso.anio,
+        "km": aviso.km,
+        "ubicacion": aviso.ubicacion,
+        "combustible": aviso.combustible,
+        "descripcion": aviso.descripcion,
+        "url_imagen": aviso.url_imagen,
+        "foto_local": getattr(aviso, "_foto_local", None),
+        "disponible": aviso.disponible,
+        "fecha_publicacion": aviso.fecha_publicacion,
+    }
+
+
+# ─── SCRAPER CLOUD ────────────────────────────────────────────────────────────
 
 
 class ScraperYapoCloud(ScraperBase):
@@ -173,7 +215,9 @@ class ScraperYapoCloud(ScraperBase):
 
         if aviso.precio is not None:
             if not (_PRECIO_MINIMO <= float(aviso.precio) <= _PRECIO_MAXIMO):
-                errores.append(f"precio {aviso.precio} fuera de rango")
+                errores.append(
+                    f"precio {aviso.precio} fuera de rango [{_PRECIO_MINIMO:,}, {_PRECIO_MAXIMO:,}] CLP"
+                )
 
         return errores
 
@@ -192,12 +236,15 @@ class ScraperYapoCloud(ScraperBase):
             return False
 
     async def scrape(self) -> list[AvisoAuto]:
-        inicio = datetime.now()
-        fecha_str = inicio.strftime("%Y%m%d_%H%M%S")
-        carpeta = RAW_DIR / f"yapo_{fecha_str}"
+        utc_4 = timezone(timedelta(hours=-4))
+        inicio = datetime.now(utc_4)
+        fecha_str = inicio.strftime("%H-%M-%S_%d-%m-%Y")
+        carpeta = Path("yapo") / fecha_str / "raw"
         carpeta_fotos = carpeta / "fotos"
         carpeta_fotos.mkdir(parents=True, exist_ok=True)
         ruta_jsonl = carpeta / "avisos.jsonl"
+
+        logger.info(f"[yapo] Iniciando scrape cloud — {inicio.strftime('%H:%M:%S %d/%m/%Y')}")
 
         fail_logs: list[FailLog] = []
         avisos_raw: list[dict] = []
@@ -213,9 +260,9 @@ class ScraperYapoCloud(ScraperBase):
             page = await ctx.new_page()
             await page.route("**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,otf}", lambda route: route.abort())
 
-            # INGESTA: listado
+            # ── INGESTA: listado ──────────────────────────────────────────────
             base_url = f"{YAPO_BASE}/region_metropolitana/autos"
-            for pagina in range(1, 4):  # limit to 3 pages
+            for pagina in range(1, 4):
                 url = f"{base_url}?o={pagina}" if pagina > 1 else base_url
                 logger.info(f"[yapo] Listado página {pagina}: {url}")
                 try:
@@ -248,7 +295,7 @@ class ScraperYapoCloud(ScraperBase):
                         "fecha": await _safe("time, [class*='date']") or datetime.now().strftime("%Y-%m-%d"),
                     })
 
-            # INGESTA: detalles
+            # ── INGESTA: detalles ─────────────────────────────────────────────
             for i, info in enumerate(avisos_info, 1):
                 logger.debug(f"[yapo] Detalle {i}/{len(avisos_info)}: {info['url']}")
                 url = info["url"]
@@ -271,6 +318,14 @@ class ScraperYapoCloud(ScraperBase):
                 img_url = attrs.get("imagen_url", "")
                 ruta_foto = carpeta_fotos / f"{aviso_id}.jpg"
                 foto_ok = await self._descargar_imagen(img_url, ruta_foto)
+                if foto_ok:
+                    logger.debug(f"[yapo] Imagen descargada: id={aviso_id}")
+                elif img_url:
+                    fail_logs.append(FailLog(
+                        etapa="descarga_foto",
+                        motivo="Descarga de imagen fallida",
+                        id_externo=aviso_id,
+                    ))
                 marca = self._get_attr(attrs, "Marca") or None
                 modelo = self._get_attr(attrs, "Modelo") or None
 
@@ -299,23 +354,43 @@ class ScraperYapoCloud(ScraperBase):
                     with open(ruta_jsonl, "a", encoding="utf-8") as f:
                         f.write(json.dumps(registro, ensure_ascii=False) + "\n")
                 except Exception as e:
-                    fail_logs.append(FailLog(etapa="dedup_json", motivo=f"Error JSONL: {e}", id_externo=registro["id_externo"]))
+                    fail_logs.append(FailLog(
+                        etapa="dedup_json",
+                        motivo=f"Error JSONL: {e}",
+                        id_externo=registro["id_externo"],
+                    ))
 
             await ctx.close()
             await browser.close()
 
-        # LIMPIEZA
+        logger.info(f"[yapo] Ingesta completa — {len(avisos_raw)} avisos")
+
+
+        # ── LIMPIEZA (deduplicación por id_externo) ───────────────────────────
         vistos: set[str] = set()
         avisos_unicos: list[dict] = []
         for av in avisos_raw:
             if av["id_externo"] in vistos:
-                fail_logs.append(FailLog(etapa="dedup_json", motivo="id_externo duplicado", id_externo=av["id_externo"]))
+                logger.warning(f"[yapo] Duplicado detectado id={av['id_externo']}, descartando")
+                fail_logs.append(FailLog(
+                    etapa="dedup_json",
+                    motivo="id_externo duplicado entre páginas",
+                    id_externo=av["id_externo"],
+                ))
             else:
                 vistos.add(av["id_externo"])
                 avisos_unicos.append(av)
 
-        # VALIDACION
+        dups = len(avisos_raw) - len(avisos_unicos)
+        logger.info(
+            f"[yapo] Deduplicación: {len(avisos_raw)} → {len(avisos_unicos)} únicos"
+            f" ({dups} descartados)"
+        )
+
+
+        # ── VALIDACIÓN ────────────────────────────────────────────────────────
         avisos_validos: list[AvisoAuto] = []
+        rechazados = 0
         for av in avisos_unicos:
             av_auto = AvisoAuto(
                 fuente=av["fuente"],
@@ -332,32 +407,110 @@ class ScraperYapoCloud(ScraperBase):
                 combustible=av["combustible"],
                 url_imagen=av["url_imagen"],
                 disponible=av["disponible"],
-                fecha_publicacion=av["fecha_publicacion"]
+                fecha_publicacion=av["fecha_publicacion"],
             )
             errores = self._validar_aviso(av_auto)
             if errores:
-                fail_logs.append(FailLog(etapa="validacion_json", motivo="; ".join(errores), id_externo=av["id_externo"]))
+                logger.error(f"[yapo] Aviso rechazado id={av['id_externo']}: {errores}")
+                fail_logs.append(FailLog(
+                    etapa="validacion_json",
+                    motivo="; ".join(errores),
+                    id_externo=av["id_externo"],
+                ))
+                rechazados += 1
             else:
                 setattr(av_auto, "_foto_local", av.get("foto_local"))
                 avisos_validos.append(av_auto)
 
-        # FAIL LOGS
-        if fail_logs:
-            ruta_fail = carpeta / "fail_logs.json"
-            try:
-                ruta_fail.write_text(json.dumps([asdict(fl) for fl in fail_logs], ensure_ascii=False, indent=2), encoding="utf-8")
-            except Exception as e:
-                logger.error(f"[yapo] No se pudo escribir fail_logs: {e}")
+        logger.info(
+            f"[yapo] Validación: {len(avisos_validos)}/{len(avisos_unicos)} avisos pasan"
+            f" ({rechazados} rechazados)"
+        )
 
-        # CARGA R2
+
+        # ── PROCESADOS (limpieza + validación superada) ──────────────────────
+        if avisos_validos:
+            carpeta_procesados = Path("yapo") / fecha_str / "processed"
+            carpeta_procesados.mkdir(parents=True, exist_ok=True)
+            ruta_procesados = carpeta_procesados / "avisos.jsonl"
+            try:
+                with open(ruta_procesados, "a", encoding="utf-8") as f:
+                    for av in avisos_validos:
+                        f.write(json.dumps(_aviso_a_dict(av), ensure_ascii=False) + "\n")
+                logger.info(
+                    f"[yapo] {len(avisos_validos)} avisos procesados escritos en {ruta_procesados}"
+                )
+            except Exception as e:
+                logger.error(f"[yapo] Error al escribir avisos procesados en {ruta_procesados}: {e}")
+
+        # ── CARGA R2 — fotos ──────────────────────────────────────────────────
         for av in avisos_validos:
             foto = getattr(av, "_foto_local", None)
             if foto:
                 ruta_local = carpeta_fotos / foto
                 clave_r2 = f"yapo/fotos/{foto}"
-                await _cargar_a_r2_con_retry(ruta_local, clave_r2)
+                foto_ok_r2 = await _cargar_a_r2_con_retry(ruta_local, clave_r2)
+                if not foto_ok_r2:
+                    fail_logs.append(FailLog(
+                        etapa="upload_foto",
+                        motivo="R2 upload de imagen agotó reintentos",
+                        id_externo=av.id_externo,
+                    ))
 
+        # ── Metadata JSONL → R2 (antes de FAIL LOGs para incluir el error si falla) ──
         if ruta_jsonl.exists():
-            await _cargar_a_r2_con_retry(ruta_jsonl, f"yapo/metadata/{ruta_jsonl.name}")
+            metadata_ok = await _cargar_a_r2_con_retry(
+                ruta_jsonl,
+                f"yapo/metadata/{fecha_str}-{ruta_jsonl.name}",
+            )
+            if not metadata_ok:
+                fail_logs.append(FailLog(
+                    etapa="upload_metadata",
+                    motivo="R2 upload de avisos.jsonl agotó reintentos",
+                    id_externo="avisos.jsonl",
+                ))
 
+        # ── FAIL LOGs consolidados ────────────────────────────────────────────
+        if fail_logs:
+            ruta_fail = carpeta / "fail_logs.json"
+            try:
+                ruta_fail.write_text(
+                    json.dumps([asdict(fl) for fl in fail_logs], ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+                logger.info(f"[yapo] {len(fail_logs)} FAIL LOGs escritos en {ruta_fail}")
+                await _cargar_a_r2_con_retry(
+                    ruta_fail,
+                    f"yapo/logs/{fecha_str}-{ruta_fail.name}",
+                )
+            except Exception as e:
+                logger.error(f"[yapo] No se pudo escribir fail_logs.json: {e}")
+
+        duracion = (datetime.now(utc_4) - inicio).total_seconds()
+        logger.info(
+            f"[yapo] Scrape finalizado — {len(avisos_validos)} avisos válidos"
+            f" listos para carga ({duracion:.1f}s)"
+        )
         return avisos_validos
+
+
+# ─── ENTRYPOINT STANDALONE ───────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    from carflip.database.session import AsyncSessionLocal
+
+    logger.remove()
+    logger.add(sys.stderr, level=settings.log_level, colorize=True,
+               format="<green>{time:HH:mm:ss}</green> | <level>{level: <7}</level> | {message}")
+    logger.add(settings.log_file, level="DEBUG", rotation="10 MB", retention="30 days", enqueue=True)
+
+    async def _main() -> None:
+        scraper = ScraperYapoCloud()
+        async with AsyncSessionLocal() as sesion:
+            resultado = await scraper.ejecutar(sesion)
+        logger.info(
+            f"[yapo] ejecutar() finalizado — {len(resultado.avisos)} avisos,"
+            f" {resultado.errores} errores"
+        )
+
+    asyncio.run(_main())

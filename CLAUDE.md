@@ -18,11 +18,11 @@ Estas decisiones se tomaron el 2026-05-11 y rigen todo el desarrollo futuro:
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
 | Naming del código | Todo en español:`AvisoAuto`, `ScraperBase`, `ejecutar()`, `espera_aleatoria()`                                     |
 | Arquitectura       | EC2 + TMUX + APScheduler: N scrapers paralelos en sesiones TMUX independientes                                              |
-| Almacenamiento raw | `data/raw/` local en EC2 (efímero) — Cloudflare R2 recibe imágenes AVIF validadas; PostgreSQL recibe metadata validada |
+| Almacenamiento raw | Scraper → S3 (intermediario) → Cloudflare R2 (CDN); PostgreSQL recibe metadata validada |
 | Base de datos      | PostgreSQL async (SQLAlchemy 2.0 + asyncpg + Alembic)                                                                       |
 | Scraping HTTP      | httpx + BeautifulSoup4 + lxml para los 5 sitios                                                                             |
 | Scraping headless  | Playwright + stealth se mantiene en dependencias como reserva                                                               |
-| Credenciales       | Solo `.env` — eliminar keyring, Fernet, AWS Secrets Manager                                                              |
+| Credenciales       | Solo `.env` (MercadoLibre API + S3) — sin keyring, Fernet, AWS Secrets Manager                                          |
 | CLI                | Mantener click:`carflip run`, `carflip start`, `carflip market`                                                       |
 | Logging            | loguru (no `print()` nunca)                                                                                               |
 | Tests              | pytest + pytest-asyncio + pytest-mock                                                                                       |
@@ -61,20 +61,19 @@ INGESTA (EC2 + TMUX)
 APScheduler lanza N scrapers (uno por portal) como subprocesos en sesiones TMUX separadas.
 Cada scraper ejecuta ScraperBase.ejecutar() que:
   1. scraper.scrape() → retorna list[AvisoAuto]
-  2. Serializa cada aviso a JSON y guarda fotos en formato original
+  2. Descarga fotos en formato original
+  3. Sube fotos a S3 (intermediario) con reintentos (12 intentos × 10 min = 2 horas)
+  4. Serializa avisos a JSON
+  5. Retorna list[AvisoAuto] para carga a DB
 
-Output por scraper: fotos (formato original) + metadata.json
-Guardado en: data/raw/{fuente}_{fecha}/ en EC2 (efímero)
-Batch upload en cola por página
-
-El upsert a PostgreSQL NO ocurre en esta etapa — ocurre al final del pipeline,
-después de limpieza y validación.
+El upsert a PostgreSQL ocurre automáticamente via ScraperBase.ejecutar()
+después que el scraper retorna los avisos.
 
 
-LIMPIEZA Y TRANSFORMACIÓN (pipeline ETL)
-─────────────────────────────────────────
-Fotos:
-  1. Deduplicación de imágenes
+LIMPIEZA Y TRANSFORMACIÓN (pipeline S3 → R2)
+──────────────────────────────────────────────
+Fotos en S3:
+  1. Deduplicación de imágenes (hash-based)
        └─ FAIL LOG si error: {timestamp, etapa="dedup_fotos", motivo, id_externo, fuente}
   2. Conversión a AVIF (si no están en AVIF)
        └─ FAIL LOG si conversión falla: {timestamp, etapa="conversion_avif", motivo, id_externo, fuente}
@@ -90,17 +89,23 @@ AVIF + JSON pasan por validación de campos (estructural y semántica, ver secci
   └─ FAIL LOG si falla: {timestamp, etapa="validacion_avif"|"validacion_json", motivo, id_externo, fuente}
 
 
-CARGA
-─────
+CARGA FINAL (S3 → R2)
+────────────────────
 FAIL LOGs → audit store (consolidados)
 AVIF validadas → Cloudflare R2 CDN (retry x5 durante 2 horas)
-JSON validado  → PostgreSQL via upsert (retry x5 durante 2 horas)
-Visualización  → Vercel (consume PostgreSQL)
+JSON validado  → Eliminado de S3 tras validación exitosa
+Visualización  → Vercel (consume PostgreSQL + imágenes de R2)
 ```
 
 ### Patrón de scrapers
 
-Todos los scrapers heredan de `ScraperBase` en `src/carflip/scrapers/base.py`. El único método a implementar es `scrape() -> list[AvisoAuto]`. El método `ejecutar()` de la clase base gestiona logging, timing, manejo de errores y el upload automático a PostgreSQL — no sobreescribirlo.
+Todos los scrapers heredan de `ScraperBase` en `src/carflip/scrapers/base.py`. El único método a implementar es `scrape() -> list[AvisoAuto]`. El método `ejecutar()` de la clase base gestiona logging, timing, manejo de errores y el upsert automático a PostgreSQL — nunca sobreescribir `ejecutar()`.
+
+Dentro de `scrape()`, el scraper puede:
+  1. Hacer requests HTTP para obtener avisos
+  2. Descargar fotos (opcional)
+  3. Subir fotos a S3 con reintentos (opcional)
+  4. Retornar `list[AvisoAuto]` — `ejecutar()` se encarga del upsert a PostgreSQL
 
 Cada scraper declara un atributo de clase `model_class` apuntando a su modelo SQLAlchemy (tabla en PostgreSQL). Sin `model_class`, `ejecutar()` igual funciona pero no sube a la BD:
 
@@ -110,7 +115,11 @@ class ScraperAutocosmos(ScraperBase):
     model_class = AutocosmosListing  # → tabla autocosmos_listings
 
     async def scrape(self) -> list[AvisoAuto]:
-        ...
+        # 1. Scraping HTTP
+        # 2. Descarga de fotos (opcional)
+        # 3. Upload a S3 (opcional, con reintentos)
+        # 4. Retornar avisos
+        return avisos
 ```
 
 Siempre llamar `await self.espera_aleatoria()` entre requests para respetar el rate limiting. El rango de delay está en `settings.min_delay_seconds` / `settings.max_delay_seconds`.
@@ -247,6 +256,13 @@ DATABASE_URL=postgresql+asyncpg://usuario:password@localhost:5432/carflip
 MERCADOLIBRE_APP_ID=tu_app_id
 MERCADOLIBRE_CLIENT_SECRET=tu_client_secret
 
+# S3 (intermediario antes de R2)
+S3_ACCESS_KEY_ID=tu_access_key
+S3_SECRET_ACCESS_KEY=tu_secret_key
+S3_REGION=us-east-1
+S3_BUCKET=carflip-raw
+S3_PREFIX=raw/
+
 # Delays entre requests (rate limiting)
 MIN_DELAY_SECONDS=2.0
 MAX_DELAY_SECONDS=6.0
@@ -262,7 +278,10 @@ LOG_LEVEL=INFO
 LOG_FILE=logs/carflip.log
 ```
 
-Simplificación respecto a v0.1.0: se eliminan `use_secrets_manager`, `aws_region`, `secrets_manager_prefix` y toda referencia a keyring/Fernet.
+Notas:
+- Credenciales sensibles (MERCADOLIBRE_CLIENT_SECRET, S3_SECRET_ACCESS_KEY) solo en `.env`
+- `.env` nunca se commitea
+- Simplificación respecto a v0.1.0: se eliminan `use_secrets_manager`, `aws_region`, `secrets_manager_prefix` y toda referencia a keyring/Fernet
 
 ---
 
@@ -422,9 +441,9 @@ from carflip.scrapers.base import AvisoAuto, ResultadoScraping
 ### Credenciales
 
 - Credenciales: exclusivamente en `.env` — eliminados keyring, Fernet, AWS Secrets Manager
-- `.env` contiene: `DATABASE_URL`, `MERCADOLIBRE_APP_ID`, `MERCADOLIBRE_CLIENT_SECRET`, delays, thresholds
-- `MERCADOLIBRE_CLIENT_SECRET` es la única clave sensible aceptada en `.env` (requerido por la API de ML)
-- Nunca en logs ni en output del CLI: passwords, tokens, conexión a BD
+- `.env` contiene: `DATABASE_URL`, `MERCADOLIBRE_*`, `S3_*`, delays, thresholds
+- Claves sensibles aceptadas en `.env`: `MERCADOLIBRE_CLIENT_SECRET`, `S3_SECRET_ACCESS_KEY`
+- Nunca en logs ni en output del CLI: passwords, tokens, conexión a BD, claves de S3
 
 ### Errores — nunca exponer internos
 
@@ -575,7 +594,7 @@ No agregar excepciones al `.gitignore` sin justificación explícita.
 ## Prohibiciones
 
 - No `print()` en ningún módulo de `src/` — usar `logger`.
-- No passwords ni claves en `.env` excepto `MERCADOLIBRE_CLIENT_SECRET` (requerido por API).
+- No passwords ni claves en `.env` excepto `MERCADOLIBRE_CLIENT_SECRET` + `S3_SECRET_ACCESS_KEY` (requeridos por APIs).
 - No queries SQL con concatenación de strings — siempre parámetros vinculados.
 - No `asyncio.run()` dentro de coroutines.
 - No Playwright donde alcanza httpx.
@@ -636,4 +655,4 @@ No agregar excepciones al `.gitignore` sin justificación explícita.
 
 ---
 
-*Última actualización: 2026-05-16 — v0.2.0-dev*
+*Última actualización: 2026-05-18 — v0.2.0-dev (flujo scraper → S3 → R2)*

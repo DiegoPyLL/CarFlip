@@ -29,12 +29,9 @@ from bs4 import BeautifulSoup, Tag
 from fake_useragent import UserAgent
 from loguru import logger
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from carflip.config import settings
 from carflip.database.models import AutocosmosListing
-from carflip.database.uploader import guardar_resultado_scraping
-from carflip.scrapers.base import AvisoAuto, ResultadoScraping, ScraperBase
+from carflip.scrapers.base import AvisoAuto, ScraperBase
 
 BASE_URL = "https://www.autocosmos.cl"
 URL_USADOS = f"{BASE_URL}/auto/usado"
@@ -345,11 +342,6 @@ class ScraperAutocosmosCloud(ScraperBase):
         self.max_paginas = max_paginas
         self.guardar_raw = guardar_raw
         self._ua = UserAgent()
-
-    async def ejecutar(self, sesion: AsyncSession) -> ResultadoScraping:
-        resultado = await super().ejecutar(sesion)
-        await guardar_resultado_scraping(sesion, resultado)
-        return resultado
 
     async def scrape(self) -> list[AvisoAuto]:
         utc_4 = timezone(timedelta(hours=-4))
