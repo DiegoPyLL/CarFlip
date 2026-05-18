@@ -32,17 +32,35 @@ def cli() -> None:
 @cli.command()
 def start() -> None:
     """Inicia el scheduler automático."""
-    from carflip.scheduler.runner import run_all_scrapers, start_scheduler
+    from carflip.scheduler.runner import run_scrapers, start_scheduler
     logger.info("Ejecutando primer ciclo antes de iniciar el scheduler...")
-    asyncio.run(run_all_scrapers())
+    asyncio.run(run_scrapers("all"))
     start_scheduler(settings.scrape_interval_hours)
 
 
 @cli.command("run")
-def run_once() -> None:
-    """Ejecuta todos los scrapers una sola vez."""
-    from carflip.scheduler.runner import run_all_scrapers
-    asyncio.run(run_all_scrapers())
+@click.option("--scraper", default=None, help="Nombre del scraper a ejecutar (ej. autocosmosCloud)")
+def run_once(scraper: str | None) -> None:
+    """Ejecuta todos los scrapers o uno específico."""
+    from carflip.scheduler.runner import _SCRAPERS, run_scrapers
+    
+    if scraper is None:
+        click.echo("Scrapers disponibles:")
+        click.echo("0. Todos")
+        scraper_names = list(_SCRAPERS.keys())
+        for i, name in enumerate(scraper_names):
+            click.echo(f"{i + 1}. {name}")
+            
+        opcion = click.prompt("\nSeleccione qué ejecutar", type=int, default=0)
+        if opcion == 0:
+            scraper = "all"
+        elif 1 <= opcion <= len(scraper_names):
+            scraper = scraper_names[opcion - 1]
+        else:
+            click.echo("Opción inválida.")
+            return
+
+    asyncio.run(run_scrapers(scraper))
 
 
 @cli.command()
