@@ -28,7 +28,6 @@ from fake_useragent import UserAgent
 from loguru import logger
 
 from carflip.config import settings
-from carflip.database.models import AutocosmosListing
 from carflip.scrapers.base import AvisoAuto, ScraperBase
 
 BASE_URL = "https://www.autocosmos.cl"
@@ -258,8 +257,8 @@ def _parsear_aviso(tag: Tag) -> AvisoAuto | None:
     if not match:
         return None
 
-    id_externo = match.group(1)
     url = urljoin(BASE_URL, href)
+    id_externo = hashlib.sha256(url.encode()).hexdigest()
 
     partes = href.rstrip("/").split("/")
     marca = partes[3].replace("-", " ").title() if len(partes) > 3 else None
@@ -325,7 +324,8 @@ class ScraperAutocosmosCloud(ScraperBase):
     """
 
     fuente = "autocosmos"
-    model_class = AutocosmosListing
+    # TODO: reconectar cuando PostgreSQL esté disponible en EC2
+    model_class = None  # AutocosmosListing
 
     def __init__(self, max_paginas: int | None = None, guardar_raw: bool = True) -> None:
         self.max_paginas = max_paginas
