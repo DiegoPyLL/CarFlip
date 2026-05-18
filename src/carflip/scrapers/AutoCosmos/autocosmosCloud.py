@@ -9,6 +9,7 @@ Etapas cubiertas en scrape():
 """
 
 
+#TODO (Definir formato de archivo para el log )
 
 
 
@@ -33,9 +34,12 @@ from bs4 import BeautifulSoup, Tag
 from fake_useragent import UserAgent
 from loguru import logger
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from carflip.config import settings
 from carflip.database.models import AutocosmosListing
-from carflip.scrapers.base import AvisoAuto, ScraperBase
+from carflip.database.uploader import guardar_resultado_scraping
+from carflip.scrapers.base import AvisoAuto, ResultadoScraping, ScraperBase
 
 BASE_URL = "https://www.autocosmos.cl"
 URL_USADOS = f"{BASE_URL}/auto/usado"
@@ -347,6 +351,11 @@ class ScraperAutocosmosCloud(ScraperBase):
         self.guardar_raw = guardar_raw
         self._ua = UserAgent()
 
+    async def ejecutar(self, sesion: AsyncSession) -> ResultadoScraping:
+        resultado = await super().ejecutar(sesion)
+        await guardar_resultado_scraping(sesion, resultado)
+        return resultado
+
     async def scrape(self) -> list[AvisoAuto]:
         inicio = datetime.now()
         logger.info(f"[autocosmos] Iniciando scrape cloud — {inicio.strftime('%Y-%m-%dT%H:%M:%S')}")
@@ -435,8 +444,8 @@ class ScraperAutocosmosCloud(ScraperBase):
                         imgs_ok = sum(1 for r in resultados if isinstance(r, Path))
                         imgs_fail = len(resultados) - imgs_ok
                         logger.info(
-                            f"[autocosmos] Página {pagina}: {imgs_ok}/{len(resultados)} imágenes descargadas"
-                            + (f" ({imgs_fail} fallidas)" if imgs_fail else "")
+                            f"[autocosmos] Página {pagina}: {imgs_ok}/{len(resultados)} Publicación scrapeada"
+                            + (f" ({imgs_fail} fallida)" if imgs_fail else "")
                         )
 
                 # Append JSONL
@@ -535,7 +544,34 @@ class ScraperAutocosmosCloud(ScraperBase):
                     f"[autocosmos] {len(fail_logs)} FAIL LOGs generados (guardar_raw=False, no persistidos)"
                 )
 
-        duracion = (datetime.now() - inicio).total_seconds()
+        fin = datetime.now()
+        duracion = (fin - inicio).total_seconds()
+
+        # ── RESULTADO DEL SCRAPE ──────────────────────────────────────────────
+        if self.guardar_raw and carpeta:
+            resultado_scrape = {
+                "fuente": "autocosmos",
+                "inicio": inicio.isoformat(),
+                "fin": fin.isoformat(),
+                "duracion_seg": round(duracion, 1),
+                "paginas_procesadas": paginas_procesadas,
+                "avisos_raw": len(avisos_raw),
+                "avisos_unicos": len(avisos_unicos),
+                "avisos_validos": len(avisos_validos),
+                "rechazados": rechazados,
+                "fail_logs_count": len(fail_logs),
+                "exitoso": rechazados == 0 and len(avisos_validos) > 0,
+            }
+            ruta_resultado = carpeta / "resultado_scrape.json"
+            try:
+                ruta_resultado.write_text(
+                    json.dumps(resultado_scrape, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+                logger.info(f"[autocosmos] Resultado guardado en {ruta_resultado.name}")
+            except Exception as e:
+                logger.error(f"[autocosmos] No se pudo escribir resultado_scrape.json: {e}")
+
         logger.info(
             f"[autocosmos] Scrape finalizado — {len(avisos_validos)} avisos válidos"
             f" listos para carga ({duracion:.1f}s)"
