@@ -49,6 +49,7 @@ _PRECIO_MAXIMO = 250_000_000
 
 _S3_MAX_REINTENTOS = 12   # 12 × 10 min = 2 horas
 _S3_INTERVALO_SEG  = 600  # 10 minutos
+_MAX_REINTENTOS_GET = 10  # reintentos por página antes de saltar a la siguiente
 
 
 # ─── CARGA S3 ────────────────────────────────────────────────────────────────
@@ -359,24 +360,41 @@ class ScraperAutocosmosCloud(ScraperBase):
         carpeta = _carpeta_run(Path(settings.output_dir), fecha_str) if self.guardar_raw else None
         ruta_jsonl = carpeta / "avisos.jsonl" if carpeta else None
 
+
+
         # ── INGESTA ──────────────────────────────────────────────────────────
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as cliente:
             pagina = 1
             while self.max_paginas is None or pagina <= self.max_paginas:
-                logger.debug(f"[autocosmos] GET {URL_USADOS} params={{pidx: {pagina}}}")
-                try:
-                    headers = {"User-Agent": self._ua.random}
-                    response = await cliente.get(
-                        URL_USADOS, params={"pidx": pagina}, headers=headers
+                response = None
+                for intento in range(1, _MAX_REINTENTOS_GET + 1):
+                    logger.debug(
+                        f"[autocosmos] GET {URL_USADOS} params={{pidx: {pagina}}}"
+                        + (f" — intento {intento}/{_MAX_REINTENTOS_GET}" if intento > 1 else "")
                     )
-                    response.raise_for_status()
-                    logger.debug(f"[autocosmos] HTTP {response.status_code} — {response.url}")
-                except httpx.HTTPError as e:
-                    logger.error(f"[autocosmos] Error HTTP en página {pagina}: {e}")
-                    break
-                except Exception as e:
-                    logger.exception(f"[autocosmos] Error inesperado en página {pagina}: {e}")
-                    break
+                    try:
+                        headers = {"User-Agent": self._ua.random}
+                        response = await cliente.get(
+                            URL_USADOS, params={"pidx": pagina}, headers=headers
+                        )
+                        response.raise_for_status()
+                        logger.debug(f"[autocosmos] HTTP {response.status_code} — {response.url}")
+                        break
+                    except Exception as e:
+                        if intento < _MAX_REINTENTOS_GET:
+                            logger.warning(
+                                f"[autocosmos] Error en página {pagina}"
+                                f" intento {intento}/{_MAX_REINTENTOS_GET}: {e} — reintentando en 2s"
+                            )
+                            await asyncio.sleep(2)
+                        else:
+                            logger.error(
+                                f"[autocosmos] Página {pagina}: agotados {_MAX_REINTENTOS_GET}"
+                                f" reintentos, continuando con siguiente página"
+                            )
+                if response is None:
+                    pagina += 1
+                    continue
 
                 cards = _extraer_cards(response.text, vistos_href)
                 if not cards:
@@ -442,6 +460,9 @@ class ScraperAutocosmosCloud(ScraperBase):
             f"[autocosmos] Ingesta completa — {len(avisos_raw)} avisos en {paginas_procesadas} páginas"
         )
 
+
+
+
         # ── LIMPIEZA (deduplicación por id_externo) ───────────────────────────
         vistos_id: set[str] = set()
         avisos_unicos: list[AvisoAuto] = []
@@ -463,6 +484,10 @@ class ScraperAutocosmosCloud(ScraperBase):
             f" ({dups} descartados)"
         )
 
+
+# TODO:( hacer que la validación y limpieza ocurra despues del guardado en data/raw )
+
+
         # ── VALIDACIÓN ────────────────────────────────────────────────────────
         avisos_validos: list[AvisoAuto] = []
         rechazados = 0
@@ -483,6 +508,15 @@ class ScraperAutocosmosCloud(ScraperBase):
             f"[autocosmos] Validación: {len(avisos_validos)}/{len(avisos_unicos)} avisos pasan"
             f" ({rechazados} rechazados)"
         )
+
+
+
+
+
+
+
+
+
 
         # ── FAIL LOGs consolidados ────────────────────────────────────────────
         if fail_logs:
@@ -509,10 +543,22 @@ class ScraperAutocosmosCloud(ScraperBase):
         return avisos_validos
 
 
+
+
+
+
+
+
+
 # ─── ENTRYPOINT STANDALONE ───────────────────────────────────────────────────
 
 if __name__ == "__main__":
     from carflip.database.session import AsyncSessionLocal
+
+    logger.remove()
+    logger.add(sys.stderr, level=settings.log_level, colorize=True,
+               format="<green>{time:HH:mm:ss}</green> | <level>{level: <7}</level> | {message}")
+    logger.add(settings.log_file, level="DEBUG", rotation="10 MB", retention="30 days", enqueue=True)
 
     async def _main() -> None:
         max_paginas = int(sys.argv[1]) if len(sys.argv) > 1 else None
