@@ -495,7 +495,7 @@ if __name__ == "__main__":
     from carflip.database.session import AsyncSessionLocal
 
     async def _main() -> None:
-        max_paginas = int(sys.argv[1]) if len(sys.argv) > 1 else 2
+        max_paginas = int(sys.argv[1]) if len(sys.argv) > 1 else None
         scraper = ScraperAutocosmosCloud(max_paginas=max_paginas, guardar_raw=True)
         async with AsyncSessionLocal() as sesion:
             resultado = await scraper.ejecutar(sesion)
