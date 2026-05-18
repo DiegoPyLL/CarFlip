@@ -19,7 +19,7 @@ import json
 import re
 import sys
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from urllib.parse import urljoin
@@ -61,36 +61,36 @@ _MAX_REINTENTOS_GET = 10  # reintentos por página antes de saltar a la siguient
 
 async def _cargar_a_s3_con_retry(ruta_local: Path, clave_s3: str) -> bool:
     """
-    Sube `ruta_local` a R2 bajo la clave `clave_s3`.
+    Sube `ruta_local` a S3 bajo la clave `clave_s3`.
     Verifica que el objeto exista tras la subida.
     Reintenta cada 10 min por un máximo de 2 horas (12 intentos).
     Retorna True si la carga fue exitosa, False si se agotaron los reintentos.
     """
-    r2_endpoint = f"https://{settings.r2_account_id}.r2.cloudflarestorage.com"
     sesion = aioboto3.Session(
-        aws_access_key_id=settings.r2_access_key_id,
-        aws_secret_access_key=settings.r2_secret_access_key,
+        aws_access_key_id=settings.s3_access_key_id,
+        aws_secret_access_key=settings.s3_secret_access_key,
+        region_name=settings.s3_region,
     )
     datos = ruta_local.read_bytes()
 
-    async with sesion.client("s3", endpoint_url=r2_endpoint) as cliente:
+    async with sesion.client("s3") as cliente:  # type: ignore[attr-defined]  # aioboto3 no tiene stubs completos
         for intento in range(1, _S3_MAX_REINTENTOS + 1):
             try:
-                await cliente.put_object(Bucket=settings.r2_bucket, Key=clave_s3, Body=datos)
-                await cliente.head_object(Bucket=settings.r2_bucket, Key=clave_s3)
-                logger.debug(f"[autocosmos] R2 upload OK: {clave_s3}")
+                await cliente.put_object(Bucket=settings.s3_bucket, Key=clave_s3, Body=datos)
+                await cliente.head_object(Bucket=settings.s3_bucket, Key=clave_s3)
+                logger.debug(f"[autocosmos] S3 upload OK: {clave_s3}")
                 return True
 
             except (ClientError, Exception) as exc:
                 if intento < _S3_MAX_REINTENTOS:
                     logger.warning(
-                        f"[autocosmos] R2 upload fallido intento {intento}/{_S3_MAX_REINTENTOS}"
+                        f"[autocosmos] S3 upload fallido intento {intento}/{_S3_MAX_REINTENTOS}"
                         f" — {clave_s3}: {exc}. Reintentando en {_S3_INTERVALO_SEG // 60} min."
                     )
                     await asyncio.sleep(_S3_INTERVALO_SEG)
                 else:
                     logger.error(
-                        f"[autocosmos] R2 upload agotó {_S3_MAX_REINTENTOS} reintentos: {clave_s3} — {exc}"
+                        f"[autocosmos] S3 upload agotó {_S3_MAX_REINTENTOS} reintentos: {clave_s3} — {exc}"
                     )
 
     return False
@@ -357,15 +357,16 @@ class ScraperAutocosmosCloud(ScraperBase):
         return resultado
 
     async def scrape(self) -> list[AvisoAuto]:
-        inicio = datetime.now()
-        logger.info(f"[autocosmos] Iniciando scrape cloud — {inicio.strftime('%Y-%m-%dT%H:%M:%S')}")
+        utc_4 = timezone(timedelta(hours=-4))
+        inicio = datetime.now(utc_4)
+        logger.info(f"[autocosmos] Iniciando scrape cloud — {inicio.strftime('%H:%M:%S %d/%m/%Y')}")
 
         fail_logs: list[FailLog] = []
         avisos_raw: list[AvisoAuto] = []
         vistos_href: set[str] = set()
         paginas_procesadas = 0
 
-        fecha_str = inicio.strftime("%Y%m%d_%H%M%S")
+        fecha_str = inicio.strftime("%H-%M-%S_%d-%m-%Y")
         carpeta = _carpeta_run(Path(settings.output_dir), fecha_str) if self.guardar_raw else None
         ruta_jsonl = carpeta / "avisos.jsonl" if carpeta else None
 
@@ -432,9 +433,12 @@ class ScraperAutocosmosCloud(ScraperBase):
                     if tareas_img:
                         resultados = await asyncio.gather(*tareas_img, return_exceptions=True)
                         avisos_con_imagen = [a for a in avisos_pagina if a.url_imagen]
+                        tareas_s3: list = []
                         for aviso, resultado in zip(avisos_con_imagen, resultados):
                             if isinstance(resultado, Path):
                                 fotos_pagina[aviso.id_externo] = resultado.name
+                                clave = f"{settings.s3_prefix}fotos/autocosmos-{fecha_str}-{resultado.name}"
+                                tareas_s3.append(_cargar_a_s3_con_retry(resultado, clave))
                             elif resultado is None or isinstance(resultado, Exception):
                                 fail_logs.append(FailLog(
                                     etapa="descarga_foto",
@@ -447,6 +451,8 @@ class ScraperAutocosmosCloud(ScraperBase):
                             f"[autocosmos] Página {pagina}: {imgs_ok}/{len(resultados)} Publicación scrapeada"
                             + (f" ({imgs_fail} fallida)" if imgs_fail else "")
                         )
+                        if tareas_s3:
+                            await asyncio.gather(*tareas_s3)
 
                 # Append JSONL
                 if self.guardar_raw and ruta_jsonl and avisos_pagina:
@@ -518,6 +524,7 @@ class ScraperAutocosmosCloud(ScraperBase):
             f" ({rechazados} rechazados)"
         )
 
+<<<<<<< Updated upstream
 
 
 
@@ -526,6 +533,20 @@ class ScraperAutocosmosCloud(ScraperBase):
 
 
 
+=======
+        # ── PROCESADOS (limpieza + validación superada) ──────────────────────
+        if self.guardar_raw and avisos_validos:
+            carpeta_procesados = Path(settings.processed_dir) / f"autocosmos_{fecha_str}"
+            carpeta_procesados.mkdir(parents=True, exist_ok=True)
+            ruta_procesados = carpeta_procesados / "avisos.jsonl"
+            ok = _append_avisos_jsonl(avisos_validos, ruta_procesados)
+            if ok:
+                logger.info(
+                    f"[autocosmos] {len(avisos_validos)} avisos procesados escritos en {ruta_procesados}"
+                )
+            else:
+                logger.error(f"[autocosmos] Error al escribir avisos procesados en {ruta_procesados}")
+>>>>>>> Stashed changes
 
         # ── FAIL LOGs consolidados ────────────────────────────────────────────
         if fail_logs:
@@ -537,6 +558,10 @@ class ScraperAutocosmosCloud(ScraperBase):
                         encoding="utf-8",
                     )
                     logger.info(f"[autocosmos] {len(fail_logs)} FAIL LOGs escritos en {ruta_fail}")
+                    await _cargar_a_s3_con_retry(
+                        ruta_fail,
+                        f"{settings.s3_prefix}logs/autocosmos-{fecha_str}-{ruta_fail.name}",
+                    )
                 except Exception as e:
                     logger.error(f"[autocosmos] No se pudo escribir fail_logs.json: {e}")
             else:
@@ -544,6 +569,7 @@ class ScraperAutocosmosCloud(ScraperBase):
                     f"[autocosmos] {len(fail_logs)} FAIL LOGs generados (guardar_raw=False, no persistidos)"
                 )
 
+<<<<<<< Updated upstream
         fin = datetime.now()
         duracion = (fin - inicio).total_seconds()
 
@@ -572,6 +598,16 @@ class ScraperAutocosmosCloud(ScraperBase):
             except Exception as e:
                 logger.error(f"[autocosmos] No se pudo escribir resultado_scrape.json: {e}")
 
+=======
+        # ── Metadata JSONL ────────────────────────────────────────────────────
+        if self.guardar_raw and ruta_jsonl and ruta_jsonl.exists():
+            await _cargar_a_s3_con_retry(
+                ruta_jsonl,
+                f"{settings.s3_prefix}metadata/autocosmos-{fecha_str}-{ruta_jsonl.name}",
+            )
+
+        duracion = (datetime.now() - inicio).total_seconds()
+>>>>>>> Stashed changes
         logger.info(
             f"[autocosmos] Scrape finalizado — {len(avisos_validos)} avisos válidos"
             f" listos para carga ({duracion:.1f}s)"
