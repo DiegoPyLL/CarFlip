@@ -21,5 +21,11 @@ class Settings(BaseSettings):
 
     output_dir: str = "data/raw"
 
+    r2_account_id: str = ""
+    r2_bucket: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_prefix: str = "autocosmos/fotos/"
+
 
 settings = Settings()

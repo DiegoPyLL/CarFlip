@@ -8,6 +8,10 @@ Etapas cubiertas en scrape():
   4. CARGA        — delegada a ScraperBase.ejecutar() vía uploader.upsert_avisos()
 """
 
+
+
+
+
 import asyncio
 import hashlib
 import json
@@ -22,12 +26,15 @@ from urllib.parse import urljoin
 if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).parents[4]))
 
+import aioboto3
 import httpx
+from botocore.exceptions import ClientError
 from bs4 import BeautifulSoup, Tag
 from fake_useragent import UserAgent
 from loguru import logger
 
 from carflip.config import settings
+from carflip.database.models import AutocosmosListing
 from carflip.scrapers.base import AvisoAuto, ScraperBase
 
 BASE_URL = "https://www.autocosmos.cl"
@@ -49,28 +56,37 @@ _S3_INTERVALO_SEG  = 600  # 10 minutos
 
 async def _cargar_a_s3_con_retry(ruta_local: Path, clave_s3: str) -> bool:
     """
-    Sube `ruta_local` a S3 bajo la clave `clave_s3`.
+    Sube `ruta_local` a R2 bajo la clave `clave_s3`.
     Verifica que el objeto exista tras la subida.
     Reintenta cada 10 min por un máximo de 2 horas (12 intentos).
     Retorna True si la carga fue exitosa, False si se agotaron los reintentos.
     """
-    for intento in range(1, _S3_MAX_REINTENTOS + 1):
-        try:
-            # TODO: implementar subida al bucket S3 con el cliente elegido
-            # TODO: verificar que el objeto existe antes de retornar True
-            raise NotImplementedError("detalles de subida pendientes")
+    r2_endpoint = f"https://{settings.r2_account_id}.r2.cloudflarestorage.com"
+    sesion = aioboto3.Session(
+        aws_access_key_id=settings.r2_access_key_id,
+        aws_secret_access_key=settings.r2_secret_access_key,
+    )
+    datos = ruta_local.read_bytes()
 
-        except Exception as exc:
-            if intento < _S3_MAX_REINTENTOS:
-                logger.warning(
-                    f"[autocosmos] S3 upload fallido intento {intento}/{_S3_MAX_REINTENTOS}"
-                    f" — {clave_s3}: {exc}. Reintentando en {_S3_INTERVALO_SEG // 60} min."
-                )
-                await asyncio.sleep(_S3_INTERVALO_SEG)
-            else:
-                logger.error(
-                    f"[autocosmos] S3 upload agotó {_S3_MAX_REINTENTOS} reintentos: {clave_s3} — {exc}"
-                )
+    async with sesion.client("s3", endpoint_url=r2_endpoint) as cliente:
+        for intento in range(1, _S3_MAX_REINTENTOS + 1):
+            try:
+                await cliente.put_object(Bucket=settings.r2_bucket, Key=clave_s3, Body=datos)
+                await cliente.head_object(Bucket=settings.r2_bucket, Key=clave_s3)
+                logger.debug(f"[autocosmos] R2 upload OK: {clave_s3}")
+                return True
+
+            except (ClientError, Exception) as exc:
+                if intento < _S3_MAX_REINTENTOS:
+                    logger.warning(
+                        f"[autocosmos] R2 upload fallido intento {intento}/{_S3_MAX_REINTENTOS}"
+                        f" — {clave_s3}: {exc}. Reintentando en {_S3_INTERVALO_SEG // 60} min."
+                    )
+                    await asyncio.sleep(_S3_INTERVALO_SEG)
+                else:
+                    logger.error(
+                        f"[autocosmos] R2 upload agotó {_S3_MAX_REINTENTOS} reintentos: {clave_s3} — {exc}"
+                    )
 
     return False
 
@@ -195,10 +211,9 @@ async def _descargar_imagen(
     if not aviso.url_imagen:
         return None
     ext = Path(aviso.url_imagen.split("?")[0]).suffix or ".jpg"
-    sha256 = hashlib.sha256(aviso.url_imagen.encode()).hexdigest()
-    ruta = carpeta_fotos / f"{sha256}{ext}"
+    ruta = carpeta_fotos / f"{aviso.id_externo}{ext}"
     if ruta.exists():
-        logger.debug(f"[autocosmos] Imagen ya existe (hash={sha256[:16]}...): {ruta.name}")
+        logger.debug(f"[autocosmos] Imagen ya existe: {ruta.name}")
         return ruta
     try:
         resp = await cliente.get(aviso.url_imagen, headers={"User-Agent": ua.random}, timeout=20.0)
@@ -324,8 +339,7 @@ class ScraperAutocosmosCloud(ScraperBase):
     """
 
     fuente = "autocosmos"
-    # TODO: reconectar cuando PostgreSQL esté disponible en EC2
-    model_class = None  # AutocosmosListing
+    model_class = AutocosmosListing
 
     def __init__(self, max_paginas: int | None = None, guardar_raw: bool = True) -> None:
         self.max_paginas = max_paginas
@@ -396,10 +410,16 @@ class ScraperAutocosmosCloud(ScraperBase):
                                 fotos_pagina[aviso.id_externo] = resultado.name
                             elif resultado is None or isinstance(resultado, Exception):
                                 fail_logs.append(FailLog(
-                                    etapa="dedup_fotos",
+                                    etapa="descarga_foto",
                                     motivo="Descarga de imagen fallida",
                                     id_externo=aviso.id_externo,
                                 ))
+                        imgs_ok = sum(1 for r in resultados if isinstance(r, Path))
+                        imgs_fail = len(resultados) - imgs_ok
+                        logger.info(
+                            f"[autocosmos] Página {pagina}: {imgs_ok}/{len(resultados)} imágenes descargadas"
+                            + (f" ({imgs_fail} fallidas)" if imgs_fail else "")
+                        )
 
                 # Append JSONL
                 if self.guardar_raw and ruta_jsonl and avisos_pagina:
