@@ -336,8 +336,8 @@ El pipeline aplica validaciones estructurales y semánticas antes de la carga. L
 
 ### Validación semántica
 
-- `anio`: entre 1990 y año actual
-- `precio`: entre $500.000 y $100.000.000 CLP
+- `anio`: entre 1970 y año actual
+- `precio`: entre $500.000 y $250.000.000 CLP
 - `fecha_publicacion`: no puede ser futura
 - `km` + `anio ≥ 2022`: si km > 100.000 → advertencia (no invalida)
 

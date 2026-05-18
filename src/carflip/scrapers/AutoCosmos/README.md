@@ -17,7 +17,7 @@ El proceso completo ocurre en cuatro etapas:
 4. CARGA        → Guarda los avisos válidos en la base de datos
 ```
 
-Cada vez que se ejecuta, el scraper guarda también una copia de los datos en disco (archivos JSON y fotos) para auditoría y recuperación ante fallos.
+Cada vez que se ejecuta, el scraper guarda también una copia de los datos en disco (archivos JSON y fotos) para auditoría y recuperación ante fallos, y sube ese material a Cloudflare R2.
 
 ---
 
@@ -86,7 +86,8 @@ Por cada página:
 2. **Parsea los cards de avisos** usando BeautifulSoup con el motor lxml. Cada card es un enlace `<a>` cuya URL tiene el formato `/auto/usado/{marca}/{modelo}/{año}/{id_numerico}`.
 3. **Deduplica por URL** durante la paginación: si un aviso aparece en más de una página, solo se procesa la primera vez.
 4. **Descarga las imágenes** de portada de todos los avisos de la página en paralelo, antes de avanzar a la siguiente página.
-5. **Guarda en disco** los avisos de la página como una nueva línea en `avisos.jsonl` (formato JSONL: un objeto JSON por línea).
+5. **Sube las imágenes a Cloudflare R2** inmediatamente después de descargarlas (hasta 12 reintentos con 10 minutos de intervalo entre ellos — ventana de 2 horas).
+6. **Guarda en disco** los avisos de la página como una nueva línea en `avisos.jsonl` (formato JSONL: un objeto JSON por línea).
 
 La paginación se detiene cuando una página no contiene ningún aviso, o cuando se alcanza el límite `max_paginas` si fue configurado.
 
@@ -132,7 +133,7 @@ Los avisos que no superan la validación se registran en el FAIL LOG con `etapa=
 
 ### Etapa 4 — FAIL LOG consolidado
 
-Al final del scrape, todos los errores acumulados durante las tres etapas anteriores se escriben en un único archivo `fail_logs.json` dentro de la carpeta del run.
+Al final del scrape, todos los errores acumulados durante las tres etapas anteriores se escriben en un único archivo `fail_logs.json` dentro de la carpeta `raw/` del run, y se sube a Cloudflare R2.
 
 Cada entrada tiene esta estructura:
 
@@ -151,6 +152,8 @@ Cada entrada tiene esta estructura:
 | Etapa | Cuándo se registra |
 |---|---|
 | `descarga_foto` | La imagen de portada no se pudo descargar |
+| `upload_foto` | S3 upload de la imagen agotó los 12 reintentos |
+| `upload_metadata` | S3 upload de `avisos.jsonl` agotó los 12 reintentos |
 | `dedup_json` | Aviso duplicado entre páginas, o error al escribir el JSONL |
 | `validacion_json` | Aviso rechazado por validación estructural o semántica |
 
@@ -166,7 +169,11 @@ El resultado de la ejecución (cantidad de avisos, errores, tiempo de inicio y f
 
 ### Subida de imágenes a Cloudflare R2
 
-La función `_cargar_a_s3_con_retry()` está implementada y sube archivos a **Cloudflare R2** via el protocolo S3 compatible. Realiza hasta 12 reintentos con intervalos de 10 minutos (2 horas de ventana total). Sin embargo, **actualmente no se llama dentro del pipeline de scrape** — las imágenes se descargan a disco local pero la subida a R2 todavía no está integrada en el flujo.
+La función `_cargar_a_s3_con_retry()` sube archivos a **Cloudflare R2** via el protocolo S3 compatible. Realiza hasta 12 reintentos con intervalos de 10 minutos (2 horas de ventana total). Se invoca en tres momentos del pipeline:
+
+1. **Fotos** — inmediatamente después de descargar el batch de imágenes de cada página.
+2. **`fail_logs.json`** — al finalizar el scrape, si hubo errores.
+3. **`avisos.jsonl`** — al finalizar el scrape, para dejar el archivo raw en R2.
 
 ---
 
@@ -201,23 +208,28 @@ El scraper mapea la información del HTML al dataclass `AvisoAuto`:
 
 ## Archivos generados en disco
 
-Con `guardar_raw=True` (comportamiento por defecto) se crea una carpeta por ejecución en `settings.output_dir`:
+Con `guardar_raw=True` (comportamiento por defecto) se crea una carpeta por ejecución bajo `autocosmos/`:
 
 ```
-data/raw/
-└── autocosmos_20260516_120000/       ← una carpeta por run (fecha y hora)
-    ├── avisos.jsonl                  ← todos los avisos del run, uno por línea
-    ├── fail_logs.json                ← errores consolidados (solo si hubo alguno)
-    └── fotos/
-        ├── a3f7c...b2e1.jpg          ← imagen de portada, nombre = id_externo
-        └── ...
+autocosmos/
+└── {HH-MM-SS_DD-MM-YYYY}/          ← una carpeta por run (hora y fecha)
+    ├── raw/
+    │   ├── avisos.jsonl             ← todos los avisos del run, uno por línea
+    │   ├── fail_logs.json           ← errores consolidados (solo si hubo alguno)
+    │   └── fotos/
+    │       ├── a3f7c...b2e1.jpg     ← imagen de portada, nombre = id_externo
+    │       └── ...
+    └── processed/
+        └── avisos.jsonl             ← solo los avisos que pasaron limpieza y validación
 ```
 
-**`avisos.jsonl`**: formato JSONL (JSON Lines). Cada línea es un objeto JSON independiente con todos los campos del aviso, incluyendo `foto_local` (nombre del archivo de imagen descargado, si existe). Este formato permite procesar los avisos línea por línea sin cargar todo el archivo en memoria.
+**`raw/avisos.jsonl`**: todos los avisos obtenidos durante la ingesta (incluyendo los que luego serán descartados). Formato JSONL: un objeto JSON por línea, incluye el campo `foto_local` con el nombre del archivo de imagen descargado.
 
-**`fail_logs.json`**: solo se crea si hubo al menos un error durante el run. Es un arreglo JSON con todos los FAIL LOGs del run.
+**`raw/fail_logs.json`**: solo se crea si hubo al menos un error durante el run. Es un arreglo JSON con todos los FAIL LOGs del run.
 
-Con `guardar_raw=False` el scraper sigue funcionando normalmente (scrapea, limpia, valida y carga a la BD) pero no escribe nada en disco.
+**`processed/avisos.jsonl`**: avisos que superaron la deduplicación y la validación. Estos son los que se cargan a PostgreSQL y se suben a R2.
+
+Con `guardar_raw=False` el scraper sigue funcionando normalmente (scrapea, limpia, valida y carga a la BD) pero no escribe nada en disco ni sube imágenes a R2.
 
 ---
 
@@ -230,7 +242,7 @@ ScraperAutocosmosCloud(max_paginas=None, guardar_raw=True)
 | Parámetro | Tipo | Default | Descripción |
 |---|---|---|---|
 | `max_paginas` | `int \| None` | `None` | Límite de páginas a recorrer. `None` = sin límite (recorre hasta que no haya más avisos) |
-| `guardar_raw` | `bool` | `True` | Si escribe `avisos.jsonl` y descarga fotos a `data/raw/`. No afecta la carga a la BD |
+| `guardar_raw` | `bool` | `True` | Si escribe archivos en disco y descarga fotos. No afecta la carga a la BD |
 
 ---
 
@@ -241,10 +253,7 @@ ScraperAutocosmosCloud(max_paginas=None, guardar_raw=True)
 MIN_DELAY_SECONDS=2.0
 MAX_DELAY_SECONDS=6.0
 
-# Directorio donde se guardan los datos crudos
-OUTPUT_DIR=data/raw
-
-# Cloudflare R2 (para subida de imágenes — pendiente de integrar al pipeline)
+# Cloudflare R2 (para subida de fotos, JSONL y fail_logs)
 R2_ACCOUNT_ID=tu_account_id
 R2_ACCESS_KEY_ID=tu_access_key
 R2_SECRET_ACCESS_KEY=tu_secret_key
@@ -276,7 +285,6 @@ Todas las dependencias se instalan automáticamente con `uv sync` desde la raíz
 - **Solo autos usados públicos**: el scraper cubre únicamente la sección `/auto/usado`. No scrapea nuevos, ni comerciales, ni otras categorías.
 - **Sin detalle de aviso**: `combustible`, `descripcion` y `fecha_publicacion` no están disponibles en el listado de cards. Para obtenerlos habría que visitar la página individual de cada aviso (no implementado; aumentaría significativamente el tiempo de scrape y la carga al servidor).
 - **`marca` y `modelo` desde la URL**: si Autocosmos cambia el formato de sus URLs, el parseo fallará silenciosamente (quedarán como `None`). Actualizar `_PATRON_AVISO` si esto ocurre.
-- **Subida a R2 no integrada**: `_cargar_a_s3_con_retry()` está implementada pero no se llama dentro del pipeline. Las imágenes se guardan en disco local solamente.
 - **Sin retry de páginas saltadas**: si una página agota sus 10 reintentos y se salta, esos avisos no se recuperan en el run actual.
 
 ---
