@@ -429,11 +429,13 @@ class ScraperAutocosmosCloud(ScraperBase):
                         resultados = await asyncio.gather(*tareas_img, return_exceptions=True)
                         avisos_con_imagen = [a for a in avisos_pagina if a.url_imagen]
                         tareas_s3: list = []
+                        avisos_s3: list[AvisoAuto] = []
                         for aviso, resultado in zip(avisos_con_imagen, resultados):
                             if isinstance(resultado, Path):
                                 fotos_pagina[aviso.id_externo] = resultado.name
                                 clave = f"{settings.s3_prefix}fotos/autocosmos-{fecha_str}-{resultado.name}"
                                 tareas_s3.append(_cargar_a_s3_con_retry(resultado, clave))
+                                avisos_s3.append(aviso)
                             elif resultado is None or isinstance(resultado, Exception):
                                 fail_logs.append(FailLog(
                                     etapa="descarga_foto",
@@ -447,7 +449,14 @@ class ScraperAutocosmosCloud(ScraperBase):
                             + (f" ({imgs_fail} fallida)" if imgs_fail else "")
                         )
                         if tareas_s3:
-                            await asyncio.gather(*tareas_s3)
+                            resultados_s3 = await asyncio.gather(*tareas_s3)
+                            for aviso, s3_ok in zip(avisos_s3, resultados_s3):
+                                if not s3_ok:
+                                    fail_logs.append(FailLog(
+                                        etapa="upload_foto",
+                                        motivo="S3 upload de imagen agotó reintentos",
+                                        id_externo=aviso.id_externo,
+                                    ))
 
                 # Append JSONL
                 if self.guardar_raw and ruta_jsonl and avisos_pagina:
@@ -540,6 +549,19 @@ class ScraperAutocosmosCloud(ScraperBase):
             else:
                 logger.error(f"[autocosmos] Error al escribir avisos procesados en {ruta_procesados}")
 
+        # ── Metadata JSONL (antes de FAIL LOGs para incluir el error si falla) ──
+        if self.guardar_raw and ruta_jsonl and ruta_jsonl.exists():
+            metadata_ok = await _cargar_a_s3_con_retry(
+                ruta_jsonl,
+                f"{settings.s3_prefix}metadata/autocosmos-{fecha_str}-{ruta_jsonl.name}",
+            )
+            if not metadata_ok:
+                fail_logs.append(FailLog(
+                    etapa="upload_metadata",
+                    motivo="S3 upload de avisos.jsonl agotó reintentos",
+                    id_externo="avisos.jsonl",
+                ))
+
         # ── FAIL LOGs consolidados ────────────────────────────────────────────
         if fail_logs:
             if self.guardar_raw and carpeta:
@@ -560,13 +582,6 @@ class ScraperAutocosmosCloud(ScraperBase):
                 logger.info(
                     f"[autocosmos] {len(fail_logs)} FAIL LOGs generados (guardar_raw=False, no persistidos)"
                 )
-
-        # ── Metadata JSONL ────────────────────────────────────────────────────
-        if self.guardar_raw and ruta_jsonl and ruta_jsonl.exists():
-            await _cargar_a_s3_con_retry(
-                ruta_jsonl,
-                f"{settings.s3_prefix}metadata/autocosmos-{fecha_str}-{ruta_jsonl.name}",
-            )
 
         duracion = (datetime.now() - inicio).total_seconds()
         logger.info(
