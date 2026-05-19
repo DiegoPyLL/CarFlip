@@ -32,6 +32,7 @@ from loguru import logger
 from carflip.config import settings
 from carflip.database.models import AutocosmosListing
 from carflip.scrapers.base import AvisoAuto, ScraperBase
+from carflip.scrapers.image_utils import convertir_a_avif
 
 BASE_URL = "https://www.autocosmos.cl"
 URL_USADOS = f"{BASE_URL}/auto/usado"
@@ -204,10 +205,11 @@ async def _descargar_imagen(
     aviso: AvisoAuto,
     carpeta_fotos: Path,
     ua: UserAgent,
+    fail_logs: list[FailLog],
 ) -> Path | None:
     if not aviso.url_imagen:
         return None
-    ext = Path(aviso.url_imagen.split("?")[0]).suffix or ".jpg"
+    ext = Path(aviso.url_imagen.split("?")[0]).suffix or ".webp"
     ruta = carpeta_fotos / f"{aviso.id_externo}{ext}"
     if ruta.exists():
         logger.debug(f"[autocosmos] Imagen ya existe: {ruta.name}")
@@ -216,8 +218,17 @@ async def _descargar_imagen(
         resp = await cliente.get(aviso.url_imagen, headers={"User-Agent": ua.random}, timeout=20.0)
         resp.raise_for_status()
         ruta.write_bytes(resp.content)
-        logger.debug(f"[autocosmos] Imagen descargada: id={aviso.id_externo} → {ruta.name}")
-        return ruta
+        ruta_avif = convertir_a_avif(ruta)
+        if ruta_avif is None:
+            fail_logs.append(FailLog(
+                etapa="conversion_avif",
+                motivo="Conversión AVIF fallida",
+                id_externo=aviso.id_externo,
+            ))
+            logger.debug(f"[autocosmos] Imagen descargada (sin AVIF): id={aviso.id_externo} → {ruta.name}")
+            return ruta
+        logger.debug(f"[autocosmos] Imagen descargada y convertida a AVIF: id={aviso.id_externo} → {ruta_avif.name}")
+        return ruta_avif
     except Exception as e:
         logger.warning(f"[autocosmos] No se pudo descargar imagen id={aviso.id_externo}: {e}")
         return None
@@ -354,6 +365,7 @@ class ScraperAutocosmosCloud(ScraperBase):
         paginas_procesadas = 0
 
         fecha_str = inicio.strftime("%H-%M-%S_%d-%m-%Y")
+        fecha_dia = inicio.strftime("%Y/%m/%d")
         carpeta = _carpeta_run(Path("autocosmos"), fecha_str) if self.guardar_raw else None
         ruta_jsonl = carpeta / "avisos.jsonl" if carpeta else None
 
@@ -413,7 +425,7 @@ class ScraperAutocosmosCloud(ScraperBase):
                 if self.guardar_raw and carpeta and avisos_pagina:
                     carpeta_fotos = carpeta / "fotos"
                     tareas_img = [
-                        _descargar_imagen(cliente, a, carpeta_fotos, self._ua)
+                        _descargar_imagen(cliente, a, carpeta_fotos, self._ua, fail_logs)
                         for a in avisos_pagina
                         if a.url_imagen
                     ]
@@ -425,7 +437,7 @@ class ScraperAutocosmosCloud(ScraperBase):
                         for aviso, resultado in zip(avisos_con_imagen, resultados):
                             if isinstance(resultado, Path):
                                 fotos_pagina[aviso.id_externo] = resultado.name
-                                clave = f"{settings.s3_prefix}fotos/autocosmos-{fecha_str}-{resultado.name}"
+                                clave = f"{settings.s3_prefix}autocosmos/{fecha_dia}/raw/fotos/{resultado.name}"
                                 tareas_s3.append(_cargar_a_s3_con_retry(resultado, clave))
                                 avisos_s3.append(aviso)
                             elif resultado is None or isinstance(resultado, Exception):
@@ -541,18 +553,33 @@ class ScraperAutocosmosCloud(ScraperBase):
             else:
                 logger.error(f"[autocosmos] Error al escribir avisos procesados en {ruta_procesados}")
 
-        # ── Metadata JSONL (antes de FAIL LOGs para incluir el error si falla) ──
+        # ── Metadata JSONL raw → S3 ───────────────────────────────────────────
         if self.guardar_raw and ruta_jsonl and ruta_jsonl.exists():
             metadata_ok = await _cargar_a_s3_con_retry(
                 ruta_jsonl,
-                f"{settings.s3_prefix}metadata/autocosmos-{fecha_str}-{ruta_jsonl.name}",
+                f"{settings.s3_prefix}autocosmos/{fecha_dia}/raw/avisos.jsonl",
             )
             if not metadata_ok:
                 fail_logs.append(FailLog(
                     etapa="upload_metadata",
-                    motivo="S3 upload de avisos.jsonl agotó reintentos",
+                    motivo="S3 upload de raw/avisos.jsonl agotó reintentos",
                     id_externo="avisos.jsonl",
                 ))
+
+        # ── Processed JSONL → S3 ─────────────────────────────────────────────
+        if self.guardar_raw and avisos_validos:
+            ruta_procesados_jsonl = Path("autocosmos") / fecha_str / "processed" / "avisos.jsonl"
+            if ruta_procesados_jsonl.exists():
+                processed_ok = await _cargar_a_s3_con_retry(
+                    ruta_procesados_jsonl,
+                    f"{settings.s3_prefix}autocosmos/{fecha_dia}/processed/avisos.jsonl",
+                )
+                if not processed_ok:
+                    fail_logs.append(FailLog(
+                        etapa="upload_processed",
+                        motivo="S3 upload de processed/avisos.jsonl agotó reintentos",
+                        id_externo="avisos.jsonl",
+                    ))
 
         # ── FAIL LOGs consolidados ────────────────────────────────────────────
         if fail_logs:
@@ -566,7 +593,7 @@ class ScraperAutocosmosCloud(ScraperBase):
                     logger.info(f"[autocosmos] {len(fail_logs)} FAIL LOGs escritos en {ruta_fail}")
                     await _cargar_a_s3_con_retry(
                         ruta_fail,
-                        f"{settings.s3_prefix}logs/autocosmos-{fecha_str}-{ruta_fail.name}",
+                        f"{settings.s3_prefix}autocosmos/{fecha_dia}/logs/fail_logs.json",
                     )
                 except Exception as e:
                     logger.error(f"[autocosmos] No se pudo escribir fail_logs.json: {e}")

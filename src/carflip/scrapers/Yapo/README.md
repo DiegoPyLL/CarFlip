@@ -1,278 +1,335 @@
-# CarFlip
+# Scraper Yapo — Guía Completa
 
-Plataforma que agrega avisos de autos en venta desde portales chilenos, normaliza los datos, los persiste en PostgreSQL y detecta oportunidades de compra mediante análisis de historial de precios.
-
-![CarFlip Logo](carflip_logo.png)
-
-## Portales cubiertos
-
-| Portal | Método |
-|---|---|
-| MercadoLibre | API REST oficial |
-| Autocosmos | httpx + BeautifulSoup4 |
-| Autosusados | httpx + BeautifulSoup4 |
-| Checkeados | httpx + BeautifulSoup4 |
-| Económicos | httpx + BeautifulSoup4 |
+Este documento explica **qué hace** el scraper de Yapo, **cómo funciona por dentro** y **cómo usarlo**. Está escrito para que tanto alguien sin experiencia en programación como un desarrollador encuentren lo que necesitan.
 
 ---
 
-## Requerimientos
+## ¿Qué hace este scraper? (versión simple)
 
-- Python 3.12+
-- PostgreSQL 12+ con base de datos `carflip` creada
-- [uv](https://docs.astral.sh/uv/) como gestor de paquetes
+[yapo.cl](https://www.yapo.cl) es uno de los portales de clasificados más grandes de Chile, donde particulares y automotoras publican autos en venta. Este scraper es un programa que **visita ese sitio automáticamente**, lee los avisos de autos usados de la Región Metropolitana, extrae la información relevante (precio, marca, modelo, año, kilómetros, ubicación, foto) y la guarda en nuestra base de datos para analizarla.
+
+El proceso completo ocurre en cuatro etapas:
+
+```
+1. INGESTA      → Visita el sitio y descarga los avisos
+2. LIMPIEZA     → Elimina duplicados
+3. VALIDACIÓN   → Descarta avisos con datos incorrectos o fuera de rango
+4. CARGA        → Guarda los avisos válidos en la base de datos
+```
+
+Cada vez que se ejecuta, el scraper guarda también una copia de los datos en disco (archivos JSON y fotos) para auditoría y recuperación ante fallos, y sube ese material a S3.
 
 ---
 
-## Instalación
+## ¿Por qué este scraper es diferente?
 
-```bash
-# 1. Clonar el repositorio
-git clone <repo-url>
-cd carflip
+La mayoría de scrapers del proyecto (Autocosmos, Autosusados, etc.) descargan páginas HTML directamente y las procesan. Yapo **no funciona así**: el sitio carga gran parte de su contenido mediante JavaScript, lo que significa que un cliente HTTP normal solo ve una página casi vacía.
 
-# 2. Instalar dependencias
-uv sync
+Por eso este scraper utiliza **Playwright**, una herramienta que controla un navegador web real (Chromium) de forma automática. El navegador ejecuta el JavaScript del sitio exactamente como lo haría un usuario humano, y una vez que la página está cargada, el scraper extrae los datos desde el DOM ya renderizado.
 
-# 3. Crear base de datos
-createdb carflip
-
-# 4. Aplicar esquema
-alembic upgrade head
-```
-
-### Configuración (.env)
-
-Crear un archivo `.env` en la raíz del proyecto:
-
-```env
-# Base de datos
-DATABASE_URL=postgresql+asyncpg://usuario:password@localhost:5432/carflip
-
-# MercadoLibre API
-MERCADOLIBRE_APP_ID=tu_app_id
-MERCADOLIBRE_CLIENT_SECRET=tu_client_secret
-
-# Rate limiting entre requests
-MIN_DELAY_SECONDS=2.0
-MAX_DELAY_SECONDS=6.0
-
-# Scheduler
-SCRAPE_INTERVAL_HOURS=6
-
-# Detección de deals
-DEAL_THRESHOLD_PCT=15.0
-
-# Logging
-LOG_LEVEL=INFO
-LOG_FILE=logs/carflip.log
-
-# Cloudflare R2 (opcional, para almacenar imágenes)
-R2_ACCOUNT_ID=
-R2_BUCKET=
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-```
+Esto hace que el scraper sea más lento que los basados en httpx, pero es la única forma confiable de obtener los datos de Yapo sin depender de endpoints internos no documentados.
 
 ---
 
 ## Uso
 
-### Ejecutar scrapers una vez
+### Integrado al sistema (producción)
+
+El scraper se registra en `runner.py` y se ejecuta automáticamente junto con los demás scrapers del proyecto.
 
 ```bash
-carflip run
+carflip run      # ejecuta todos los scrapers una vez
+carflip start    # inicia el scheduler automático (cada 6 horas)
 ```
 
-Muestra un menú interactivo para seleccionar todos los scrapers o uno específico.
+### Ejecución independiente desde la línea de comandos
+
+Útil para pruebas o para correr solo este scraper sin levantar el sistema completo.
 
 ```bash
-# Ejecutar un scraper directamente
-carflip run --scraper autocosmosCloud
+# Sin límite de páginas (recorre toda la sección de autos RM)
+.venv\Scripts\python src/carflip/scrapers/Yapo/yapoCloud.py
+
+# Limitado a N páginas (recomendado para pruebas)
+.venv\Scripts\python src/carflip/scrapers/Yapo/yapoCloud.py 3
 ```
 
-### Iniciar scheduler automático
+### Ejecución desde código Python
 
-```bash
-carflip start
-```
+```python
+import asyncio
+from carflip.scrapers.Yapo.yapoCloud import ScraperYapoCloud
+from carflip.database.session import AsyncSessionLocal
 
-Ejecuta un ciclo inmediatamente y luego repite cada `SCRAPE_INTERVAL_HOURS` (default: 6h).
+async def main():
+    scraper = ScraperYapoCloud(max_paginas=3, guardar_raw=True)
+    async with AsyncSessionLocal() as sesion:
+        resultado = await scraper.ejecutar(sesion)
+    print(f"{len(resultado.avisos)} avisos válidos, {resultado.errores} errores")
 
-### Consultar estadísticas de mercado
-
-```bash
-carflip market <marca> <modelo> <año>
-```
-
-```bash
-carflip market Toyota Corolla 2020
-# Toyota Corolla 2020
-#   Promedio:  $9.500.000
-#   Mínimo:    $7.800.000
-#   Máximo:    $11.200.000
-#   Avisos:    34
+asyncio.run(main())
 ```
 
 ---
 
-## Arquitectura
+## Cómo funciona el pipeline (en detalle)
 
-### Pipeline
+### Etapa 1 — Ingesta (dos fases)
+
+La ingesta tiene dos fases separadas: primero se recolectan las URLs de los avisos desde las páginas de listado, y luego se visita cada aviso individual para obtener sus datos completos.
+
+#### Fase 1a — Recolección de URLs desde el listado
+
+El scraper abre un navegador Chromium en modo headless (sin ventana visible) y navega por las páginas de listado de autos usados en la Región Metropolitana:
 
 ```
-INGESTA (scraper.scrape())
-──────────────────────────
-Cada scraper implementa scrape() → list[AvisoAuto]
-Output: data/raw/{fuente}_{fecha}/
-  ├── avisos.jsonl     — metadata por aviso
-  └── fotos/           — imágenes originales
-
-LIMPIEZA
-────────
-Deduplicación por id_externo
-Conversión de imágenes a AVIF
-
-VALIDACIÓN
-──────────
-Campos estructurales: formato de año, precio > 0, km ≥ 0
-Campos semánticos: año entre 1990 y actual, precio entre $500k y $100M CLP
-
-CARGA
-─────
-FAIL LOGs → audit store (fail_logs.json por ejecución)
-Imágenes AVIF → Cloudflare R2 (retry x5, 2 horas máximo)
-Metadata JSON → PostgreSQL vía upsert (retry x5, 2 horas máximo)
+https://www.yapo.cl/region_metropolitana/autos
+https://www.yapo.cl/region_metropolitana/autos?o=2
+https://www.yapo.cl/region_metropolitana/autos?o=3
+...
 ```
 
-### Patrón de scrapers
+Para reducir el tiempo de carga y el consumo de red, el navegador bloquea automáticamente todas las solicitudes de recursos estáticos (imágenes, fuentes, íconos) durante la navegación del listado — solo descarga el HTML y el JavaScript necesarios para renderizar la grilla de avisos.
 
-Todos los scrapers heredan de `ScraperBase` en [src/carflip/scrapers/base.py](src/carflip/scrapers/base.py). Solo hay que implementar `scrape()`:
+Por cada página de listado:
+1. Espera a que aparezca el selector `div.d3-ads-grid` (la grilla de avisos).
+2. Lee todos los cards (`div.d3-ad-tile`) y extrae el enlace al aviso, el precio mostrado, la ubicación y la fecha.
+3. Descarta URLs ya vistas (deduplicación temprana por URL).
+4. Si la página no tiene resultados, detiene la paginación.
 
-```python
-class ScraperAutocosmos(ScraperBase):
-    fuente = "autocosmos"
-    model_class = AutocosmosListing  # tabla destino en PostgreSQL
+#### Fase 1b — Extracción de datos en cada aviso
 
-    async def scrape(self) -> list[AvisoAuto]:
-        # 1. Pedir páginas con httpx
-        # 2. Parsear con BeautifulSoup4
-        # 3. Llamar await self.espera_aleatoria() entre requests
-        # 4. Retornar list[AvisoAuto]
-        ...
-```
+Para cada URL recolectada, el scraper navega a la página de detalle del aviso y ejecuta un **fragmento de JavaScript inyectado** en la página (`page.evaluate()`) que extrae los atributos del auto desde dos fuentes simultáneamente:
 
-`ScraperBase.ejecutar()` gestiona logging, timing, manejo de errores y upsert a PostgreSQL. No sobreescribirlo.
+- **DOM estructurado**: los elementos `<dt>`/`<dd>` dentro de `.d3-property-insight__attribute-details` contienen los atributos del auto (Marca, Modelo, Año, Kilómetros, Combustible, etc.)
+- **JSON-LD embebido**: los tags `<script type="application/ld+json">` de tipo `Car` contienen datos estructurados que complementan lo anterior (útil cuando el DOM omite algún campo).
 
-### Dataclass normalizado
+También extrae la URL de la imagen de portada desde la galería del aviso (buscando `<img>` con el patrón `t_or_fh` en su src).
 
-```python
-@dataclass
-class AvisoAuto:
-    fuente: str
-    id_externo: str
-    url: str
-    titulo: str
-    precio: Decimal | None = None
-    moneda: str = "CLP"
-    marca: str | None = None
-    modelo: str | None = None
-    anio: int | None = None
-    km: int | None = None
-    ubicacion: str | None = None
-    combustible: str | None = None
-    descripcion: str | None = None
-    url_imagen: str | None = None
-    disponible: bool | None = None
-    fecha_publicacion: str | None = None
-```
+Por cada aviso, si se encontró una imagen de portada:
+1. La descarga con `httpx` (cliente HTTP directo, más eficiente que Playwright para archivos binarios).
+2. La convierte a **formato AVIF** usando `image_utils.convertir_a_avif()`.
+3. La sube a **S3** con hasta 12 reintentos de 10 minutos cada uno (ventana de 2 horas).
 
-### Tablas de base de datos
+> **¿Por qué AVIF?** Es el formato de imagen moderno más eficiente: misma calidad visual con archivos entre 30% y 50% más pequeños que JPEG. Esto reduce el costo de almacenamiento en Cloudflare R2 y el tiempo de carga en el frontend.
 
-Cada scraper tiene su propia tabla. Todas comparten las mismas columnas vía `ListingMixin`:
+Después de cada aviso se serializa inmediatamente como una línea en el archivo `avisos.jsonl` del run actual (escritura incremental, no se pierde trabajo si el proceso se interrumpe a mitad).
 
-| Tabla | Scraper |
+---
+
+### Etapa 2 — Limpieza (deduplicación)
+
+Una vez terminada la ingesta, se recorre la lista completa de avisos y se eliminan duplicados por `id_externo`. Esto puede ocurrir cuando el mismo aviso aparece en distintas páginas del listado durante el mismo run.
+
+Los avisos descartados se registran en el FAIL LOG con `etapa="dedup_json"`.
+
+---
+
+### Etapa 3 — Validación
+
+Cada aviso pasa por una validación de dos niveles antes de ser aceptado:
+
+**Validación estructural** (formato correcto):
+
+| Campo | Regla |
 |---|---|
-| `autocosmos_listings` | Autocosmos |
-| `mercadolibre_listings` | MercadoLibre |
-| `autosusados_listings` | Autosusados |
-| `checkeados_listings` | Checkeados |
-| `economicos_listings` | Económicos |
-| `scrape_runs` | Bitácora de ejecuciones |
+| `anio` | Entero de exactamente 4 dígitos |
+| `precio` | Número mayor a 0 |
+| `km` | Número mayor o igual a 0 |
+| `fecha_publicacion` | Formato `YYYY-MM-DD`, no puede ser una fecha futura |
 
-Columnas principales: `id_externo` (clave de upsert), `precio`, `precio_anterior`, `delta_pct`, `primera_vez_visto`, `ultima_vez_visto`.
+**Validación semántica** (valores razonables):
+
+| Campo | Rango aceptado |
+|---|---|
+| `anio` | Entre 1970 y el año actual |
+| `precio` | Entre $500.000 y $250.000.000 CLP |
+
+**Advertencia no bloqueante**: si un auto del año 2022 o posterior tiene más de 100.000 km, se registra un `logger.warning`, pero el aviso igual pasa la validación (no se descarta).
+
+Los avisos que no superan la validación se registran en el FAIL LOG con `etapa="validacion_json"` e incluyen el motivo exacto del rechazo.
 
 ---
 
-## Tests
+### Etapa 4 — FAIL LOG consolidado
+
+Al final del scrape, todos los errores acumulados durante las tres etapas anteriores se escriben en un único archivo `fail_logs.json` dentro de la carpeta `raw/` del run, y se sube a S3.
+
+Cada entrada tiene esta estructura:
+
+```json
+{
+  "timestamp": "2026-05-16T12:00:00+00:00",
+  "etapa": "validacion_json",
+  "motivo": "precio 300000 fuera de rango [500.000, 250.000.000] CLP",
+  "id_externo": "12345678",
+  "fuente": "yapo"
+}
+```
+
+**Etapas posibles:**
+
+| Etapa | Cuándo se registra |
+|---|---|
+| `ingesta` | Error al cargar la página de detalle del aviso (timeout, fallo de red) |
+| `conversion_avif` | La imagen se descargó pero no se pudo convertir a AVIF |
+| `descarga_foto` | La imagen de portada no se pudo descargar |
+| `upload_foto` | S3 upload de la imagen agotó los 12 reintentos |
+| `upload_metadata` | S3 upload de `raw/avisos.jsonl` agotó los 12 reintentos |
+| `upload_processed` | S3 upload de `processed/avisos.jsonl` agotó los 12 reintentos |
+| `dedup_json` | Aviso duplicado entre páginas, o error al escribir el JSONL |
+| `validacion_json` | Aviso rechazado por validación estructural o semántica |
+
+---
+
+### Etapa 5 — Carga a la base de datos
+
+`scrape()` retorna la lista de `AvisoAuto` válidos. La carga a PostgreSQL la gestiona `ScraperBase.ejecutar()` a través de `uploader.upsert_avisos()`: si el aviso ya existe (misma `id_externo`) lo actualiza; si es nuevo, lo inserta. Los cambios de precio quedan registrados en `precio_anterior` y `delta_pct`.
+
+El resultado de la ejecución (cantidad de avisos, errores, tiempo de inicio y fin) se guarda también en la tabla `scrape_runs`.
+
+---
+
+### Subida de archivos a S3
+
+La función `_cargar_a_s3_con_retry()` sube archivos a S3 via `aioboto3`. Realiza hasta 12 reintentos con intervalos de 10 minutos (2 horas de ventana total). Se invoca en cuatro momentos del pipeline:
+
+1. **Fotos** — inmediatamente después de descargar y convertir cada imagen individual.
+2. **`raw/avisos.jsonl`** — al finalizar la ingesta, para dejar el archivo completo del run en S3.
+3. **`processed/avisos.jsonl`** — al finalizar la validación, con solo los avisos aprobados.
+4. **`fail_logs.json`** — al finalizar el scrape, si hubo errores.
+
+> S3 actúa como almacenamiento intermediario. Desde ahí, el pipeline ETL transfiere las imágenes AVIF a Cloudflare R2 (CDN final), desde donde las consume el frontend.
+
+---
+
+## Datos que se extraen de cada aviso
+
+El scraper mapea la información del sitio al dataclass `AvisoAuto`:
+
+| Campo | Origen | Notas |
+|---|---|---|
+| `fuente` | — | Siempre `"yapo"` |
+| `id_externo` | URL del aviso | Último segmento del path (`/autos-usados/.../12345678` → `"12345678"`) |
+| `url` | Enlace del card en el listado | URL directa al aviso en yapo.cl |
+| `titulo` | Construido | `"{marca} {modelo} {año} usado precio {precio}"` |
+| `precio` | Texto del card de listado | Extracción numérica de la primera línea; resultado en CLP |
+| `moneda` | — | Siempre `"CLP"` |
+| `marca` | DOM / JSON-LD del detalle | Atributo `"Marca"` en los `<dt>`/`<dd>` del aviso |
+| `modelo` | DOM / JSON-LD del detalle | Atributo `"Modelo"` en los `<dt>`/`<dd>` del aviso |
+| `anio` | DOM / JSON-LD del detalle | Atributo `"Año"` / `"Ano"` / `modelDate` en JSON-LD |
+| `km` | DOM / JSON-LD del detalle | Atributo `"Kilómetros"` / `mileageFromOdometer` en JSON-LD |
+| `ubicacion` | Texto del card de listado | Región del aviso |
+| `combustible` | DOM / JSON-LD del detalle | Normalizado a: `"bencina"`, `"diesel"`, `"hibrido"`, `"electrico"` |
+| `descripcion` | — | No extraído; queda como `None` |
+| `url_imagen` | Galería del aviso | Primer `<img>` con `t_or_fh` en su `src` |
+| `disponible` | — | Siempre `True` (si aparece en el listado, está activo) |
+| `fecha_publicacion` | Texto del card de listado | Texto del elemento `<time>` o fecha actual como fallback |
+
+> **Nota sobre `id_externo`**: se toma directamente del último segmento de la URL del aviso en Yapo (un identificador numérico). A diferencia de Autocosmos, no se genera un hash — Yapo ya provee un ID estable en su estructura de URLs.
+
+> **Nota sobre `combustible`**: los valores que entrega Yapo se normalizan a un vocabulario controlado. Por ejemplo, `"Gasolina"`, `"Nafta"` y `"Bencina"` se convierten todas a `"bencina"`.
+
+---
+
+## Archivos generados en disco
+
+Con `guardar_raw=True` (comportamiento por defecto) se crea una carpeta por ejecución bajo `yapo/`:
+
+```
+yapo/
+└── {HH-MM-SS_DD-MM-YYYY}/          ← una carpeta por run (hora y fecha)
+    ├── raw/
+    │   ├── avisos.jsonl             ← todos los avisos del run, uno por línea
+    │   ├── fail_logs.json           ← errores consolidados (solo si hubo alguno)
+    │   └── fotos/
+    │       ├── 12345678.avif        ← imagen de portada en formato AVIF
+    │       └── ...
+    └── processed/
+        └── avisos.jsonl             ← solo los avisos que pasaron limpieza y validación
+```
+
+**`raw/avisos.jsonl`**: todos los avisos obtenidos durante la ingesta (incluyendo los que luego serán descartados). Formato JSONL: un objeto JSON por línea, incluye el campo `foto_local` con el nombre del archivo de imagen descargado.
+
+**`raw/fail_logs.json`**: solo se crea si hubo al menos un error durante el run. Es un arreglo JSON con todos los FAIL LOGs del run.
+
+**`processed/avisos.jsonl`**: avisos que superaron la deduplicación y la validación. Estos son los que se cargan a PostgreSQL y se suben a R2.
+
+Con `guardar_raw=False` el scraper sigue funcionando normalmente (scrapea, limpia, valida y carga a la BD) pero no escribe nada en disco ni sube imágenes a S3.
+
+---
+
+## Parámetros del constructor
+
+```python
+ScraperYapoCloud(max_paginas=None, guardar_raw=True)
+```
+
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `max_paginas` | `int \| None` | `None` | Límite de páginas de listado a recorrer. `None` = sin límite (recorre hasta que no haya más avisos). En producción se recomienda `None`; para pruebas, usar `3` |
+| `guardar_raw` | `bool` | `True` | Si escribe archivos en disco, descarga fotos y sube a S3. No afecta la carga a PostgreSQL |
+
+---
+
+## Configuración (`.env`)
+
+```env
+# S3 (almacenamiento intermediario antes de R2)
+S3_ACCESS_KEY_ID=tu_access_key
+S3_SECRET_ACCESS_KEY=tu_secret_key
+S3_REGION=us-east-1
+S3_BUCKET=carflip-raw
+S3_PREFIX=raw/
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FILE=logs/carflip.log
+```
+
+> El scraper de Yapo no usa `MIN_DELAY_SECONDS` / `MAX_DELAY_SECONDS` del `.env` porque los delays entre avisos los gestiona directamente Playwright con `page.wait_for_timeout()` (1,5 segundos en páginas de detalle, 2 segundos en páginas de listado).
+
+---
+
+## Dependencias
+
+| Paquete | Versión | Propósito |
+|---|---|---|
+| `playwright` | ≥1.44 | Navegador Chromium headless para ejecutar el JavaScript de Yapo |
+| `httpx` | ≥0.27 | Descarga de imágenes de portada (más eficiente que Playwright para binarios) |
+| `aioboto3` | ≥12.0 | Cliente S3 asíncrono para subida de fotos y JSONLs |
+| `loguru` | ≥0.7 | Logging estructurado con niveles, rotación y colores |
+| `pydantic-settings` | ≥2.3 | Lectura de variables de entorno desde `.env` |
+| `sqlalchemy[asyncio]` | ≥2.0 | ORM asíncrono para operaciones de base de datos |
+| `asyncpg` | ≥0.29 | Driver PostgreSQL asíncrono (requerido por SQLAlchemy async) |
+
+Todas las dependencias se instalan automáticamente con `uv sync` desde la raíz del proyecto. Para Playwright, además hay que instalar el navegador una sola vez:
 
 ```bash
-# Suite completa
-pytest
-
-# Test específico con detalle
-pytest -x -v tests/test_price_tracker.py
-```
-
-Tests de integración que requieren BD usan `carflip_test`. Tests unitarios de scrapers mockean respuestas HTTP con `respx`, no la base de datos.
-
----
-
-## Desarrollo
-
-### Agregar un nuevo scraper
-
-1. Crear `src/carflip/scrapers/NuevoSitio/nuevositio.py` heredando de `ScraperBase`
-2. Crear modelo SQLAlchemy en `src/carflip/database/models.py` usando `ListingMixin`
-3. Generar migración: `alembic revision --autogenerate -m "agregar nuevositio_listings"`
-4. Revisar y aplicar: `alembic upgrade head`
-5. Registrar en `src/carflip/scheduler/runner.py`
-
-### Branching y commits
-
-```
-main                        # siempre estable
-feat/nombre-scraper         # nuevo scraper o feature
-fix/descripcion-bug         # corrección de bug
-chore/descripcion           # dependencias, config
-db/descripcion-migracion    # cambios de esquema
-```
-
-Formato de commits (Conventional Commits):
-
-```
-feat(checkeados): agregar scraper Checkeados Chile
-fix(autocosmos): manejar cambio en estructura DOM
-chore: actualizar httpx a 0.28
-db: agregar índice en mercadolibre_listings(marca, modelo)
+playwright install chromium
 ```
 
 ---
 
-## Resolución de problemas
+## Limitaciones conocidas
 
-### PostgreSQL no disponible
-
-```bash
-# Windows (servicio instalado)
-pg_ctl -D "C:\Program Files\PostgreSQL\data" start
-
-# Docker
-docker run --name carflip-db -e POSTGRES_PASSWORD=pass -p 5432:5432 -d postgres
-createdb -h localhost -U postgres carflip
-```
-
-### Intérprete Python no detectado en VS Code
-
-`Ctrl+Shift+P` → "Python: Select Interpreter" → seleccionar `.venv\Scripts\python.exe`
-
-### Migraciones desactualizadas
-
-```bash
-alembic current      # ver versión actual aplicada
-alembic upgrade head # aplicar todas las pendientes
-```
+- **Solo Región Metropolitana**: el listado base es `yapo.cl/region_metropolitana/autos`. No cubre otras regiones del país (ampliar requeriría parametrizar la URL base o iterar sobre las regiones).
+- **Sin paginación ilimitada**: la paginación de Yapo cambia con el parámetro `?o=N`. Si el sitio cambia este parámetro, actualizar la línea `url = f"{base_url}?o={pagina}"` en `scrape()`.
+- **Rendimiento más lento que httpx**: al usar un navegador real, cada página tarda ~3–5 segundos en cargar y renderizar, más 1,5 segundos de espera explícita. Con 3 páginas de listado (~60 avisos) el scrape completo toma aproximadamente 5–7 minutos.
+- **JavaScript dependiente del DOM de Yapo**: si Yapo rediseña su interfaz y cambia los selectores (`.d3-ad-tile`, `.d3-property-insight__attribute-details`, etc.), el scraper dejará de extraer datos correctamente. Actualizar el script `_JS_ATTRS` y los selectores de Playwright en `scrape()`.
+- **`fecha_publicacion` con fallback a fecha actual**: Yapo no siempre muestra la fecha de publicación de forma parseable. Cuando el elemento `<time>` no está disponible o su texto no es una fecha, se usa la fecha del día del run como fallback.
 
 ---
 
-Para documentación técnica completa (arquitectura, convenciones, decisiones de diseño), ver [CLAUDE.md](CLAUDE.md).
+## Archivos del módulo
+
+```
+src/carflip/scrapers/Yapo/
+├── yapoCloud.py   ← Pipeline completo (ingesta, limpieza, validación, carga)
+├── __init__.py    ← Expone ScraperYapoCloud
+└── README.md      ← Este archivo
+```
+
+**Módulo principal:** [yapoCloud.py](yapoCloud.py)
+**Clase principal:** `ScraperYapoCloud`
+**Tabla en PostgreSQL:** `yapo_listings`

@@ -23,6 +23,7 @@ from playwright.async_api import async_playwright
 from carflip.config import settings
 from carflip.database.models import YapoListing
 from carflip.scrapers.base import AvisoAuto, ScraperBase
+from carflip.scrapers.image_utils import convertir_a_avif
 
 YAPO_BASE = "https://www.yapo.cl"
 _AÑO_MINIMO = 1970
@@ -30,8 +31,8 @@ _PRECIO_MINIMO = 500_000
 _PRECIO_MAXIMO = 250_000_000
 _PATRON_FECHA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-_R2_MAX_REINTENTOS = 12
-_R2_INTERVALO_SEG = 600
+_S3_MAX_REINTENTOS = 12   # 12 × 10 min = 2 horas
+_S3_INTERVALO_SEG  = 600  # 10 minutos
 
 _HEADERS_HTTP = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -51,47 +52,88 @@ class FailLog:
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
-# ─── CARGA R2 ────────────────────────────────────────────────────────────────
+# ─── CARGA S3 ────────────────────────────────────────────────────────────────
 
 
-async def _cargar_a_r2_con_retry(ruta_local: Path, clave_r2: str) -> bool:
+async def _cargar_a_s3_con_retry(ruta_local: Path, clave_s3: str) -> bool:
     import aioboto3
-    if not settings.r2_account_id:
-        logger.warning("[yapo] R2 no configurado en .env, omitiendo upload")
-        return False
+    from botocore.exceptions import ClientError
 
-    r2_endpoint = f"https://{settings.r2_account_id}.r2.cloudflarestorage.com"
     sesion = aioboto3.Session(
-        aws_access_key_id=settings.r2_access_key_id,
-        aws_secret_access_key=settings.r2_secret_access_key,
+        aws_access_key_id=settings.s3_access_key_id,
+        aws_secret_access_key=settings.s3_secret_access_key,
+        region_name=settings.s3_region,
     )
     datos = ruta_local.read_bytes()
 
-    async with sesion.client("s3", endpoint_url=r2_endpoint) as cliente:
-        for intento in range(1, _R2_MAX_REINTENTOS + 1):
+    async with sesion.client("s3") as cliente:  # type: ignore[attr-defined]  # aioboto3 no tiene stubs completos
+        for intento in range(1, _S3_MAX_REINTENTOS + 1):
             try:
-                await cliente.put_object(Bucket=settings.r2_bucket, Key=clave_r2, Body=datos)
-                await cliente.head_object(Bucket=settings.r2_bucket, Key=clave_r2)
-                logger.debug(f"[yapo] R2 upload OK: {clave_r2}")
+                await cliente.put_object(Bucket=settings.s3_bucket, Key=clave_s3, Body=datos)
+                await cliente.head_object(Bucket=settings.s3_bucket, Key=clave_s3)
+                logger.debug(f"[yapo] S3 upload OK: {clave_s3}")
                 return True
-            except Exception as exc:
-                if intento < _R2_MAX_REINTENTOS:
+            except (ClientError, Exception) as exc:
+                if intento < _S3_MAX_REINTENTOS:
                     logger.warning(
-                        f"[yapo] R2 upload fallido intento {intento}/{_R2_MAX_REINTENTOS}"
-                        f" — {clave_r2}: {exc}. Reintentando en {_R2_INTERVALO_SEG // 60} min."
+                        f"[yapo] S3 upload fallido intento {intento}/{_S3_MAX_REINTENTOS}"
+                        f" — {clave_s3}: {exc}. Reintentando en {_S3_INTERVALO_SEG // 60} min."
                     )
-                    await asyncio.sleep(_R2_INTERVALO_SEG)
+                    await asyncio.sleep(_S3_INTERVALO_SEG)
                 else:
                     logger.error(
-                        f"[yapo] R2 upload agotó {_R2_MAX_REINTENTOS} reintentos: {clave_r2} — {exc}"
+                        f"[yapo] S3 upload agotó {_S3_MAX_REINTENTOS} reintentos: {clave_s3} — {exc}"
                     )
     return False
+
+
+# ─── VALIDACIÓN ──────────────────────────────────────────────────────────────
+
+
+def _validar_aviso(aviso: AvisoAuto) -> list[str]:
+    """Retorna lista de errores. Lista vacía = aviso válido."""
+    errores: list[str] = []
+    anio_actual = datetime.now().year
+
+    if aviso.anio is not None:
+        s = str(aviso.anio)
+        if not (s.isdigit() and len(s) == 4):
+            errores.append(f"anio con formato inválido: {aviso.anio!r}")
+
+    if aviso.precio is not None and aviso.precio <= 0:
+        errores.append(f"precio debe ser > 0, es {aviso.precio}")
+
+    if aviso.km is not None and aviso.km < 0:
+        errores.append(f"km debe ser >= 0, es {aviso.km}")
+
+    if aviso.fecha_publicacion is not None:
+        if not _PATRON_FECHA.match(aviso.fecha_publicacion):
+            errores.append(f"fecha_publicacion no es YYYY-MM-DD: {aviso.fecha_publicacion!r}")
+        else:
+            try:
+                f = datetime.strptime(aviso.fecha_publicacion, "%Y-%m-%d").date()
+                if f > datetime.now().date():
+                    errores.append(f"fecha_publicacion es futura: {aviso.fecha_publicacion}")
+            except ValueError:
+                errores.append(f"fecha_publicacion inválida: {aviso.fecha_publicacion!r}")
+
+    if aviso.anio is not None and not any("anio" in e for e in errores):
+        if not (_AÑO_MINIMO <= aviso.anio <= anio_actual):
+            errores.append(f"anio {aviso.anio} fuera de rango [{_AÑO_MINIMO}, {anio_actual}]")
+
+    if aviso.precio is not None:
+        if not (_PRECIO_MINIMO <= float(aviso.precio) <= _PRECIO_MAXIMO):
+            errores.append(
+                f"precio {aviso.precio} fuera de rango [{_PRECIO_MINIMO:,}, {_PRECIO_MAXIMO:,}] CLP"
+            )
+
+    return errores
 
 
 # ─── HELPERS DE ALMACENAMIENTO RAW ───────────────────────────────────────────
 
 
-def _aviso_a_dict(aviso: AvisoAuto) -> dict:
+def _aviso_a_dict(aviso: AvisoAuto, foto_local: str | None = None) -> dict:
     return {
         "fuente": aviso.fuente,
         "id_externo": aviso.id_externo,
@@ -107,10 +149,33 @@ def _aviso_a_dict(aviso: AvisoAuto) -> dict:
         "combustible": aviso.combustible,
         "descripcion": aviso.descripcion,
         "url_imagen": aviso.url_imagen,
-        "foto_local": getattr(aviso, "_foto_local", None),
+        "foto_local": foto_local,
         "disponible": aviso.disponible,
         "fecha_publicacion": aviso.fecha_publicacion,
     }
+
+
+def _append_avisos_jsonl(
+    avisos: list[AvisoAuto],
+    ruta_jsonl: Path,
+    fotos: dict[str, str] | None = None,
+) -> bool:
+    """Append avisos a un JSONL, una línea por aviso."""
+    if fotos is None:
+        fotos = {}
+    try:
+        with open(ruta_jsonl, "a", encoding="utf-8") as f:
+            for aviso in avisos:
+                linea = json.dumps(
+                    _aviso_a_dict(aviso, foto_local=fotos.get(aviso.id_externo)),
+                    ensure_ascii=False,
+                )
+                f.write(linea + "\n")
+        logger.debug(f"[yapo] {len(avisos)} avisos appended a {ruta_jsonl.name}")
+        return True
+    except Exception as e:
+        logger.error(f"[yapo] Error appending avisos a JSONL: {e}")
+        return False
 
 
 # ─── SCRAPER CLOUD ────────────────────────────────────────────────────────────
@@ -154,6 +219,10 @@ class ScraperYapoCloud(ScraperBase):
         return out;
     }"""
 
+    def __init__(self, max_paginas: int | None = None, guardar_raw: bool = True) -> None:
+        self.max_paginas = max_paginas
+        self.guardar_raw = guardar_raw
+
     def _get_attr(self, attrs: dict, *claves: str) -> str:
         import unicodedata
 
@@ -183,71 +252,54 @@ class ScraperYapoCloud(ScraperBase):
         if any(w in v for w in ["bencina", "gasolina", "nafta"]): return "bencina"
         return v if v else None
 
-    def _validar_aviso(self, aviso: AvisoAuto) -> list[str]:
-        errores: list[str] = []
-        anio_actual = datetime.now().year
-
-        if aviso.anio is not None:
-            s = str(aviso.anio)
-            if not (s.isdigit() and len(s) == 4):
-                errores.append(f"anio con formato inválido: {aviso.anio!r}")
-
-        if aviso.precio is not None and aviso.precio <= 0:
-            errores.append(f"precio debe ser > 0, es {aviso.precio}")
-
-        if aviso.km is not None and aviso.km < 0:
-            errores.append(f"km debe ser >= 0, es {aviso.km}")
-
-        if aviso.fecha_publicacion is not None:
-            if not _PATRON_FECHA.match(aviso.fecha_publicacion):
-                errores.append(f"fecha_publicacion no es YYYY-MM-DD: {aviso.fecha_publicacion!r}")
-            else:
-                try:
-                    f = datetime.strptime(aviso.fecha_publicacion, "%Y-%m-%d").date()
-                    if f > datetime.now().date():
-                        errores.append(f"fecha_publicacion es futura: {aviso.fecha_publicacion}")
-                except ValueError:
-                    errores.append(f"fecha_publicacion inválida: {aviso.fecha_publicacion!r}")
-
-        if aviso.anio is not None and not any("anio" in e for e in errores):
-            if not (_AÑO_MINIMO <= aviso.anio <= anio_actual):
-                errores.append(f"anio {aviso.anio} fuera de rango [{_AÑO_MINIMO}, {anio_actual}]")
-
-        if aviso.precio is not None:
-            if not (_PRECIO_MINIMO <= float(aviso.precio) <= _PRECIO_MAXIMO):
-                errores.append(
-                    f"precio {aviso.precio} fuera de rango [{_PRECIO_MINIMO:,}, {_PRECIO_MAXIMO:,}] CLP"
-                )
-
-        return errores
-
-    async def _descargar_imagen(self, url: str, ruta: Path) -> bool:
-        if not url: return False
-        if ruta.exists(): return True
+    async def _descargar_imagen(
+        self,
+        url: str,
+        ruta: Path,
+        fail_logs: list[FailLog],
+        aviso_id: str,
+    ) -> Path | None:
+        if not url:
+            return None
+        if ruta.exists():
+            return ruta
         try:
             import httpx
             async with httpx.AsyncClient() as client:
                 resp = await client.get(url, headers=_HEADERS_HTTP, timeout=15)
                 resp.raise_for_status()
                 ruta.write_bytes(resp.content)
-            return True
+            ruta_avif = convertir_a_avif(ruta)
+            if ruta_avif is None:
+                fail_logs.append(FailLog(
+                    etapa="conversion_avif",
+                    motivo="Conversión AVIF fallida",
+                    id_externo=aviso_id,
+                ))
+                logger.debug(f"[yapo] Imagen descargada (sin AVIF): id={aviso_id} → {ruta.name}")
+                return ruta
+            logger.debug(f"[yapo] Imagen descargada y convertida a AVIF: id={aviso_id} → {ruta_avif.name}")
+            return ruta_avif
         except Exception as e:
             logger.warning(f"[yapo] No se pudo descargar imagen {ruta.name}: {e}")
-            return False
+            return None
 
     async def scrape(self) -> list[AvisoAuto]:
         utc_4 = timezone(timedelta(hours=-4))
         inicio = datetime.now(utc_4)
         fecha_str = inicio.strftime("%H-%M-%S_%d-%m-%Y")
-        carpeta = Path("yapo") / fecha_str / "raw"
-        carpeta_fotos = carpeta / "fotos"
-        carpeta_fotos.mkdir(parents=True, exist_ok=True)
-        ruta_jsonl = carpeta / "avisos.jsonl"
+        fecha_dia = inicio.strftime("%Y/%m/%d")
+        carpeta = (Path("yapo") / fecha_str / "raw") if self.guardar_raw else None
+        if carpeta:
+            (carpeta / "fotos").mkdir(parents=True, exist_ok=True)
+        ruta_jsonl = carpeta / "avisos.jsonl" if carpeta else None
 
         logger.info(f"[yapo] Iniciando scrape cloud — {inicio.strftime('%H:%M:%S %d/%m/%Y')}")
 
         fail_logs: list[FailLog] = []
-        avisos_raw: list[dict] = []
+        avisos_raw: list[AvisoAuto] = []
+        fotos_run: dict[str, str] = {}
+        vistos_urls: set[str] = set()
         avisos_info = []
 
         async with async_playwright() as p:
@@ -261,8 +313,9 @@ class ScraperYapoCloud(ScraperBase):
             await page.route("**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,otf}", lambda route: route.abort())
 
             # ── INGESTA: listado ──────────────────────────────────────────────
+            max_paginas = self.max_paginas or 3
             base_url = f"{YAPO_BASE}/region_metropolitana/autos"
-            for pagina in range(1, 4):
+            for pagina in range(1, max_paginas + 1):
                 url = f"{base_url}?o={pagina}" if pagina > 1 else base_url
                 logger.info(f"[yapo] Listado página {pagina}: {url}")
                 try:
@@ -274,12 +327,23 @@ class ScraperYapoCloud(ScraperBase):
 
                 await page.wait_for_timeout(2_000)
                 cards = await page.query_selector_all("div.d3-ad-tile")
+                if not cards:
+                    logger.info(f"[yapo] Página {pagina}: sin resultados, fin paginación")
+                    break
 
+                count_antes = len(avisos_info)
                 for card in cards:
                     link = await card.query_selector("a[href^='/autos-usados']")
-                    if not link: continue
+                    if not link:
+                        continue
                     href = await link.get_attribute("href")
-                    if not href: continue
+                    if not href:
+                        continue
+
+                    url_aviso = YAPO_BASE + href
+                    if url_aviso in vistos_urls:
+                        continue
+                    vistos_urls.add(url_aviso)
 
                     async def _safe(sel: str) -> str:
                         try:
@@ -289,11 +353,14 @@ class ScraperYapoCloud(ScraperBase):
                             return ""
 
                     avisos_info.append({
-                        "url": YAPO_BASE + href,
+                        "url": url_aviso,
                         "precio": await _safe("[class*='d3-ad-tile__price']"),
                         "region": await _safe("[class*='d3-ad-tile__location']"),
                         "fecha": await _safe("time, [class*='date']") or datetime.now().strftime("%Y-%m-%d"),
                     })
+
+                nuevos = len(avisos_info) - count_antes
+                logger.info(f"[yapo] Página {pagina}: {nuevos} URLs recolectadas (total {len(avisos_info)})")
 
             # ── INGESTA: detalles ─────────────────────────────────────────────
             for i, info in enumerate(avisos_info, 1):
@@ -311,54 +378,72 @@ class ScraperYapoCloud(ScraperBase):
                     continue
 
                 km_raw = self._get_attr(attrs, "Kilómetros", "Kilometros", "Kilometraje")
-                precio = self._limpiar_precio(info["precio"])
+                precio_raw = self._limpiar_precio(info["precio"])
                 km = self._limpiar_km(km_raw) if km_raw else None
                 anio_s = self._get_attr(attrs, "Año", "Ano")
                 anio = int(anio_s) if anio_s.isdigit() else None
-                img_url = attrs.get("imagen_url", "")
-                ruta_foto = carpeta_fotos / f"{aviso_id}.jpg"
-                foto_ok = await self._descargar_imagen(img_url, ruta_foto)
-                if foto_ok:
-                    logger.debug(f"[yapo] Imagen descargada: id={aviso_id}")
-                elif img_url:
-                    fail_logs.append(FailLog(
-                        etapa="descarga_foto",
-                        motivo="Descarga de imagen fallida",
-                        id_externo=aviso_id,
-                    ))
                 marca = self._get_attr(attrs, "Marca") or None
                 modelo = self._get_attr(attrs, "Modelo") or None
+                img_url = attrs.get("imagen_url", "") or None
 
-                registro = {
-                    "fuente": self.fuente,
-                    "id_externo": aviso_id,
-                    "url": url,
-                    "titulo": f"{marca or ''} {modelo or ''} {anio_s} usado precio {info['precio'].split(chr(10))[0]}".strip(),
-                    "precio": precio,
-                    "moneda": "CLP",
-                    "marca": marca,
-                    "modelo": modelo,
-                    "anio": anio,
-                    "km": km,
-                    "ubicacion": info["region"] or None,
-                    "combustible": self._normalizar_combustible(self._get_attr(attrs, "Combustible")),
-                    "url_imagen": img_url or None,
-                    "foto_local": ruta_foto.name if foto_ok else None,
-                    "disponible": True,
-                    "fecha_publicacion": info["fecha"],
-                }
+                logger.debug(f"[yapo] Parseando aviso id={aviso_id}")
+                if precio_raw is None:
+                    logger.warning(f"[yapo] id={aviso_id} sin precio")
+                if km is None:
+                    logger.warning(f"[yapo] id={aviso_id} km no encontrado")
+                if not marca and not modelo:
+                    logger.warning(f"[yapo] id={aviso_id} sin marca ni modelo, título con fallback")
 
-                avisos_raw.append(registro)
+                av_auto = AvisoAuto(
+                    fuente=self.fuente,
+                    id_externo=aviso_id,
+                    url=url,
+                    titulo=f"{marca or ''} {modelo or ''} {anio_s} usado precio {info['precio'].split(chr(10))[0]}".strip(),
+                    precio=Decimal(precio_raw) if precio_raw is not None else None,
+                    moneda="CLP",
+                    marca=marca,
+                    modelo=modelo,
+                    anio=anio,
+                    km=km,
+                    ubicacion=info["region"] or None,
+                    combustible=self._normalizar_combustible(self._get_attr(attrs, "Combustible")),
+                    url_imagen=img_url,
+                    disponible=True,
+                    fecha_publicacion=info["fecha"],
+                )
 
-                try:
-                    with open(ruta_jsonl, "a", encoding="utf-8") as f:
-                        f.write(json.dumps(registro, ensure_ascii=False) + "\n")
-                except Exception as e:
-                    fail_logs.append(FailLog(
-                        etapa="dedup_json",
-                        motivo=f"Error JSONL: {e}",
-                        id_externo=registro["id_externo"],
-                    ))
+                # Descarga y subida a S3 durante la ingesta
+                if self.guardar_raw and carpeta and img_url:
+                    carpeta_fotos = carpeta / "fotos"
+                    ruta_foto = carpeta_fotos / f"{aviso_id}.jpg"
+                    ruta_final = await self._descargar_imagen(img_url, ruta_foto, fail_logs, aviso_id)
+                    if ruta_final:
+                        fotos_run[aviso_id] = ruta_final.name
+                        clave = f"{settings.s3_prefix}yapo/{fecha_dia}/raw/fotos/{ruta_final.name}"
+                        s3_ok = await _cargar_a_s3_con_retry(ruta_final, clave)
+                        if not s3_ok:
+                            fail_logs.append(FailLog(
+                                etapa="upload_foto",
+                                motivo="S3 upload de imagen agotó reintentos",
+                                id_externo=aviso_id,
+                            ))
+                    else:
+                        fail_logs.append(FailLog(
+                            etapa="descarga_foto",
+                            motivo="Descarga de imagen fallida",
+                            id_externo=aviso_id,
+                        ))
+
+                avisos_raw.append(av_auto)
+
+                if self.guardar_raw and ruta_jsonl:
+                    ok = _append_avisos_jsonl([av_auto], ruta_jsonl, fotos=fotos_run)
+                    if not ok:
+                        fail_logs.append(FailLog(
+                            etapa="dedup_json",
+                            motivo="Error al serializar JSONL",
+                            id_externo=aviso_id,
+                        ))
 
             await ctx.close()
             await browser.close()
@@ -367,18 +452,18 @@ class ScraperYapoCloud(ScraperBase):
 
 
         # ── LIMPIEZA (deduplicación por id_externo) ───────────────────────────
-        vistos: set[str] = set()
-        avisos_unicos: list[dict] = []
+        vistos_id: set[str] = set()
+        avisos_unicos: list[AvisoAuto] = []
         for av in avisos_raw:
-            if av["id_externo"] in vistos:
-                logger.warning(f"[yapo] Duplicado detectado id={av['id_externo']}, descartando")
+            if av.id_externo in vistos_id:
+                logger.warning(f"[yapo] Duplicado detectado id={av.id_externo}, descartando")
                 fail_logs.append(FailLog(
                     etapa="dedup_json",
                     motivo="id_externo duplicado entre páginas",
-                    id_externo=av["id_externo"],
+                    id_externo=av.id_externo,
                 ))
             else:
-                vistos.add(av["id_externo"])
+                vistos_id.add(av.id_externo)
                 avisos_unicos.append(av)
 
         dups = len(avisos_raw) - len(avisos_unicos)
@@ -392,35 +477,17 @@ class ScraperYapoCloud(ScraperBase):
         avisos_validos: list[AvisoAuto] = []
         rechazados = 0
         for av in avisos_unicos:
-            av_auto = AvisoAuto(
-                fuente=av["fuente"],
-                id_externo=av["id_externo"],
-                url=av["url"],
-                titulo=av["titulo"],
-                precio=Decimal(av["precio"]) if av["precio"] is not None else None,
-                moneda=av["moneda"],
-                marca=av["marca"],
-                modelo=av["modelo"],
-                anio=av["anio"],
-                km=av["km"],
-                ubicacion=av["ubicacion"],
-                combustible=av["combustible"],
-                url_imagen=av["url_imagen"],
-                disponible=av["disponible"],
-                fecha_publicacion=av["fecha_publicacion"],
-            )
-            errores = self._validar_aviso(av_auto)
+            errores = _validar_aviso(av)
             if errores:
-                logger.error(f"[yapo] Aviso rechazado id={av['id_externo']}: {errores}")
+                logger.error(f"[yapo] Aviso rechazado id={av.id_externo}: {errores}")
                 fail_logs.append(FailLog(
                     etapa="validacion_json",
                     motivo="; ".join(errores),
-                    id_externo=av["id_externo"],
+                    id_externo=av.id_externo,
                 ))
                 rechazados += 1
             else:
-                setattr(av_auto, "_foto_local", av.get("foto_local"))
-                avisos_validos.append(av_auto)
+                avisos_validos.append(av)
 
         logger.info(
             f"[yapo] Validación: {len(avisos_validos)}/{len(avisos_unicos)} avisos pasan"
@@ -429,62 +496,66 @@ class ScraperYapoCloud(ScraperBase):
 
 
         # ── PROCESADOS (limpieza + validación superada) ──────────────────────
-        if avisos_validos:
+        if self.guardar_raw and avisos_validos:
             carpeta_procesados = Path("yapo") / fecha_str / "processed"
             carpeta_procesados.mkdir(parents=True, exist_ok=True)
             ruta_procesados = carpeta_procesados / "avisos.jsonl"
-            try:
-                with open(ruta_procesados, "a", encoding="utf-8") as f:
-                    for av in avisos_validos:
-                        f.write(json.dumps(_aviso_a_dict(av), ensure_ascii=False) + "\n")
+            ok = _append_avisos_jsonl(avisos_validos, ruta_procesados, fotos=fotos_run)
+            if ok:
                 logger.info(
                     f"[yapo] {len(avisos_validos)} avisos procesados escritos en {ruta_procesados}"
                 )
-            except Exception as e:
-                logger.error(f"[yapo] Error al escribir avisos procesados en {ruta_procesados}: {e}")
+            else:
+                logger.error(f"[yapo] Error al escribir avisos procesados en {ruta_procesados}")
 
-        # ── CARGA R2 — fotos ──────────────────────────────────────────────────
-        for av in avisos_validos:
-            foto = getattr(av, "_foto_local", None)
-            if foto:
-                ruta_local = carpeta_fotos / foto
-                clave_r2 = f"yapo/fotos/{foto}"
-                foto_ok_r2 = await _cargar_a_r2_con_retry(ruta_local, clave_r2)
-                if not foto_ok_r2:
-                    fail_logs.append(FailLog(
-                        etapa="upload_foto",
-                        motivo="R2 upload de imagen agotó reintentos",
-                        id_externo=av.id_externo,
-                    ))
-
-        # ── Metadata JSONL → R2 (antes de FAIL LOGs para incluir el error si falla) ──
-        if ruta_jsonl.exists():
-            metadata_ok = await _cargar_a_r2_con_retry(
+        # ── Metadata JSONL raw → S3 ───────────────────────────────────────────
+        if self.guardar_raw and ruta_jsonl and ruta_jsonl.exists():
+            metadata_ok = await _cargar_a_s3_con_retry(
                 ruta_jsonl,
-                f"yapo/metadata/{fecha_str}-{ruta_jsonl.name}",
+                f"{settings.s3_prefix}yapo/{fecha_dia}/raw/avisos.jsonl",
             )
             if not metadata_ok:
                 fail_logs.append(FailLog(
                     etapa="upload_metadata",
-                    motivo="R2 upload de avisos.jsonl agotó reintentos",
+                    motivo="S3 upload de raw/avisos.jsonl agotó reintentos",
                     id_externo="avisos.jsonl",
                 ))
 
+        # ── Processed JSONL → S3 ─────────────────────────────────────────────
+        if self.guardar_raw and avisos_validos:
+            ruta_procesados_jsonl = Path("yapo") / fecha_str / "processed" / "avisos.jsonl"
+            if ruta_procesados_jsonl.exists():
+                processed_ok = await _cargar_a_s3_con_retry(
+                    ruta_procesados_jsonl,
+                    f"{settings.s3_prefix}yapo/{fecha_dia}/processed/avisos.jsonl",
+                )
+                if not processed_ok:
+                    fail_logs.append(FailLog(
+                        etapa="upload_processed",
+                        motivo="S3 upload de processed/avisos.jsonl agotó reintentos",
+                        id_externo="avisos.jsonl",
+                    ))
+
         # ── FAIL LOGs consolidados ────────────────────────────────────────────
         if fail_logs:
-            ruta_fail = carpeta / "fail_logs.json"
-            try:
-                ruta_fail.write_text(
-                    json.dumps([asdict(fl) for fl in fail_logs], ensure_ascii=False, indent=2),
-                    encoding="utf-8",
+            if self.guardar_raw and carpeta:
+                ruta_fail = carpeta / "fail_logs.json"
+                try:
+                    ruta_fail.write_text(
+                        json.dumps([asdict(fl) for fl in fail_logs], ensure_ascii=False, indent=2),
+                        encoding="utf-8",
+                    )
+                    logger.info(f"[yapo] {len(fail_logs)} FAIL LOGs escritos en {ruta_fail}")
+                    await _cargar_a_s3_con_retry(
+                        ruta_fail,
+                        f"{settings.s3_prefix}yapo/{fecha_dia}/logs/fail_logs.json",
+                    )
+                except Exception as e:
+                    logger.error(f"[yapo] No se pudo escribir fail_logs.json: {e}")
+            else:
+                logger.info(
+                    f"[yapo] {len(fail_logs)} FAIL LOGs generados (guardar_raw=False, no persistidos)"
                 )
-                logger.info(f"[yapo] {len(fail_logs)} FAIL LOGs escritos en {ruta_fail}")
-                await _cargar_a_r2_con_retry(
-                    ruta_fail,
-                    f"yapo/logs/{fecha_str}-{ruta_fail.name}",
-                )
-            except Exception as e:
-                logger.error(f"[yapo] No se pudo escribir fail_logs.json: {e}")
 
         duracion = (datetime.now(utc_4) - inicio).total_seconds()
         logger.info(
@@ -505,7 +576,8 @@ if __name__ == "__main__":
     logger.add(settings.log_file, level="DEBUG", rotation="10 MB", retention="30 days", enqueue=True)
 
     async def _main() -> None:
-        scraper = ScraperYapoCloud()
+        max_paginas = int(sys.argv[1]) if len(sys.argv) > 1 else None
+        scraper = ScraperYapoCloud(max_paginas=max_paginas, guardar_raw=True)
         async with AsyncSessionLocal() as sesion:
             resultado = await scraper.ejecutar(sesion)
         logger.info(
