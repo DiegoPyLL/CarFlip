@@ -454,7 +454,7 @@ class ScraperAutocosmosCloud(ScraperBase):
                             ruta_orig, ruta_avif = resultado
                             if ruta_orig is not None:
                                 fotos_pagina[aviso.id_externo] = ruta_orig.name
-                                clave_raw = f"{settings.s3_prefix}autocosmos/{fecha_dia}/fotos/{ruta_orig.name}"
+                                clave_raw = f"autocosmos/{fecha_dia}/raw/fotos/{ruta_orig.name}"
                                 tareas_s3_info.append(
                                     (_cargar_a_s3_con_retry(ruta_orig, clave_raw), aviso, "upload_foto_raw")
                                 )
@@ -465,7 +465,7 @@ class ScraperAutocosmosCloud(ScraperBase):
                                     id_externo=aviso.id_externo,
                                 ))
                             if ruta_avif is not None:
-                                clave_proc = f"processed/autocosmos/{fecha_dia}/fotos/{ruta_avif.name}"
+                                clave_proc = f"autocosmos/{fecha_dia}/processed/fotos/{ruta_avif.name}"
                                 tareas_s3_info.append(
                                     (_cargar_a_s3_con_retry(ruta_avif, clave_proc), aviso, "upload_foto_processed")
                                 )
@@ -581,7 +581,7 @@ class ScraperAutocosmosCloud(ScraperBase):
         if self.guardar_raw and ruta_jsonl and ruta_jsonl.exists():
             metadata_ok = await _cargar_a_s3_con_retry(
                 ruta_jsonl,
-                f"{settings.s3_prefix}autocosmos/{fecha_dia}/avisos.jsonl",
+                f"autocosmos/{fecha_dia}/raw/avisos.jsonl",
             )
             if not metadata_ok:
                 fail_logs.append(FailLog(
@@ -596,7 +596,7 @@ class ScraperAutocosmosCloud(ScraperBase):
             if ruta_procesados_jsonl.exists():
                 processed_ok = await _cargar_a_s3_con_retry(
                     ruta_procesados_jsonl,
-                    f"processed/autocosmos/{fecha_dia}/avisos.jsonl",
+                    f"autocosmos/{fecha_dia}/processed/avisos.jsonl",
                 )
                 if not processed_ok:
                     fail_logs.append(FailLog(
@@ -635,7 +635,7 @@ class ScraperAutocosmosCloud(ScraperBase):
                 )
                 await _cargar_a_s3_con_retry(
                     ruta_reporte,
-                    f"processed/autocosmos/{fecha_dia}/logs/run_report.json",
+                    f"autocosmos/{fecha_dia}/logs/run_report.json",
                 )
             except Exception as e:
                 logger.error(f"[autocosmos] No se pudo escribir run_report.json: {e}")
