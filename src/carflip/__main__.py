@@ -32,9 +32,7 @@ def cli() -> None:
 @cli.command()
 def start() -> None:
     """Inicia el scheduler automático."""
-    from carflip.scheduler.runner import run_scrapers, start_scheduler
-    logger.info("Ejecutando primer ciclo antes de iniciar el scheduler...")
-    asyncio.run(run_scrapers("all"))
+    from carflip.scheduler.runner import start_scheduler
     start_scheduler(settings.scrape_interval_hours)
 
 
