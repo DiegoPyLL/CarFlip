@@ -150,8 +150,9 @@ def _validar_aviso(aviso: AvisoAuto) -> list[str]:
 
 
 def _carpeta_run(base: Path, fecha_str: str) -> Path:
-    carpeta = base / fecha_str / "raw"
-    (carpeta / "fotos").mkdir(parents=True, exist_ok=True)
+    carpeta = base / fecha_str
+    (carpeta / "raw" / "fotos").mkdir(parents=True, exist_ok=True)
+    (carpeta / "processed" / "fotos").mkdir(parents=True, exist_ok=True)
     return carpeta
 
 
@@ -203,35 +204,41 @@ def _append_avisos_jsonl(
 async def _descargar_imagen(
     cliente: httpx.AsyncClient,
     aviso: AvisoAuto,
-    carpeta_fotos: Path,
+    carpeta_fotos_raw: Path,
+    carpeta_fotos_processed: Path,
     ua: UserAgent,
     fail_logs: list[FailLog],
-) -> Path | None:
+) -> tuple[Path | None, Path | None]:
+    """Descarga la imagen original a raw/fotos/ y la convierte a AVIF en processed/fotos/."""
     if not aviso.url_imagen:
-        return None
+        return None, None
     ext = Path(aviso.url_imagen.split("?")[0]).suffix or ".webp"
-    ruta = carpeta_fotos / f"{aviso.id_externo}{ext}"
-    if ruta.exists():
-        logger.debug(f"[autocosmos] Imagen ya existe: {ruta.name}")
-        return ruta
+    ruta_orig = carpeta_fotos_raw / f"{aviso.id_externo}{ext}"
+    if ruta_orig.exists():
+        logger.debug(f"[autocosmos] Imagen ya existe: {ruta_orig.name}")
+        ruta_avif = carpeta_fotos_processed / f"{aviso.id_externo}.avif"
+        return ruta_orig, ruta_avif if ruta_avif.exists() else None
     try:
         resp = await cliente.get(aviso.url_imagen, headers={"User-Agent": ua.random}, timeout=20.0)
         resp.raise_for_status()
-        ruta.write_bytes(resp.content)
-        ruta_avif = convertir_a_avif(ruta)
+        ruta_orig.write_bytes(resp.content)
+        ruta_avif = convertir_a_avif(ruta_orig, destino=carpeta_fotos_processed)
         if ruta_avif is None:
             fail_logs.append(FailLog(
                 etapa="conversion_avif",
                 motivo="Conversión AVIF fallida",
                 id_externo=aviso.id_externo,
             ))
-            logger.debug(f"[autocosmos] Imagen descargada (sin AVIF): id={aviso.id_externo} → {ruta.name}")
-            return ruta
-        logger.debug(f"[autocosmos] Imagen descargada y convertida a AVIF: id={aviso.id_externo} → {ruta_avif.name}")
-        return ruta_avif
+            logger.debug(f"[autocosmos] Imagen descargada (sin AVIF): id={aviso.id_externo} → {ruta_orig.name}")
+        else:
+            logger.debug(
+                f"[autocosmos] Imagen descargada y convertida a AVIF:"
+                f" id={aviso.id_externo} → raw/{ruta_orig.name}, processed/{ruta_avif.name}"
+            )
+        return ruta_orig, ruta_avif
     except Exception as e:
         logger.warning(f"[autocosmos] No se pudo descargar imagen id={aviso.id_externo}: {e}")
-        return None
+        return None, None
 
 
 # ─── PARSEO HTML ─────────────────────────────────────────────────────────────
@@ -367,7 +374,9 @@ class ScraperAutocosmosCloud(ScraperBase):
         fecha_str = inicio.strftime("%H-%M-%S_%d-%m-%Y")
         fecha_dia = inicio.strftime("%Y/%m/%d")
         carpeta = _carpeta_run(Path("autocosmos"), fecha_str) if self.guardar_raw else None
-        ruta_jsonl = carpeta / "avisos.jsonl" if carpeta else None
+        ruta_jsonl = carpeta / "raw" / "avisos.jsonl" if carpeta else None
+        carpeta_fotos_raw = carpeta / "raw" / "fotos" if carpeta else None
+        carpeta_fotos_processed = carpeta / "processed" / "fotos" if carpeta else None
 
 
 
@@ -422,43 +431,59 @@ class ScraperAutocosmosCloud(ScraperBase):
 
                 # Batch: descargar fotos antes de avanzar página
                 fotos_pagina: dict[str, str] = {}
-                if self.guardar_raw and carpeta and avisos_pagina:
-                    carpeta_fotos = carpeta / "fotos"
+                if self.guardar_raw and carpeta_fotos_raw and carpeta_fotos_processed and avisos_pagina:
                     tareas_img = [
-                        _descargar_imagen(cliente, a, carpeta_fotos, self._ua, fail_logs)
+                        _descargar_imagen(
+                            cliente, a, carpeta_fotos_raw, carpeta_fotos_processed, self._ua, fail_logs
+                        )
                         for a in avisos_pagina
                         if a.url_imagen
                     ]
                     if tareas_img:
                         resultados = await asyncio.gather(*tareas_img, return_exceptions=True)
                         avisos_con_imagen = [a for a in avisos_pagina if a.url_imagen]
-                        tareas_s3: list = []
-                        avisos_s3: list[AvisoAuto] = []
+                        tareas_s3_info: list[tuple] = []  # (coro, aviso, etapa)
                         for aviso, resultado in zip(avisos_con_imagen, resultados):
-                            if isinstance(resultado, Path):
-                                fotos_pagina[aviso.id_externo] = resultado.name
-                                clave = f"{settings.s3_prefix}autocosmos/{fecha_dia}/raw/fotos/{resultado.name}"
-                                tareas_s3.append(_cargar_a_s3_con_retry(resultado, clave))
-                                avisos_s3.append(aviso)
-                            elif resultado is None or isinstance(resultado, Exception):
+                            if isinstance(resultado, BaseException):
+                                fail_logs.append(FailLog(
+                                    etapa="descarga_foto",
+                                    motivo="Excepción descargando imagen",
+                                    id_externo=aviso.id_externo,
+                                ))
+                                continue
+                            ruta_orig, ruta_avif = resultado
+                            if ruta_orig is not None:
+                                fotos_pagina[aviso.id_externo] = ruta_orig.name
+                                clave_raw = f"{settings.s3_prefix}autocosmos/{fecha_dia}/fotos/{ruta_orig.name}"
+                                tareas_s3_info.append(
+                                    (_cargar_a_s3_con_retry(ruta_orig, clave_raw), aviso, "upload_foto_raw")
+                                )
+                            else:
                                 fail_logs.append(FailLog(
                                     etapa="descarga_foto",
                                     motivo="Descarga de imagen fallida",
                                     id_externo=aviso.id_externo,
                                 ))
-                        imgs_ok = sum(1 for r in resultados if isinstance(r, Path))
+                            if ruta_avif is not None:
+                                clave_proc = f"processed/autocosmos/{fecha_dia}/fotos/{ruta_avif.name}"
+                                tareas_s3_info.append(
+                                    (_cargar_a_s3_con_retry(ruta_avif, clave_proc), aviso, "upload_foto_processed")
+                                )
+                        imgs_ok = sum(
+                            1 for r in resultados if isinstance(r, tuple) and r[0] is not None
+                        )
                         imgs_fail = len(resultados) - imgs_ok
                         logger.info(
-                            f"[autocosmos] Página {pagina}: {imgs_ok}/{len(resultados)} Publicación scrapeada"
+                            f"[autocosmos] Página {pagina}: {imgs_ok}/{len(resultados)} imágenes descargadas"
                             + (f" ({imgs_fail} fallida)" if imgs_fail else "")
                         )
-                        if tareas_s3:
-                            resultados_s3 = await asyncio.gather(*tareas_s3)
-                            for aviso, s3_ok in zip(avisos_s3, resultados_s3):
+                        if tareas_s3_info:
+                            resultados_s3 = await asyncio.gather(*[t[0] for t in tareas_s3_info])
+                            for (_, aviso, etapa), s3_ok in zip(tareas_s3_info, resultados_s3):
                                 if not s3_ok:
                                     fail_logs.append(FailLog(
-                                        etapa="upload_foto",
-                                        motivo="S3 upload de imagen agotó reintentos",
+                                        etapa=etapa,
+                                        motivo="S3 upload agotó reintentos",
                                         id_externo=aviso.id_externo,
                                     ))
 
@@ -541,9 +566,8 @@ class ScraperAutocosmosCloud(ScraperBase):
 
 
         # ── PROCESADOS (limpieza + validación superada) ──────────────────────
-        if self.guardar_raw and avisos_validos:
-            carpeta_procesados = Path("autocosmos") / fecha_str / "processed"
-            carpeta_procesados.mkdir(parents=True, exist_ok=True)
+        if self.guardar_raw and avisos_validos and carpeta:
+            carpeta_procesados = carpeta / "processed"
             ruta_procesados = carpeta_procesados / "avisos.jsonl"
             ok = _append_avisos_jsonl(avisos_validos, ruta_procesados)
             if ok:
@@ -557,7 +581,7 @@ class ScraperAutocosmosCloud(ScraperBase):
         if self.guardar_raw and ruta_jsonl and ruta_jsonl.exists():
             metadata_ok = await _cargar_a_s3_con_retry(
                 ruta_jsonl,
-                f"{settings.s3_prefix}autocosmos/{fecha_dia}/raw/avisos.jsonl",
+                f"{settings.s3_prefix}autocosmos/{fecha_dia}/avisos.jsonl",
             )
             if not metadata_ok:
                 fail_logs.append(FailLog(
@@ -567,12 +591,12 @@ class ScraperAutocosmosCloud(ScraperBase):
                 ))
 
         # ── Processed JSONL → S3 ─────────────────────────────────────────────
-        if self.guardar_raw and avisos_validos:
-            ruta_procesados_jsonl = Path("autocosmos") / fecha_str / "processed" / "avisos.jsonl"
+        if self.guardar_raw and avisos_validos and carpeta:
+            ruta_procesados_jsonl = carpeta / "processed" / "avisos.jsonl"
             if ruta_procesados_jsonl.exists():
                 processed_ok = await _cargar_a_s3_con_retry(
                     ruta_procesados_jsonl,
-                    f"{settings.s3_prefix}autocosmos/{fecha_dia}/processed/avisos.jsonl",
+                    f"processed/autocosmos/{fecha_dia}/avisos.jsonl",
                 )
                 if not processed_ok:
                     fail_logs.append(FailLog(
@@ -581,32 +605,45 @@ class ScraperAutocosmosCloud(ScraperBase):
                         id_externo="avisos.jsonl",
                     ))
 
-        # ── FAIL LOGs consolidados ────────────────────────────────────────────
-        if fail_logs:
-            if self.guardar_raw and carpeta:
-                ruta_fail = carpeta / "fail_logs.json"
-                try:
-                    ruta_fail.write_text(
-                        json.dumps([asdict(fl) for fl in fail_logs], ensure_ascii=False, indent=2),
-                        encoding="utf-8",
-                    )
-                    logger.info(f"[autocosmos] {len(fail_logs)} FAIL LOGs escritos en {ruta_fail}")
-                    await _cargar_a_s3_con_retry(
-                        ruta_fail,
-                        f"{settings.s3_prefix}autocosmos/{fecha_dia}/logs/fail_logs.json",
-                    )
-                except Exception as e:
-                    logger.error(f"[autocosmos] No se pudo escribir fail_logs.json: {e}")
-            else:
-                logger.info(
-                    f"[autocosmos] {len(fail_logs)} FAIL LOGs generados (guardar_raw=False, no persistidos)"
-                )
-
-        duracion = (datetime.now() - inicio).total_seconds()
+        duracion = (datetime.now(utc_4) - inicio).total_seconds()
         logger.info(
             f"[autocosmos] Scrape finalizado — {len(avisos_validos)} avisos válidos"
             f" listos para carga ({duracion:.1f}s)"
         )
+
+        # ── Reporte de ejecución → S3 (siempre, con o sin fallos) ────────────
+        if self.guardar_raw and carpeta:
+            ruta_reporte = carpeta / "processed" / "run_report.json"
+            reporte = {
+                "fuente": "autocosmos",
+                "timestamp": inicio.isoformat(),
+                "duracion_segundos": round(duracion, 1),
+                "paginas_procesadas": paginas_procesadas,
+                "avisos_encontrados": len(avisos_raw),
+                "avisos_unicos": len(avisos_unicos),
+                "avisos_validos": len(avisos_validos),
+                "avisos_rechazados": len(avisos_unicos) - len(avisos_validos),
+                "fail_logs": [asdict(fl) for fl in fail_logs],
+            }
+            try:
+                ruta_reporte.write_text(
+                    json.dumps(reporte, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+                logger.info(
+                    f"[autocosmos] Reporte escrito — {len(fail_logs)} FAIL LOGs, {duracion:.1f}s"
+                )
+                await _cargar_a_s3_con_retry(
+                    ruta_reporte,
+                    f"processed/autocosmos/{fecha_dia}/logs/run_report.json",
+                )
+            except Exception as e:
+                logger.error(f"[autocosmos] No se pudo escribir run_report.json: {e}")
+        elif fail_logs:
+            logger.info(
+                f"[autocosmos] {len(fail_logs)} FAIL LOGs generados (guardar_raw=False, no persistidos)"
+            )
+
         return avisos_validos
 
 
