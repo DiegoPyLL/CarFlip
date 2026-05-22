@@ -80,12 +80,12 @@ La ingesta tiene dos fases separadas: primero se recolectan las URLs de los avis
 
 #### Fase 1a — Recolección de URLs desde el listado
 
-El scraper abre un navegador Chromium en modo headless (sin ventana visible) y navega por las páginas de listado de autos usados en la Región Metropolitana:
+El scraper abre un navegador Chromium en modo headless (sin ventana visible) y navega por las páginas de listado de autos usados:
 
 ```
-https://www.yapo.cl/region_metropolitana/autos
-https://www.yapo.cl/region_metropolitana/autos?o=2
-https://www.yapo.cl/region_metropolitana/autos?o=3
+https://www.yapo.cl/autos-usados.1
+https://www.yapo.cl/autos-usados.2
+https://www.yapo.cl/autos-usados.3
 ...
 ```
 
@@ -96,6 +96,7 @@ Por cada página de listado:
 2. Lee todos los cards (`div.d3-ad-tile`) y extrae el enlace al aviso, el precio mostrado, la ubicación y la fecha.
 3. Descarta URLs ya vistas (deduplicación temprana por URL).
 4. Si la página no tiene resultados, detiene la paginación.
+5. Si se alcanza el límite de **1.000 publicaciones** (`_MAX_AVISOS`), detiene la paginación y descarta el excedente.
 
 #### Fase 1b — Extracción de datos en cada aviso
 
@@ -267,7 +268,7 @@ ScraperYapoCloud(max_paginas=None, guardar_raw=True)
 
 | Parámetro | Tipo | Default | Descripción |
 |---|---|---|---|
-| `max_paginas` | `int \| None` | `None` | Límite de páginas de listado a recorrer. `None` = sin límite (recorre hasta que no haya más avisos). En producción se recomienda `None`; para pruebas, usar `3` |
+| `max_paginas` | `int \| None` | `None` | Límite de páginas de listado a recorrer. `None` = pagina sin límite de páginas hasta alcanzar 1.000 publicaciones (`_MAX_AVISOS`). Si se especifica un valor, se detiene al llegar al mínimo entre ese número de páginas y 1.000 avisos. Para pruebas usar `3` |
 | `guardar_raw` | `bool` | `True` | Si escribe archivos en disco, descarga fotos y sube a S3. No afecta la carga a PostgreSQL |
 
 ---
@@ -313,9 +314,8 @@ playwright install chromium
 
 ## Limitaciones conocidas
 
-- **Solo Región Metropolitana**: el listado base es `yapo.cl/region_metropolitana/autos`. No cubre otras regiones del país (ampliar requeriría parametrizar la URL base o iterar sobre las regiones).
-- **Sin paginación ilimitada**: la paginación de Yapo cambia con el parámetro `?o=N`. Si el sitio cambia este parámetro, actualizar la línea `url = f"{base_url}?o={pagina}"` en `scrape()`.
-- **Rendimiento más lento que httpx**: al usar un navegador real, cada página tarda ~3–5 segundos en cargar y renderizar, más 1,5 segundos de espera explícita. Con 3 páginas de listado (~60 avisos) el scrape completo toma aproximadamente 5–7 minutos.
+- **Límite de 1.000 publicaciones por run**: la constante `_MAX_AVISOS = 1_000` en `yapoCloud.py` controla el tope de avisos recolectados por ejecución. Ajustar ese valor si se necesita más cobertura.
+- **Rendimiento más lento que httpx**: al usar un navegador real, cada aviso de detalle tarda ~3–5 segundos en cargar, más 1,5 segundos de espera explícita. Con 1.000 avisos el scrape completo puede tardar entre 90 y 120 minutos.
 - **JavaScript dependiente del DOM de Yapo**: si Yapo rediseña su interfaz y cambia los selectores (`.d3-ad-tile`, `.d3-property-insight__attribute-details`, etc.), el scraper dejará de extraer datos correctamente. Actualizar el script `_JS_ATTRS` y los selectores de Playwright en `scrape()`.
 - **`fecha_publicacion` con fallback a fecha actual**: Yapo no siempre muestra la fecha de publicación de forma parseable. Cuando el elemento `<time>` no está disponible o su texto no es una fecha, se usa la fecha del día del run como fallback.
 

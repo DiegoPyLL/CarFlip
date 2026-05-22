@@ -33,6 +33,7 @@ _PATRON_FECHA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 _S3_MAX_REINTENTOS = 12   # 12 × 10 min = 2 horas
 _S3_INTERVALO_SEG  = 600  # 10 minutos
+_MAX_AVISOS        = 1_000
 
 _HEADERS_HTTP = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -322,10 +323,12 @@ class ScraperYapoCloud(ScraperBase):
             await page.route("**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,otf}", lambda route: route.abort())
 
             # ── INGESTA: listado ──────────────────────────────────────────────
-            max_paginas = self.max_paginas or 3
-            base_url = f"{YAPO_BASE}/region_metropolitana/autos"
-            for pagina in range(1, max_paginas + 1):
-                url = f"{base_url}?o={pagina}" if pagina > 1 else base_url
+            pagina = 0
+            while True:
+                pagina += 1
+                if self.max_paginas and pagina > self.max_paginas:
+                    break
+                url = f"{YAPO_BASE}/autos-usados.{pagina}"
                 logger.info(f"[yapo] Listado página {pagina}: {url}")
                 try:
                     await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
@@ -370,6 +373,11 @@ class ScraperYapoCloud(ScraperBase):
 
                 nuevos = len(avisos_info) - count_antes
                 logger.info(f"[yapo] Página {pagina}: {nuevos} URLs recolectadas (total {len(avisos_info)})")
+
+                if len(avisos_info) >= _MAX_AVISOS:
+                    avisos_info = avisos_info[:_MAX_AVISOS]
+                    logger.info(f"[yapo] Límite de {_MAX_AVISOS} publicaciones alcanzado, deteniendo paginación")
+                    break
 
             # ── INGESTA: detalles ─────────────────────────────────────────────
             for i, info in enumerate(avisos_info, 1):

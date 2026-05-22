@@ -232,7 +232,7 @@ async def _descargar_imagen(
             logger.debug(f"[autocosmos] Imagen descargada (sin AVIF): id={aviso.id_externo} → {ruta_orig.name}")
         else:
             logger.debug(
-                f"[autocosmos] Imagen descargada y convertida a AVIF:"
+                f"[autocosmos] Imagen descargada y convertida:"
                 f" id={aviso.id_externo} → raw/{ruta_orig.name}, processed/{ruta_avif.name}"
             )
         return ruta_orig, ruta_avif
