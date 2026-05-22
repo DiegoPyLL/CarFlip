@@ -9,6 +9,7 @@ Etapas cubiertas en scrape():
 """
 
 import asyncio
+import hashlib
 import json
 import re
 import sys
@@ -383,7 +384,7 @@ class ScraperYapoCloud(ScraperBase):
             for i, info in enumerate(avisos_info, 1):
                 logger.debug(f"[yapo] Detalle {i}/{len(avisos_info)}: {info['url']}")
                 url = info["url"]
-                aviso_id = url.rstrip("/").split("/")[-1]
+                aviso_id = hashlib.sha256(url.encode()).hexdigest()
 
                 try:
                     await page.goto(url, wait_until="domcontentloaded", timeout=25_000)
