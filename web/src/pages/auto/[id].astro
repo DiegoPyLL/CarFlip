@@ -1,5 +1,6 @@
 ---
 import Base from '@layouts/Base.astro';
+import { resolverUrlImagen } from '@lib/cdn';
 import { obtenerAviso } from '@lib/db';
 import { formatearPrecio, formatearKm, formatearFecha, signosDelta } from '@lib/formato';
 
@@ -16,6 +17,7 @@ if (!aviso) {
 }
 
 const delta = signosDelta(aviso.delta_pct);
+const urlImagen = resolverUrlImagen(aviso.url_imagen);
 const titulo = [aviso.marca, aviso.modelo, aviso.anio].filter(Boolean).join(' ') || aviso.titulo;
 const descripcionPage = `${titulo} — ${aviso.precio ? formatearPrecio(aviso.precio, aviso.moneda) : 'Precio a consultar'}. ${aviso.km ? formatearKm(aviso.km) : ''} ${aviso.ubicacion ?? ''}`.trim();
 
@@ -34,7 +36,7 @@ const jsonLd = {
     priceCurrency: aviso.moneda,
     url: aviso.url,
   } : undefined,
-  image: aviso.url_imagen ?? undefined,
+  image: urlImagen ?? undefined,
   description: aviso.descripcion ?? undefined,
 };
 ---
@@ -43,7 +45,7 @@ const jsonLd = {
   titulo={`${titulo} — CarFlip`}
   descripcion={descripcionPage}
   urlCanonica={Astro.url.href}
-  urlImagen={aviso.url_imagen ?? undefined}
+  urlImagen={urlImagen ?? undefined}
   tipo="product"
 >
   <script slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
@@ -56,10 +58,10 @@ const jsonLd = {
 
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">
       <!-- Imagen LCP -->
-      {aviso.url_imagen ? (
+      {urlImagen ? (
         <div class="aspect-[16/9] bg-gray-100">
           <img
-            src={aviso.url_imagen}
+            src={urlImagen}
             alt={aviso.titulo}
             width={900}
             height={506}

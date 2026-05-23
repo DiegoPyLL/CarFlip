@@ -25,6 +25,7 @@ from carflip.config import settings
 from carflip.database.models import YapoListing
 from carflip.scrapers.base import AvisoAuto, ScraperBase
 from carflip.scrapers.image_utils import convertir_a_avif
+from carflip.storage.s3_cdn import cargar_a_s3_con_retry, url_cdn_desde_clave_s3
 
 YAPO_BASE = "https://www.yapo.cl"
 _AÑO_MINIMO = 1970
@@ -32,9 +33,7 @@ _PRECIO_MINIMO = 500_000
 _PRECIO_MAXIMO = 250_000_000
 _PATRON_FECHA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-_S3_MAX_REINTENTOS = 12   # 12 × 10 min = 2 horas
-_S3_INTERVALO_SEG  = 600  # 10 minutos
-_MAX_AVISOS        = 1_000
+_MAX_AVISOS = 1_000
 
 _HEADERS_HTTP = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -52,41 +51,6 @@ class FailLog:
     id_externo: str
     fuente: str = "yapo"
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-
-
-# ─── CARGA S3 ────────────────────────────────────────────────────────────────
-
-
-async def _cargar_a_s3_con_retry(ruta_local: Path, clave_s3: str) -> bool:
-    import aioboto3
-    from botocore.exceptions import ClientError
-
-    sesion = aioboto3.Session(
-        aws_access_key_id=settings.s3_access_key_id,
-        aws_secret_access_key=settings.s3_secret_access_key,
-        region_name=settings.s3_region,
-    )
-    datos = ruta_local.read_bytes()
-
-    async with sesion.client("s3") as cliente:  # type: ignore[attr-defined]  # aioboto3 no tiene stubs completos
-        for intento in range(1, _S3_MAX_REINTENTOS + 1):
-            try:
-                await cliente.put_object(Bucket=settings.s3_bucket, Key=clave_s3, Body=datos)
-                await cliente.head_object(Bucket=settings.s3_bucket, Key=clave_s3)
-                logger.debug(f"[yapo] S3 upload OK: {clave_s3}")
-                return True
-            except (ClientError, Exception) as exc:
-                if intento < _S3_MAX_REINTENTOS:
-                    logger.warning(
-                        f"[yapo] S3 upload fallido intento {intento}/{_S3_MAX_REINTENTOS}"
-                        f" — {clave_s3}: {exc}. Reintentando en {_S3_INTERVALO_SEG // 60} min."
-                    )
-                    await asyncio.sleep(_S3_INTERVALO_SEG)
-                else:
-                    logger.error(
-                        f"[yapo] S3 upload agotó {_S3_MAX_REINTENTOS} reintentos: {clave_s3} — {exc}"
-                    )
-    return False
 
 
 # ─── VALIDACIÓN ──────────────────────────────────────────────────────────────
@@ -438,8 +402,9 @@ class ScraperYapoCloud(ScraperBase):
                     )
                     if ruta_orig is not None:
                         fotos_run[aviso_id] = ruta_orig.name
-                        s3_ok = await _cargar_a_s3_con_retry(
-                            ruta_orig, f"yapo/{fecha_dia}/raw/fotos/{ruta_orig.name}"
+                        clave_raw = f"yapo/{fecha_dia}/raw/fotos/{ruta_orig.name}"
+                        s3_ok = await cargar_a_s3_con_retry(
+                            ruta_orig, clave_raw, etiqueta_log="yapo"
                         )
                         if not s3_ok:
                             fail_logs.append(FailLog(
@@ -448,8 +413,9 @@ class ScraperYapoCloud(ScraperBase):
                                 id_externo=aviso_id,
                             ))
                         if ruta_avif is not None:
-                            s3_ok_avif = await _cargar_a_s3_con_retry(
-                                ruta_avif, f"yapo/{fecha_dia}/processed/fotos/{ruta_avif.name}"
+                            clave_avif = f"yapo/{fecha_dia}/processed/fotos/{ruta_avif.name}"
+                            s3_ok_avif = await cargar_a_s3_con_retry(
+                                ruta_avif, clave_avif, etiqueta_log="yapo"
                             )
                             if not s3_ok_avif:
                                 fail_logs.append(FailLog(
@@ -457,6 +423,8 @@ class ScraperYapoCloud(ScraperBase):
                                     motivo="S3 upload de imagen AVIF agotó reintentos",
                                     id_externo=aviso_id,
                                 ))
+                            elif url_cdn := url_cdn_desde_clave_s3(clave_avif):
+                                av_auto.url_imagen = url_cdn
                     else:
                         fail_logs.append(FailLog(
                             etapa="descarga_foto",
@@ -538,9 +506,10 @@ class ScraperYapoCloud(ScraperBase):
 
         # ── Metadata JSONL raw → S3 ───────────────────────────────────────────
         if self.guardar_raw and ruta_jsonl and ruta_jsonl.exists():
-            metadata_ok = await _cargar_a_s3_con_retry(
+            metadata_ok = await cargar_a_s3_con_retry(
                 ruta_jsonl,
                 f"yapo/{fecha_dia}/raw/avisos.jsonl",
+                etiqueta_log="yapo",
             )
             if not metadata_ok:
                 fail_logs.append(FailLog(
@@ -553,9 +522,10 @@ class ScraperYapoCloud(ScraperBase):
         if self.guardar_raw and avisos_validos and carpeta:
             ruta_procesados_jsonl = carpeta / "processed" / "avisos.jsonl"
             if ruta_procesados_jsonl.exists():
-                processed_ok = await _cargar_a_s3_con_retry(
+                processed_ok = await cargar_a_s3_con_retry(
                     ruta_procesados_jsonl,
                     f"yapo/{fecha_dia}/processed/avisos.jsonl",
+                    etiqueta_log="yapo",
                 )
                 if not processed_ok:
                     fail_logs.append(FailLog(
@@ -591,9 +561,10 @@ class ScraperYapoCloud(ScraperBase):
                 logger.info(
                     f"[yapo] Reporte escrito — {len(fail_logs)} FAIL LOGs, {duracion:.1f}s"
                 )
-                await _cargar_a_s3_con_retry(
+                await cargar_a_s3_con_retry(
                     ruta_reporte,
                     f"yapo/{fecha_dia}/logs/run_report.json",
+                    etiqueta_log="yapo",
                 )
             except Exception as e:
                 logger.error(f"[yapo] No se pudo escribir run_report.json: {e}")

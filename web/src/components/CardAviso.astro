@@ -1,5 +1,6 @@
 ---
 import type { Aviso } from '@lib/tipos';
+import { resolverUrlImagen } from '@lib/cdn';
 import { formatearPrecio, formatearKm, signosDelta } from '@lib/formato';
 
 interface Props {
@@ -7,6 +8,7 @@ interface Props {
 }
 
 const { aviso } = Astro.props;
+const urlImagen = resolverUrlImagen(aviso.url_imagen);
 const delta = signosDelta(aviso.delta_pct);
 
 const badgeFuente = aviso.fuente === 'autocosmos'
@@ -24,9 +26,9 @@ const metaItems = [
 <article class="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200">
   <a href={`/auto/${aviso.id}`} aria-label={`Ver ${aviso.titulo}`}>
     <div class="aspect-[4/3] bg-gray-100 rounded-t-xl overflow-hidden">
-      {aviso.url_imagen ? (
+      {urlImagen ? (
         <img
-          src={aviso.url_imagen}
+          src={urlImagen}
           alt={aviso.titulo}
           width={400}
           height={300}
