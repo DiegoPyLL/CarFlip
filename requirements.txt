@@ -41,3 +41,6 @@ pillow>=10.3
 pytest>=8.2
 pytest-asyncio>=0.23
 pytest-mock>=3.14
+
+# Utilidades
+python-dotenv>=1.0

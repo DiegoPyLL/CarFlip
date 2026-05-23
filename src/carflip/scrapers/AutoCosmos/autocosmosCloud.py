@@ -45,7 +45,7 @@ _PRECIO_MAXIMO = 250_000_000
 
 _MAX_REINTENTOS_GET = 10  # reintentos por página antes de saltar a la siguiente
 
-_CONCURRENCIA_PAGINAS = 3   # páginas procesadas en paralelo por lote
+_CONCURRENCIA_PAGINAS = 6   # páginas procesadas en paralelo por lote
 _SEM_DESC = 10              # descripciones concurrentes (compartido entre páginas del lote)
 _SEM_IMGS = 20              # descargas de imagen concurrentes
 
