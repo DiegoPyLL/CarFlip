@@ -1,11 +1,11 @@
 import postgres from 'postgres';
 import type { Aviso, FiltrosAviso, PaginaResultado, FiltrosDisponibles, Estadisticas } from './tipos';
 
-const sql = postgres(import.meta.env.DATABASE_URL, {
+const sql = postgres(process.env.DATABASE_URL!, {
   max: 1,
   idle_timeout: 20,
   connect_timeout: 10,
-  ssl: import.meta.env.USE_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  ssl: process.env.USE_SSL === 'true' ? { rejectUnauthorized: false } : false,
 });
 
 const POR_PAGINA = 24;

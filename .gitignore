@@ -11,3 +11,5 @@ logs/
 .mypy_cache/
 .ruff_cache/
 data/raw/
+.vercel
+.env*
