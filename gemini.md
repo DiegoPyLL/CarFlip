@@ -18,10 +18,10 @@ Estas decisiones se tomaron el 2026-05-11 y rigen todo el desarrollo futuro:
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
 | Naming del código | Todo en español:`AvisoAuto`, `ScraperBase`, `ejecutar()`, `espera_aleatoria()`                                     |
 | Arquitectura       | EC2 + TMUX + APScheduler: N scrapers paralelos en sesiones TMUX independientes                                              |
-| Almacenamiento raw | `data/raw/` local en EC2 (efímero) — Cloudflare R2 recibe imágenes AVIF validadas; PostgreSQL recibe metadata validada |
+| Almacenamiento raw | Scraper escribe en `data/raw/` local (EC2, efímero) → S3 (fotos raw + AVIF + JSONL) → Cloudflare R2 (CDN fotos AVIF validadas); PostgreSQL recibe metadata validada vía upsert |
 | Base de datos      | PostgreSQL async (SQLAlchemy 2.0 + asyncpg + Alembic)                                                                       |
-| Scraping HTTP      | httpx + BeautifulSoup4 + lxml para los 5 sitios                                                                             |
-| Scraping headless  | Playwright + stealth se mantiene en dependencias como reserva                                                               |
+| Scraping HTTP      | httpx + BeautifulSoup4 + lxml para los sitios con HTML estático                                                             |
+| Scraping headless  | Playwright + stealth: activo en `yapoCloud.py`; reserva para otros sitios con JS dinámico                                   |
 | Credenciales       | Solo `.env` — eliminar keyring, Fernet, AWS Secrets Manager                                                              |
 | CLI                | Mantener click:`carflip run`, `carflip start`, `carflip market`                                                       |
 | Logging            | loguru (no `print()` nunca)                                                                                               |
@@ -59,68 +59,105 @@ No hay linter configurado aún. El type check se puede correr con `mypy src/` si
 INGESTA (EC2 + TMUX)
 ────────────────────
 APScheduler lanza N scrapers (uno por portal) como subprocesos en sesiones TMUX separadas.
-Cada scraper ejecuta ScraperBase.ejecutar() que:
-  1. scraper.scrape() → retorna list[AvisoAuto]
-  2. Serializa cada aviso a JSON y guarda fotos en formato original
-
-Output por scraper: fotos (formato original) + metadata.json
-Guardado en: data/raw/{fuente}_{fecha}/ en EC2 (efímero)
-Batch upload en cola por página
-
-El upsert a PostgreSQL NO ocurre en esta etapa — ocurre al final del pipeline,
-después de limpieza y validación.
+Cada scraper Cloud implementa el pipeline completo dentro de scrape():
+  1. Paginación HTTP (httpx+BS4) o navegación headless (Playwright) por aviso
+  2. Parseo de avisos; fotos originales descargadas → data/raw/fotos/
+  3. Conversión AVIF → data/processed/fotos/  (CPU-bound: asyncio.to_thread)
+  4. Upload a S3 con retry (12 × 10 min = 2 h):
+       s3://{bucket}/{fuente}/YYYY/MM/DD/raw/fotos/
+       s3://{bucket}/{fuente}/YYYY/MM/DD/processed/fotos/
+  5. Append de cada aviso a data/raw/avisos.jsonl  (con asyncio.Lock)
 
 
-LIMPIEZA Y TRANSFORMACIÓN (pipeline ETL)
-─────────────────────────────────────────
-Fotos:
-  1. Deduplicación de imágenes
-       └─ FAIL LOG si error: {timestamp, etapa="dedup_fotos", motivo, id_externo, fuente}
-  2. Conversión a AVIF (si no están en AVIF)
-       └─ FAIL LOG si conversión falla: {timestamp, etapa="conversion_avif", motivo, id_externo, fuente}
-
-Metadata JSON:
+LIMPIEZA Y VALIDACIÓN (dentro de scrape(), tras ingesta)
+─────────────────────────────────────────────────────────
   1. Deduplicación por id_externo
-       └─ FAIL LOG si error: {timestamp, etapa="dedup_json", motivo, id_externo, fuente}
+       └─ FAIL LOG: {timestamp, etapa="dedup_json", motivo, id_externo, fuente}
+  2. Validación estructural y semántica (ver sección Validaciones)
+       └─ FAIL LOG: {timestamp, etapa="validacion", motivo, id_externo, fuente}
+  3. Avisos válidos → data/processed/avisos.jsonl
+  4. Upload de metadata y FAIL LOGs a S3:
+       s3://{bucket}/{fuente}/YYYY/MM/DD/processed/avisos.jsonl
+       s3://{bucket}/{fuente}/YYYY/MM/DD/logs/run_report.json
+  5. scrape() retorna list[AvisoAuto] validados
 
 
-VALIDACIÓN
-──────────
-AVIF + JSON pasan por validación de campos (estructural y semántica, ver sección Validaciones)
-  └─ FAIL LOG si falla: {timestamp, etapa="validacion_avif"|"validacion_json", motivo, id_externo, fuente}
-
-
-CARGA
-─────
-FAIL LOGs → audit store (consolidados)
-AVIF validadas → Cloudflare R2 CDN (retry x5 durante 2 horas)
-JSON validado  → PostgreSQL via upsert (retry x5 durante 2 horas)
-Visualización  → Vercel (consume PostgreSQL)
+CARGA A POSTGRESQL
+──────────────────
+ScraperBase.ejecutar() recibe list[AvisoAuto] de scrape() y hace upsert via uploader.py.
+AVIF validadas → Cloudflare R2 CDN
+Visualización  → Vercel (consume PostgreSQL + imágenes de R2)
 ```
+
+### Estructura de carpetas de scrapers
+
+```
+src/carflip/scrapers/
+├── base.py              # ScraperBase, AvisoAuto, ResultadoScraping
+├── image_utils.py       # descarga y conversión AVIF
+├── logging_utils.py     # helpers de logging por fase
+├── AutoCosmos/
+│   ├── autocosmosCloud.py   # pipeline HTTP+BS4 completo
+│   ├── README.md
+│   └── __init__.py
+├── Yapo/
+│   ├── yapoCloud.py         # pipeline Playwright completo
+│   ├── README.md
+│   └── __init__.py
+└── (próximos scrapers en su propia subcarpeta NombreSitio/)
+```
+
+Convención: cada scraper vive en `NombreSitio/NombreSitioCloud.py`.
 
 ### Patrón de scrapers
 
-Todos los scrapers heredan de `ScraperBase` en `src/carflip/scrapers/base.py`. El único método a implementar es `scrape() -> list[AvisoAuto]`. El método `ejecutar()` de la clase base gestiona logging, timing, manejo de errores y el upload automático a PostgreSQL — no sobreescribirlo.
+Todos los scrapers heredan de `ScraperBase` en `src/carflip/scrapers/base.py`. El único método a implementar es `scrape() -> list[AvisoAuto]`. El método `ejecutar()` de la clase base gestiona logging, timing, manejo de errores y el upsert automático a PostgreSQL — no sobreescribirlo.
 
 Cada scraper declara un atributo de clase `model_class` apuntando a su modelo SQLAlchemy (tabla en PostgreSQL). Sin `model_class`, `ejecutar()` igual funciona pero no sube a la BD:
 
 ```python
-class ScraperAutocosmos(ScraperBase):
+class ScraperAutocosmosCloud(ScraperBase):
     fuente = "autocosmos"
     model_class = AutocosmosListing  # → tabla autocosmos_listings
 
     async def scrape(self) -> list[AvisoAuto]:
-        ...
+        # pipeline completo: ingesta + limpieza + validación + uploads S3
+        return avisos  # list[AvisoAuto] ya validados
 ```
 
-Siempre llamar `await self.espera_aleatoria()` entre requests para respetar el rate limiting. El rango de delay está en `settings.min_delay_seconds` / `settings.max_delay_seconds`.
+### Patrón Cloud (scrapers con pipeline integrado)
+
+Los scrapers `*Cloud.py` implementan INGESTA + LIMPIEZA + VALIDACIÓN dentro de `scrape()`. No retornan datos crudos — retornan avisos ya deduplicados y validados. Primitivas de concurrencia estándar:
+
+- `asyncio.Semaphore` — limitar requests concurrentes (páginas, descripciones, imágenes)
+- `asyncio.Lock` — evitar race conditions al escribir el JSONL compartido
+- `asyncio.to_thread` — operaciones CPU-bound (conversión AVIF, parseo BS4 de páginas grandes)
+
+`FailLog` dataclass — registra cada aviso rechazado en el pipeline:
+
+```python
+@dataclass
+class FailLog:
+    timestamp: str
+    etapa: str        # "dedup_json" | "validacion" | "conversion_avif" | "s3_upload"
+    motivo: str
+    id_externo: str
+    fuente: str
+```
+
+Los FAIL LOGs se consolidan en `run_report.json` al final de cada ejecución y se suben a S3.
+
+Variantes implementadas:
+
+| Variante   | Archivo                             | Técnica            | Paginación               | Concurrencia                          |
+| ---------- | ----------------------------------- | ------------------ | ------------------------ | ------------------------------------- |
+| HTTP       | `AutoCosmos/autocosmosCloud.py`     | httpx + BS4        | `?pidx=N`                | 3 páginas en paralelo (asyncio.gather) |
+| Playwright | `Yapo/yapoCloud.py`                 | Playwright headless| URLs `/autos-usados.N`   | Semáforo de páginas simultáneas       |
 
 ### Scrapers HTTP vs. Playwright
 
-- **httpx + BeautifulSoup4**: para sitios que sirven HTML estático o APIs REST (MercadoLibre usa su API oficial).
-- **Playwright** (headless Chromium + playwright-stealth): reserva para sitios con JavaScript o que requieren login (no usado actualmente).
-
-Nunca usar Playwright donde alcanza httpx — es más lento y consume más recursos.
+- **httpx + BeautifulSoup4**: sitios con HTML estático o APIs REST (MercadoLibre, Autocosmos, Autosusados, Checkeados, Económicos).
+- **Playwright** (headless Chromium + playwright-stealth): activo en `yapoCloud.py` para sitios que requieren JavaScript. No usar donde alcanza httpx — es más lento y consume más recursos.
 
 ### Dataclass normalizado
 
@@ -166,14 +203,29 @@ Es el único sitio donde no se escribe un scraper HTML sino un cliente HTTP cont
 
 ### 2. Autocosmos — `autocosmos.cl`
 
-| Propiedad    | Valor                            |
-| ------------ | -------------------------------- |
-| Tipo         | HTML server-side (PHP)           |
-| Formato      | DOM estable y predecible         |
-| Auth         | Ninguna                          |
-| Herramientas | `httpx` + `BeautifulSoup4`   |
-| Volumen      | Medio                            |
-| Anti-bot     | Sin Cloudflare, sin JS necesario |
+| Propiedad       | Valor                                              |
+| --------------- | -------------------------------------------------- |
+| Tipo            | HTML server-side (PHP)                             |
+| Formato         | DOM estable y predecible                           |
+| Auth            | Ninguna                                            |
+| Herramientas    | `httpx` + `BeautifulSoup4`                     |
+| Volumen         | Medio                                              |
+| Anti-bot        | Sin Cloudflare, sin JS necesario                   |
+| Implementación  | `AutoCosmos/autocosmosCloud.py`                    |
+| Paginación      | `?pidx=N`, lotes de 3 páginas en paralelo          |
+
+### 2b. Yapo — `yapo.cl`
+
+| Propiedad       | Valor                                              |
+| --------------- | -------------------------------------------------- |
+| Tipo            | HTML dinámico (JavaScript)                         |
+| Formato         | Atributos en DOM + structured data (ld+json)       |
+| Auth            | Ninguna                                            |
+| Herramientas    | Playwright + playwright-stealth                    |
+| Volumen         | Alto (particulares + automotoras)                  |
+| Anti-bot        | Detección de headless; mitigado con stealth        |
+| Implementación  | `Yapo/yapoCloud.py`                                |
+| Paginación      | URLs `/autos-usados.N`, navegación por detalle     |
 
 ### 3. Autosusados — `autosusados.cl`
 
@@ -219,7 +271,7 @@ Particularidad: incluye particulares además de automotoras, lo que aporta varie
 | Lenguaje           | Python                  | 3.12+          | gestionado con uv                |
 | HTTP               | httpx                   | ≥0.27         | async, para todos los scrapers   |
 | HTML Parser        | BeautifulSoup4 + lxml   | ≥4.12 / ≥5.2 | para los 4 scrapers HTML         |
-| Headless (reserva) | Playwright + stealth    | ≥1.44         | disponible, no usado actualmente |
+| Headless           | Playwright + stealth    | ≥1.44         | activo en yapoCloud.py           |
 | ORM                | SQLAlchemy 2.0 async    | ≥2.0          | con asyncpg                      |
 | BD                 | PostgreSQL              | 12+            | base `carflip`                 |
 | Migraciones        | Alembic                 | ≥1.13         | versionado de schema             |
@@ -363,6 +415,67 @@ Type hints en todas las funciones. Preferir `X | None` sobre `Optional[X]`. Proh
 ### Async
 
 Todo acceso a BD es async. `asyncio.run()` solo en `__main__.py`. Nunca dentro de coroutines.
+
+### Rendimiento de scrapers Cloud
+
+Los scrapers `*Cloud.py` deben mantener el CPU entre 70–80% en EC2. Para lograrlo:
+
+**Regla 1 — Trabajo CPU-bound en thread pool**
+
+Nunca llamar `convertir_a_avif()` directamente en una coroutine — bloquea el event loop. Siempre usar:
+
+```python
+ruta_avif = await asyncio.to_thread(convertir_a_avif, ruta_orig, destino=carpeta_processed)
+```
+
+Lo mismo aplica a cualquier operación CPU-intensiva (parseo de HTML grande, compresión, hashing de archivos grandes).
+
+**Regla 2 — Scrapers HTTP: lotes de páginas en paralelo**
+
+Para scrapers httpx (Autocosmos, Autosusados, Checkeados, Económicos), extraer la lógica de cada página en una coroutine `_tarea_pagina()` y procesar en lotes con `asyncio.gather`. Nunca un loop secuencial puro.
+
+Constantes estándar:
+```python
+_CONCURRENCIA_PAGINAS = 3   # páginas por lote
+_SEM_DESC = 10              # semáforo compartido para fetches de descripción
+_SEM_IMGS = 20              # semáforo para descargas de imagen
+```
+
+Locks obligatorios al haber estado compartido entre tareas:
+- `lock_vistos = asyncio.Lock()` — para el `set` de hrefs ya vistos
+- `lock_jsonl = asyncio.Lock()` — para escrituras al archivo JSONL
+- `fin_paginacion = asyncio.Event()` — señal de término de paginación
+
+`espera_aleatoria()` se llama **una vez por lote**, no por página individual.
+
+**Regla 3 — Scrapers Playwright: pool de páginas concurrente**
+
+Para scrapers Playwright (Yapo), crear páginas bajo demanda con un `asyncio.Semaphore` que limita cuántas corren simultáneamente. Cada tarea crea su propia página, la usa y la cierra en `finally`.
+
+Constantes estándar:
+```python
+_CONCURRENCIA_DETALLES = 5  # páginas Playwright simultáneas
+_SEM_IMGS = 20              # semáforo para descargas de imagen
+```
+
+Patrón:
+```python
+sem_detalles = asyncio.Semaphore(_CONCURRENCIA_DETALLES)
+
+async def _tarea_detalle(info: dict, idx: int) -> AvisoAuto | None:
+    async with sem_detalles:
+        p = await ctx.new_page()
+        try:
+            ...
+        finally:
+            await p.close()
+
+await asyncio.gather(*[_tarea_detalle(info, i) for i, info in enumerate(avisos_info, 1)])
+```
+
+**Regla 4 — Cliente HTTP compartido**
+
+Nunca crear `httpx.AsyncClient()` por imagen o por aviso. Crear uno único por ejecución de `scrape()` y pasarlo como parámetro. Controlar concurrencia con `sem_imgs`.
 
 ### Logging
 
@@ -636,4 +749,4 @@ No agregar excepciones al `.gitignore` sin justificación explícita.
 
 ---
 
-*Última actualización: 2026-05-16 — v0.2.0-dev*
+*Última actualización: 2026-05-23 — v0.2.0-dev (patrón Cloud: pipeline integrado en scrape())*

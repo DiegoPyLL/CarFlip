@@ -48,6 +48,10 @@ _S3_MAX_REINTENTOS = 12   # 12 × 10 min = 2 horas
 _S3_INTERVALO_SEG  = 600  # 10 minutos
 _MAX_REINTENTOS_GET = 10  # reintentos por página antes de saltar a la siguiente
 
+_CONCURRENCIA_PAGINAS = 3   # páginas procesadas en paralelo por lote
+_SEM_DESC = 10              # descripciones concurrentes (compartido entre páginas del lote)
+_SEM_IMGS = 20              # descargas de imagen concurrentes
+
 
 # ─── CARGA S3 ────────────────────────────────────────────────────────────────
 
@@ -211,6 +215,7 @@ async def _descargar_imagen(
     carpeta_fotos_processed: Path,
     ua: UserAgent,
     fail_logs: list[FailLog],
+    semaforo_imgs: asyncio.Semaphore,
 ) -> tuple[Path | None, Path | None]:
     """Descarga la imagen original a raw/fotos/ y la convierte a AVIF en processed/fotos/."""
     _log = logger.bind(tipo="fotos")
@@ -222,27 +227,29 @@ async def _descargar_imagen(
         _log.debug(f"[autocosmos] Imagen ya existe: {ruta_orig.name}")
         ruta_avif = carpeta_fotos_processed / f"{aviso.id_externo}.avif"
         return ruta_orig, ruta_avif if ruta_avif.exists() else None
-    try:
-        resp = await cliente.get(aviso.url_imagen, headers={"User-Agent": ua.random}, timeout=20.0)
-        resp.raise_for_status()
-        ruta_orig.write_bytes(resp.content)
-        ruta_avif = convertir_a_avif(ruta_orig, destino=carpeta_fotos_processed)
-        if ruta_avif is None:
-            fail_logs.append(FailLog(
-                etapa="conversion_avif",
-                motivo="Conversión AVIF fallida",
-                id_externo=aviso.id_externo,
-            ))
-            _log.debug(f"[autocosmos] Imagen descargada (sin AVIF): id={aviso.id_externo} → {ruta_orig.name}")
-        else:
-            _log.debug(
-                f"[autocosmos] Imagen descargada y convertida:"
-                f" id={aviso.id_externo} → raw/{ruta_orig.name}, processed/{ruta_avif.name}"
-            )
-        return ruta_orig, ruta_avif
-    except Exception as e:
-        _log.warning(f"[autocosmos] No se pudo descargar imagen id={aviso.id_externo}: {e}")
-        return None, None
+    async with semaforo_imgs:
+        try:
+            resp = await cliente.get(aviso.url_imagen, headers={"User-Agent": ua.random}, timeout=20.0)
+            resp.raise_for_status()
+            ruta_orig.write_bytes(resp.content)
+        except Exception as e:
+            _log.warning(f"[autocosmos] No se pudo descargar imagen id={aviso.id_externo}: {e}")
+            return None, None
+    # Conversión AVIF en thread pool — es CPU-bound, no debe bloquear el event loop
+    ruta_avif = await asyncio.to_thread(convertir_a_avif, ruta_orig, destino=carpeta_fotos_processed)
+    if ruta_avif is None:
+        fail_logs.append(FailLog(
+            etapa="conversion_avif",
+            motivo="Conversión AVIF fallida",
+            id_externo=aviso.id_externo,
+        ))
+        _log.debug(f"[autocosmos] Imagen descargada (sin AVIF): id={aviso.id_externo} → {ruta_orig.name}")
+    else:
+        _log.debug(
+            f"[autocosmos] Imagen descargada y convertida:"
+            f" id={aviso.id_externo} → raw/{ruta_orig.name}, processed/{ruta_avif.name}"
+        )
+    return ruta_orig, ruta_avif
 
 
 # ─── PARSEO HTML ─────────────────────────────────────────────────────────────
@@ -338,16 +345,6 @@ def _parsear_aviso(tag: Tag) -> AvisoAuto | None:
     )
 
 
-def _extraer_cards(html: str, vistos: set[str]) -> list[Tag]:
-    soup = BeautifulSoup(html, "lxml")
-    cards: list[Tag] = []
-    for a in soup.find_all("a", href=True):
-        href = str(a.get("href", ""))
-        if _PATRON_AVISO.match(href) and href not in vistos:
-            vistos.add(href)
-            cards.append(a)
-    return cards
-
 
 async def _obtener_descripcion(
     cliente: httpx.AsyncClient,
@@ -421,15 +418,23 @@ class ScraperAutocosmosCloud(ScraperBase):
         carpeta_fotos_raw = carpeta / "raw" / "fotos" if carpeta else None
         carpeta_fotos_processed = carpeta / "processed" / "fotos" if carpeta else None
 
-        sem_desc = asyncio.Semaphore(3)
+        lock_vistos = asyncio.Lock()
+        lock_jsonl = asyncio.Lock()
+        sem_desc = asyncio.Semaphore(_SEM_DESC)
+        sem_imgs = asyncio.Semaphore(_SEM_IMGS)
+        fin_paginacion = asyncio.Event()
 
         try:
             # ── INGESTA ──────────────────────────────────────────────────────
             log_banner_fase("autocosmos", 1, "INGESTA")
             t_ingesta = datetime.now()
             async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as cliente:
-                pagina = 1
-                while self.max_paginas is None or pagina <= self.max_paginas:
+
+                async def _tarea_pagina(pagina: int) -> tuple[list[AvisoAuto], int, int]:
+                    """Procesa una página completa. Retorna (avisos, imgs_ok, imgs_total)."""
+                    if fin_paginacion.is_set():
+                        return [], 0, 0
+
                     response = None
                     for intento in range(1, _MAX_REINTENTOS_GET + 1):
                         log_ingesta.debug(
@@ -456,17 +461,31 @@ class ScraperAutocosmosCloud(ScraperBase):
                                     f"[autocosmos] Página {pagina}: agotados {_MAX_REINTENTOS_GET}"
                                     f" reintentos, continuando con siguiente página"
                                 )
-                    if response is None:
-                        pagina += 1
-                        continue
 
-                    cards = _extraer_cards(response.text, vistos_href)
-                    if not cards:
+                    if response is None:
+                        return [], 0, 0
+
+                    # Parseo HTML en thread pool — CPU-bound, no bloquea el event loop
+                    html_text = response.text
+                    all_links = await asyncio.to_thread(
+                        lambda: BeautifulSoup(html_text, "lxml").find_all("a", href=True)
+                    )
+
+                    nuevas_cards: list[Tag] = []
+                    async with lock_vistos:
+                        for a in all_links:
+                            href = str(a.get("href", ""))
+                            if _PATRON_AVISO.match(href) and href not in vistos_href:
+                                vistos_href.add(href)
+                                nuevas_cards.append(a)
+
+                    if not nuevas_cards:
                         log_ingesta.info(f"[autocosmos] Página {pagina}: sin resultados, fin paginación")
-                        break
+                        fin_paginacion.set()
+                        return [], 0, 0
 
                     avisos_pagina: list[AvisoAuto] = []
-                    for card in cards:
+                    for card in nuevas_cards:
                         try:
                             aviso = _parsear_aviso(card)
                             if aviso:
@@ -475,7 +494,7 @@ class ScraperAutocosmosCloud(ScraperBase):
                         except Exception as e:
                             log_ingesta.warning(f"[autocosmos] Error parseando card en página {pagina}: {e}")
 
-                    # Fetch descripciones de las páginas de detalle (concurrencia limitada)
+                    # Fetch descripciones (semáforo compartido entre todas las páginas del lote)
                     if avisos_pagina:
                         tareas_desc = [
                             _obtener_descripcion(cliente, aviso.url, self._ua, sem_desc)
@@ -490,17 +509,21 @@ class ScraperAutocosmosCloud(ScraperBase):
                             f" {desc_ok}/{len(avisos_pagina)} descripciones obtenidas"
                         )
 
-                    # Batch: descargar fotos antes de avanzar página
+                    # Descargar fotos con concurrencia controlada por sem_imgs
                     fotos_pagina: dict[str, str] = {}
+                    imgs_ok_pag = 0
+                    imgs_total_pag = 0
                     if self.guardar_raw and carpeta_fotos_raw and carpeta_fotos_processed and avisos_pagina:
                         tareas_img = [
                             _descargar_imagen(
-                                cliente, a, carpeta_fotos_raw, carpeta_fotos_processed, self._ua, fail_logs
+                                cliente, a, carpeta_fotos_raw, carpeta_fotos_processed,
+                                self._ua, fail_logs, sem_imgs,
                             )
                             for a in avisos_pagina
                             if a.url_imagen
                         ]
                         if tareas_img:
+                            imgs_total_pag = len(tareas_img)
                             resultados = await asyncio.gather(*tareas_img, return_exceptions=True)
                             avisos_con_imagen = [a for a in avisos_pagina if a.url_imagen]
                             tareas_s3_info: list[tuple] = []  # (coro, aviso, etapa)
@@ -530,14 +553,12 @@ class ScraperAutocosmosCloud(ScraperBase):
                                     tareas_s3_info.append(
                                         (_cargar_a_s3_con_retry(ruta_avif, clave_proc, tipo="fotos"), aviso, "upload_foto_processed")
                                     )
-                            imgs_ok = sum(
+                            imgs_ok_pag = sum(
                                 1 for r in resultados if isinstance(r, tuple) and r[0] is not None
                             )
-                            imgs_fail = len(tareas_img) - imgs_ok
-                            fotos_ok_total += imgs_ok
-                            fotos_total += len(tareas_img)
+                            imgs_fail = imgs_total_pag - imgs_ok_pag
                             log_fotos.info(
-                                f"[autocosmos] Página {pagina}: {imgs_ok}/{len(tareas_img)} imágenes descargadas"
+                                f"[autocosmos] Página {pagina}: {imgs_ok_pag}/{imgs_total_pag} imágenes descargadas"
                                 + (f" ({imgs_fail} fallida{'s' if imgs_fail > 1 else ''})" if imgs_fail else "")
                             )
                             if tareas_s3_info:
@@ -550,9 +571,10 @@ class ScraperAutocosmosCloud(ScraperBase):
                                             id_externo=aviso.id_externo,
                                         ))
 
-                    # Append JSONL
+                    # Append JSONL con lock para evitar escrituras concurrentes
                     if self.guardar_raw and ruta_jsonl and avisos_pagina:
-                        ok = _append_avisos_jsonl(avisos_pagina, ruta_jsonl, fotos=fotos_pagina)
+                        async with lock_jsonl:
+                            ok = _append_avisos_jsonl(avisos_pagina, ruta_jsonl, fotos=fotos_pagina)
                         if not ok:
                             for aviso in avisos_pagina:
                                 fail_logs.append(FailLog(
@@ -565,11 +587,36 @@ class ScraperAutocosmosCloud(ScraperBase):
                                 f"[autocosmos] Página {pagina}: {len(avisos_pagina)} avisos guardados en JSONL"
                             )
 
-                    avisos_raw.extend(avisos_pagina)
                     log_ingesta.debug(f"[autocosmos] Página {pagina}: {len(avisos_pagina)} avisos obtenidos")
-                    paginas_procesadas += 1
-                    pagina += 1
-                    await self.espera_aleatoria()
+                    return avisos_pagina, imgs_ok_pag, imgs_total_pag
+
+                # ── Procesamiento por lotes: _CONCURRENCIA_PAGINAS páginas en paralelo ──
+                pagina = 1
+                while not fin_paginacion.is_set() and (self.max_paginas is None or pagina <= self.max_paginas):
+                    fin_lote = pagina + _CONCURRENCIA_PAGINAS
+                    if self.max_paginas is not None:
+                        fin_lote = min(fin_lote, self.max_paginas + 1)
+                    nums_lote = list(range(pagina, fin_lote))
+
+                    resultados_lote = await asyncio.gather(
+                        *[_tarea_pagina(p) for p in nums_lote],
+                        return_exceptions=True,
+                    )
+
+                    for resultado in resultados_lote:
+                        if isinstance(resultado, BaseException):
+                            log_ingesta.error(f"[autocosmos] Error inesperado en tarea de página: {resultado}")
+                            continue
+                        avisos_p, imgs_ok, imgs_t = resultado
+                        if avisos_p:
+                            avisos_raw.extend(avisos_p)
+                            paginas_procesadas += 1
+                        fotos_ok_total += imgs_ok
+                        fotos_total += imgs_t
+
+                    pagina += _CONCURRENCIA_PAGINAS
+                    if not fin_paginacion.is_set():
+                        await self.espera_aleatoria()
 
             duracion_ingesta = (datetime.now() - t_ingesta).total_seconds()
             log_resumen_fase("autocosmos", "INGESTA", {

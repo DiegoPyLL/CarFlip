@@ -18,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
+import httpx
 from loguru import logger
 from playwright.async_api import async_playwright
 
@@ -35,6 +36,9 @@ _PATRON_FECHA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _S3_MAX_REINTENTOS = 12   # 12 × 10 min = 2 horas
 _S3_INTERVALO_SEG  = 600  # 10 minutos
 _MAX_AVISOS        = 1_000
+
+_CONCURRENCIA_DETALLES = 5   # páginas de detalle procesadas en paralelo (Playwright)
+_SEM_IMGS = 20               # descargas de imagen concurrentes
 
 _HEADERS_HTTP = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -258,11 +262,13 @@ class ScraperYapoCloud(ScraperBase):
 
     async def _descargar_imagen(
         self,
+        cliente_http: httpx.AsyncClient,
         url: str,
         ruta_raw: Path,
         carpeta_processed: Path,
         fail_logs: list[FailLog],
         aviso_id: str,
+        sem_imgs: asyncio.Semaphore,
     ) -> tuple[Path | None, Path | None]:
         """Descarga la imagen original a raw/fotos/ y la convierte a AVIF en processed/fotos/."""
         _log = logger.bind(tipo="fotos")
@@ -271,29 +277,29 @@ class ScraperYapoCloud(ScraperBase):
         if ruta_raw.exists():
             ruta_avif = carpeta_processed / f"{ruta_raw.stem}.avif"
             return ruta_raw, ruta_avif if ruta_avif.exists() else None
-        try:
-            import httpx
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(url, headers=_HEADERS_HTTP, timeout=15)
+        async with sem_imgs:
+            try:
+                resp = await cliente_http.get(url, headers=_HEADERS_HTTP, timeout=15)
                 resp.raise_for_status()
                 ruta_raw.write_bytes(resp.content)
-            ruta_avif = convertir_a_avif(ruta_raw, destino=carpeta_processed)
-            if ruta_avif is None:
-                fail_logs.append(FailLog(
-                    etapa="conversion_avif",
-                    motivo="Conversión AVIF fallida",
-                    id_externo=aviso_id,
-                ))
-                _log.debug(f"[yapo] Imagen descargada (sin AVIF): id={aviso_id} → {ruta_raw.name}")
-            else:
-                _log.debug(
-                    f"[yapo] Imagen descargada y convertida a AVIF:"
-                    f" id={aviso_id} → raw/{ruta_raw.name}, processed/{ruta_avif.name}"
-                )
-            return ruta_raw, ruta_avif
-        except Exception as e:
-            _log.warning(f"[yapo] No se pudo descargar imagen {ruta_raw.name}: {e}")
-            return None, None
+            except Exception as e:
+                _log.warning(f"[yapo] No se pudo descargar imagen {ruta_raw.name}: {e}")
+                return None, None
+        # Conversión AVIF en thread pool — CPU-bound, no debe bloquear el event loop
+        ruta_avif = await asyncio.to_thread(convertir_a_avif, ruta_raw, destino=carpeta_processed)
+        if ruta_avif is None:
+            fail_logs.append(FailLog(
+                etapa="conversion_avif",
+                motivo="Conversión AVIF fallida",
+                id_externo=aviso_id,
+            ))
+            _log.debug(f"[yapo] Imagen descargada (sin AVIF): id={aviso_id} → {ruta_raw.name}")
+        else:
+            _log.debug(
+                f"[yapo] Imagen descargada y convertida a AVIF:"
+                f" id={aviso_id} → raw/{ruta_raw.name}, processed/{ruta_avif.name}"
+            )
+        return ruta_raw, ruta_avif
 
     async def scrape(self) -> list[AvisoAuto]:
         from carflip.scrapers.logging_utils import (
@@ -405,112 +411,124 @@ class ScraperYapoCloud(ScraperBase):
                         log_ingesta.info(f"[yapo] Límite de {_MAX_AVISOS} publicaciones alcanzado, deteniendo paginación")
                         break
 
-                # ── INGESTA: detalles ─────────────────────────────────────────
-                for i, info in enumerate(avisos_info, 1):
-                    log_ingesta.debug(f"[yapo] Detalle {i}/{len(avisos_info)}: {info['url']}")
-                    url = info["url"]
-                    aviso_id = hashlib.sha256(url.encode()).hexdigest()
+                # ── INGESTA: detalles (pool de _CONCURRENCIA_DETALLES páginas en paralelo) ──
+                sem_detalles = asyncio.Semaphore(_CONCURRENCIA_DETALLES)
+                sem_imgs = asyncio.Semaphore(_SEM_IMGS)
+                lock_jsonl = asyncio.Lock()
+                total_avisos = len(avisos_info)
 
-                    try:
-                        await page.goto(url, wait_until="domcontentloaded", timeout=25_000)
-                        await page.wait_for_timeout(1_500)
-                        attrs = await page.evaluate(self._JS_ATTRS)
-                    except Exception as e:
-                        log_ingesta.error(f"[yapo] Error cargando detalle id={aviso_id}: {e}")
-                        fail_logs.append(FailLog(etapa="ingesta", motivo=str(e), id_externo=aviso_id))
-                        continue
+                async with httpx.AsyncClient() as cliente_http:
+                    async def _tarea_detalle(info: dict, idx: int) -> AvisoAuto | None:
+                        nonlocal fotos_ok_total, fotos_total
+                        url_det = info["url"]
+                        aviso_id = hashlib.sha256(url_det.encode()).hexdigest()
 
-                    km_raw = self._get_attr(attrs, "Kilómetros", "Kilometros", "Kilometraje")
-                    precio_raw = self._limpiar_precio(info["precio"])
-                    km = self._limpiar_km(km_raw) if km_raw else None
-                    anio_s = self._get_attr(attrs, "Año", "Ano")
-                    anio = int(anio_s) if anio_s.isdigit() else None
-                    marca = self._get_attr(attrs, "Marca") or None
-                    modelo = self._get_attr(attrs, "Modelo") or None
-                    img_url = attrs.get("imagen_url", "") or None
-
-                    log_ingesta.debug(f"[yapo] Parseando aviso id={aviso_id}")
-                    if precio_raw is None:
-                        log_ingesta.warning(f"[yapo] id={aviso_id} sin precio")
-                    if km is None:
-                        log_ingesta.warning(f"[yapo] id={aviso_id} km no encontrado")
-                    if not marca and not modelo:
-                        log_ingesta.warning(f"[yapo] id={aviso_id} sin marca ni modelo, título con fallback")
-
-                    av_auto = AvisoAuto(
-                        fuente=self.fuente,
-                        id_externo=aviso_id,
-                        url=url,
-                        titulo=f"{marca or ''} {modelo or ''} {anio_s} usado precio {info['precio'].split(chr(10))[0]}".strip(),
-                        precio=Decimal(precio_raw) if precio_raw is not None else None,
-                        moneda="CLP",
-                        marca=marca,
-                        modelo=modelo,
-                        anio=anio,
-                        km=km,
-                        ubicacion=info["region"] or None,
-                        combustible=self._normalizar_combustible(self._get_attr(attrs, "Combustible")),
-                        url_imagen=img_url,
-                        disponible=True,
-                        fecha_publicacion=info["fecha"],
-                    )
-
-                    # Descarga y subida a S3 durante la ingesta
-                    if self.guardar_raw and carpeta_fotos_raw and carpeta_fotos_processed and img_url:
-                        ruta_foto_raw = carpeta_fotos_raw / f"{aviso_id}.jpg"
-                        fotos_total += 1
-                        ruta_orig, ruta_avif = await self._descargar_imagen(
-                            img_url, ruta_foto_raw, carpeta_fotos_processed, fail_logs, aviso_id
-                        )
-                        if ruta_orig is not None:
-                            fotos_ok_total += 1
-                            fotos_run[aviso_id] = ruta_orig.name
-                            log_fotos.info(
-                                f"[yapo] [{i}/{len(avisos_info)}] Foto descargada id={aviso_id}"
+                        async with sem_detalles:
+                            p = await ctx.new_page()
+                            await p.route(
+                                "**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,otf}",
+                                lambda route: route.abort(),
                             )
-                            s3_ok = await _cargar_a_s3_con_retry(
-                                ruta_orig, f"yapo/{fecha_dia}/raw/fotos/{ruta_orig.name}", tipo="fotos"
-                            )
-                            if not s3_ok:
-                                fail_logs.append(FailLog(
-                                    etapa="upload_foto_raw",
-                                    motivo="S3 upload de imagen agotó reintentos",
+                            try:
+                                log_ingesta.debug(f"[yapo] Detalle {idx}/{total_avisos}: {url_det}")
+                                try:
+                                    await p.goto(url_det, wait_until="domcontentloaded", timeout=25_000)
+                                    await p.wait_for_timeout(1_500)
+                                    attrs = await p.evaluate(self._JS_ATTRS)
+                                except Exception as e:
+                                    log_ingesta.error(f"[yapo] Error cargando detalle id={aviso_id}: {e}")
+                                    fail_logs.append(FailLog(etapa="ingesta", motivo=str(e), id_externo=aviso_id))
+                                    return None
+
+                                km_raw = self._get_attr(attrs, "Kilómetros", "Kilometros", "Kilometraje")
+                                precio_raw = self._limpiar_precio(info["precio"])
+                                km = self._limpiar_km(km_raw) if km_raw else None
+                                anio_s = self._get_attr(attrs, "Año", "Ano")
+                                anio = int(anio_s) if anio_s.isdigit() else None
+                                marca = self._get_attr(attrs, "Marca") or None
+                                modelo = self._get_attr(attrs, "Modelo") or None
+                                img_url = attrs.get("imagen_url", "") or None
+
+                                log_ingesta.debug(f"[yapo] Parseando aviso id={aviso_id}")
+                                if precio_raw is None:
+                                    log_ingesta.warning(f"[yapo] id={aviso_id} sin precio")
+                                if km is None:
+                                    log_ingesta.warning(f"[yapo] id={aviso_id} km no encontrado")
+                                if not marca and not modelo:
+                                    log_ingesta.warning(f"[yapo] id={aviso_id} sin marca ni modelo, título con fallback")
+
+                                av_auto = AvisoAuto(
+                                    fuente=self.fuente,
                                     id_externo=aviso_id,
-                                ))
-                            if ruta_avif is not None:
-                                s3_ok_avif = await _cargar_a_s3_con_retry(
-                                    ruta_avif, f"yapo/{fecha_dia}/processed/fotos/{ruta_avif.name}", tipo="fotos"
+                                    url=url_det,
+                                    titulo=f"{marca or ''} {modelo or ''} {anio_s} usado precio {info['precio'].split(chr(10))[0]}".strip(),
+                                    precio=Decimal(precio_raw) if precio_raw is not None else None,
+                                    moneda="CLP",
+                                    marca=marca,
+                                    modelo=modelo,
+                                    anio=anio,
+                                    km=km,
+                                    ubicacion=info["region"] or None,
+                                    combustible=self._normalizar_combustible(self._get_attr(attrs, "Combustible")),
+                                    url_imagen=img_url,
+                                    disponible=True,
+                                    fecha_publicacion=info["fecha"],
                                 )
-                                if not s3_ok_avif:
-                                    fail_logs.append(FailLog(
-                                        etapa="upload_foto_processed",
-                                        motivo="S3 upload de imagen AVIF agotó reintentos",
-                                        id_externo=aviso_id,
-                                    ))
-                        else:
-                            log_fotos.warning(
-                                f"[yapo] [{i}/{len(avisos_info)}] Foto fallida id={aviso_id}"
-                            )
-                            fail_logs.append(FailLog(
-                                etapa="descarga_foto",
-                                motivo="Descarga de imagen fallida",
-                                id_externo=aviso_id,
-                            ))
 
-                    avisos_raw.append(av_auto)
+                                if self.guardar_raw and carpeta_fotos_raw and carpeta_fotos_processed and img_url:
+                                    ruta_foto_raw = carpeta_fotos_raw / f"{aviso_id}.jpg"
+                                    fotos_total += 1
+                                    ruta_orig, ruta_avif = await self._descargar_imagen(
+                                        cliente_http, img_url, ruta_foto_raw,
+                                        carpeta_fotos_processed, fail_logs, aviso_id, sem_imgs,
+                                    )
+                                    if ruta_orig is not None:
+                                        fotos_ok_total += 1
+                                        fotos_run[aviso_id] = ruta_orig.name
+                                        log_fotos.info(f"[yapo] [{idx}/{total_avisos}] Foto descargada id={aviso_id}")
+                                        tareas_s3 = [
+                                            _cargar_a_s3_con_retry(
+                                                ruta_orig,
+                                                f"yapo/{fecha_dia}/raw/fotos/{ruta_orig.name}",
+                                                tipo="fotos",
+                                            )
+                                        ]
+                                        if ruta_avif is not None:
+                                            tareas_s3.append(
+                                                _cargar_a_s3_con_retry(
+                                                    ruta_avif,
+                                                    f"yapo/{fecha_dia}/processed/fotos/{ruta_avif.name}",
+                                                    tipo="fotos",
+                                                )
+                                            )
+                                        s3_res = await asyncio.gather(*tareas_s3)
+                                        if not s3_res[0]:
+                                            fail_logs.append(FailLog(etapa="upload_foto_raw", motivo="S3 upload de imagen agotó reintentos", id_externo=aviso_id))
+                                        if len(s3_res) > 1 and not s3_res[1]:
+                                            fail_logs.append(FailLog(etapa="upload_foto_processed", motivo="S3 upload de imagen AVIF agotó reintentos", id_externo=aviso_id))
+                                    else:
+                                        log_fotos.warning(f"[yapo] [{idx}/{total_avisos}] Foto fallida id={aviso_id}")
+                                        fail_logs.append(FailLog(etapa="descarga_foto", motivo="Descarga de imagen fallida", id_externo=aviso_id))
 
-                    if self.guardar_raw and ruta_jsonl:
-                        ok = _append_avisos_jsonl([av_auto], ruta_jsonl, fotos=fotos_run)
-                        if not ok:
-                            fail_logs.append(FailLog(
-                                etapa="dedup_json",
-                                motivo="Error al serializar JSONL",
-                                id_externo=aviso_id,
-                            ))
-                        else:
-                            log_meta.info(
-                                f"[yapo] [{i}/{len(avisos_info)}] Metadata guardada id={aviso_id}"
-                            )
+                                if self.guardar_raw and ruta_jsonl:
+                                    async with lock_jsonl:
+                                        ok = _append_avisos_jsonl([av_auto], ruta_jsonl, fotos=fotos_run)
+                                    if not ok:
+                                        fail_logs.append(FailLog(etapa="dedup_json", motivo="Error al serializar JSONL", id_externo=aviso_id))
+                                    else:
+                                        log_meta.info(f"[yapo] [{idx}/{total_avisos}] Metadata guardada id={aviso_id}")
+
+                                return av_auto
+                            finally:
+                                await p.close()
+
+                    tareas_detalle = [_tarea_detalle(info, i) for i, info in enumerate(avisos_info, 1)]
+                    resultados_detalle = await asyncio.gather(*tareas_detalle, return_exceptions=True)
+                    for resultado in resultados_detalle:
+                        if isinstance(resultado, BaseException):
+                            log_ingesta.error(f"[yapo] Error inesperado en tarea de detalle: {resultado}")
+                        elif resultado is not None:
+                            avisos_raw.append(resultado)
 
                 await ctx.close()
                 await browser.close()
