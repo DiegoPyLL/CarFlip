@@ -52,11 +52,12 @@ async def run_scrapers(scraper_name: str = "all") -> None:
             )
 
             if i < total:
+                pausa = settings.scrape_interval_minutes * 60
                 logger.info(
-                    f"[orquestrador] Pausa de {settings.delay_entre_scrapers_segundos}s "
+                    f"[orquestrador] Pausa de {settings.scrape_interval_minutes}min "
                     "entre scrapers..."
                 )
-                await asyncio.sleep(settings.delay_entre_scrapers_segundos)
+                await asyncio.sleep(pausa)
 
     duracion_ciclo = (datetime.now() - inicio_ciclo).total_seconds()
     logger.info(
@@ -65,7 +66,7 @@ async def run_scrapers(scraper_name: str = "all") -> None:
     )
 
 
-def start_scheduler(intervalo_horas: int = 6) -> None:
+def start_scheduler(intervalo_horas: int = 12) -> None:
     """Ejecuta un ciclo inmediato y luego repite cada intervalo_horas. Bloquea indefinidamente."""
     logger.info("[orquestrador] Ejecutando ciclo inicial antes de iniciar el scheduler...")
     asyncio.run(run_scrapers("all"))

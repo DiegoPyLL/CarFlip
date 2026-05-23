@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     mercadolibre_app_id: str = ""
     mercadolibre_client_secret: str = ""
 
-    scrape_interval_hours: int = 6
-    delay_entre_scrapers_segundos: int = 30
+    scrape_interval_hours: int = 12
+    scrape_interval_minutes: int = 30
     min_delay_seconds: float = 2.0
     max_delay_seconds: float = 6.0
     deal_threshold_pct: float = 15.0

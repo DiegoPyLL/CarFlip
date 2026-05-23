@@ -52,13 +52,15 @@ _MAX_REINTENTOS_GET = 10  # reintentos por página antes de saltar a la siguient
 # ─── CARGA S3 ────────────────────────────────────────────────────────────────
 
 
-async def _cargar_a_s3_con_retry(ruta_local: Path, clave_s3: str) -> bool:
+async def _cargar_a_s3_con_retry(ruta_local: Path, clave_s3: str, tipo: str = "fotos") -> bool:
     """
     Sube `ruta_local` a S3 bajo la clave `clave_s3`.
     Verifica que el objeto exista tras la subida.
     Reintenta cada 10 min por un máximo de 2 horas (12 intentos).
     Retorna True si la carga fue exitosa, False si se agotaron los reintentos.
+    `tipo` se usa para etiquetar los logs: "fotos" o "metadata".
     """
+    log = logger.bind(tipo=tipo)
     sesion = aioboto3.Session(
         aws_access_key_id=settings.s3_access_key_id,
         aws_secret_access_key=settings.s3_secret_access_key,
@@ -71,18 +73,18 @@ async def _cargar_a_s3_con_retry(ruta_local: Path, clave_s3: str) -> bool:
             try:
                 await cliente.put_object(Bucket=settings.s3_bucket, Key=clave_s3, Body=datos)
                 await cliente.head_object(Bucket=settings.s3_bucket, Key=clave_s3)
-                logger.debug(f"[autocosmos] S3 upload OK: {clave_s3}")
+                log.debug(f"[autocosmos] S3 upload OK: {clave_s3}")
                 return True
 
             except (ClientError, Exception) as exc:
                 if intento < _S3_MAX_REINTENTOS:
-                    logger.warning(
+                    log.warning(
                         f"[autocosmos] S3 upload fallido intento {intento}/{_S3_MAX_REINTENTOS}"
                         f" — {clave_s3}: {exc}. Reintentando en {_S3_INTERVALO_SEG // 60} min."
                     )
                     await asyncio.sleep(_S3_INTERVALO_SEG)
                 else:
-                    logger.error(
+                    log.error(
                         f"[autocosmos] S3 upload agotó {_S3_MAX_REINTENTOS} reintentos: {clave_s3} — {exc}"
                     )
 
@@ -162,7 +164,7 @@ def _aviso_a_dict(aviso: AvisoAuto, foto_local: str | None = None) -> dict:
         "id_externo": aviso.id_externo,
         "url": aviso.url,
         "titulo": aviso.titulo,
-        "precio": str(aviso.precio) if aviso.precio is not None else None,
+        "precio": int(aviso.precio) if aviso.precio is not None else None,
         "moneda": aviso.moneda,
         "marca": aviso.marca,
         "modelo": aviso.modelo,
@@ -186,6 +188,7 @@ def _append_avisos_jsonl(
     """Append avisos a un JSONL, una línea por aviso."""
     if fotos is None:
         fotos = {}
+    _log = logger.bind(tipo="metadata")
     try:
         with open(ruta_jsonl, "a", encoding="utf-8") as f:
             for aviso in avisos:
@@ -194,10 +197,10 @@ def _append_avisos_jsonl(
                     ensure_ascii=False,
                 )
                 f.write(linea + "\n")
-        logger.debug(f"[autocosmos] {len(avisos)} avisos appended a {ruta_jsonl.name}")
+        _log.debug(f"[autocosmos] {len(avisos)} avisos appended a {ruta_jsonl.name}")
         return True
     except Exception as e:
-        logger.error(f"[autocosmos] Error appending avisos a JSONL: {e}")
+        _log.error(f"[autocosmos] Error appending avisos a JSONL: {e}")
         return False
 
 
@@ -210,12 +213,13 @@ async def _descargar_imagen(
     fail_logs: list[FailLog],
 ) -> tuple[Path | None, Path | None]:
     """Descarga la imagen original a raw/fotos/ y la convierte a AVIF en processed/fotos/."""
+    _log = logger.bind(tipo="fotos")
     if not aviso.url_imagen:
         return None, None
     ext = Path(aviso.url_imagen.split("?")[0]).suffix or ".webp"
     ruta_orig = carpeta_fotos_raw / f"{aviso.id_externo}{ext}"
     if ruta_orig.exists():
-        logger.debug(f"[autocosmos] Imagen ya existe: {ruta_orig.name}")
+        _log.debug(f"[autocosmos] Imagen ya existe: {ruta_orig.name}")
         ruta_avif = carpeta_fotos_processed / f"{aviso.id_externo}.avif"
         return ruta_orig, ruta_avif if ruta_avif.exists() else None
     try:
@@ -229,15 +233,15 @@ async def _descargar_imagen(
                 motivo="Conversión AVIF fallida",
                 id_externo=aviso.id_externo,
             ))
-            logger.debug(f"[autocosmos] Imagen descargada (sin AVIF): id={aviso.id_externo} → {ruta_orig.name}")
+            _log.debug(f"[autocosmos] Imagen descargada (sin AVIF): id={aviso.id_externo} → {ruta_orig.name}")
         else:
-            logger.debug(
+            _log.debug(
                 f"[autocosmos] Imagen descargada y convertida:"
                 f" id={aviso.id_externo} → raw/{ruta_orig.name}, processed/{ruta_avif.name}"
             )
         return ruta_orig, ruta_avif
     except Exception as e:
-        logger.warning(f"[autocosmos] No se pudo descargar imagen id={aviso.id_externo}: {e}")
+        _log.warning(f"[autocosmos] No se pudo descargar imagen id={aviso.id_externo}: {e}")
         return None, None
 
 
@@ -309,12 +313,13 @@ def _parsear_aviso(tag: Tag) -> AvisoAuto | None:
     km = _parsear_km(texto)
 
     # Advertencias de ingesta por campos recuperables faltantes
+    _log_i = logger.bind(fase="ingesta")
     if not titulo:
-        logger.warning(f"[autocosmos] id={id_externo} sin título, usando fallback")
+        _log_i.warning(f"[autocosmos] id={id_externo} sin título, usando fallback")
     if precio is None:
-        logger.warning(f"[autocosmos] id={id_externo} sin precio")
+        _log_i.warning(f"[autocosmos] id={id_externo} sin precio")
     if km is None:
-        logger.warning(f"[autocosmos] id={id_externo} km no encontrado")
+        _log_i.warning(f"[autocosmos] id={id_externo} km no encontrado")
 
     return AvisoAuto(
         fuente="autocosmos",
@@ -344,6 +349,27 @@ def _extraer_cards(html: str, vistos: set[str]) -> list[Tag]:
     return cards
 
 
+async def _obtener_descripcion(
+    cliente: httpx.AsyncClient,
+    url: str,
+    ua: UserAgent,
+    semaforo: asyncio.Semaphore,
+) -> str | None:
+    async with semaforo:
+        try:
+            resp = await cliente.get(url, headers={"User-Agent": ua.random}, timeout=20.0)
+            resp.raise_for_status()
+            soup = BeautifulSoup(resp.text, "lxml")
+            section = soup.find("section", class_="description")
+            if isinstance(section, Tag):
+                p = section.select_one("div.grid-container__content p")
+                if p:
+                    return p.get_text(strip=True) or None
+        except Exception as e:
+            logger.bind(fase="ingesta").warning(f"[autocosmos] No se pudo obtener descripción de {url}: {e}")
+        return None
+
+
 # ─── SCRAPER CLOUD ────────────────────────────────────────────────────────────
 
 
@@ -362,14 +388,31 @@ class ScraperAutocosmosCloud(ScraperBase):
         self._ua = UserAgent()
 
     async def scrape(self) -> list[AvisoAuto]:
+        from carflip.scrapers.logging_utils import (
+            carpeta_logs_run, configurar_sinks_run, eliminar_sinks,
+            log_banner_fase, log_resumen_fase,
+        )
+
         utc_4 = timezone(timedelta(hours=-4))
         inicio = datetime.now(utc_4)
+
+        carpeta_logs = carpeta_logs_run("autocosmos", inicio.replace(tzinfo=None))
+        sink_ids = configurar_sinks_run("autocosmos", carpeta_logs)
+
+        log_ingesta   = logger.bind(fase="ingesta")
+        log_fotos     = logger.bind(fase="ingesta", tipo="fotos")
+        log_meta      = logger.bind(fase="ingesta", tipo="metadata")
+        log_limpieza  = logger.bind(fase="limpieza")
+        log_validacion = logger.bind(fase="validacion")
+
         logger.info(f"[autocosmos] Iniciando scrape cloud — {inicio.strftime('%H:%M:%S %d/%m/%Y')}")
 
         fail_logs: list[FailLog] = []
         avisos_raw: list[AvisoAuto] = []
         vistos_href: set[str] = set()
         paginas_procesadas = 0
+        fotos_ok_total = 0
+        fotos_total = 0
 
         fecha_str = inicio.strftime("%H-%M-%S_%d-%m-%Y")
         fecha_dia = inicio.strftime("%Y/%m/%d")
@@ -378,273 +421,301 @@ class ScraperAutocosmosCloud(ScraperBase):
         carpeta_fotos_raw = carpeta / "raw" / "fotos" if carpeta else None
         carpeta_fotos_processed = carpeta / "processed" / "fotos" if carpeta else None
 
+        sem_desc = asyncio.Semaphore(3)
 
-
-        # ── INGESTA ──────────────────────────────────────────────────────────
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as cliente:
-            pagina = 1
-            while self.max_paginas is None or pagina <= self.max_paginas:
-                response = None
-                for intento in range(1, _MAX_REINTENTOS_GET + 1):
-                    logger.debug(
-                        f"[autocosmos] GET {URL_USADOS} params={{pidx: {pagina}}}"
-                        + (f" — intento {intento}/{_MAX_REINTENTOS_GET}" if intento > 1 else "")
-                    )
-                    try:
-                        headers = {"User-Agent": self._ua.random}
-                        response = await cliente.get(
-                            URL_USADOS, params={"pidx": pagina}, headers=headers
+        try:
+            # ── INGESTA ──────────────────────────────────────────────────────
+            log_banner_fase("autocosmos", 1, "INGESTA")
+            t_ingesta = datetime.now()
+            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as cliente:
+                pagina = 1
+                while self.max_paginas is None or pagina <= self.max_paginas:
+                    response = None
+                    for intento in range(1, _MAX_REINTENTOS_GET + 1):
+                        log_ingesta.debug(
+                            f"[autocosmos] GET {URL_USADOS} params={{pidx: {pagina}}}"
+                            + (f" — intento {intento}/{_MAX_REINTENTOS_GET}" if intento > 1 else "")
                         )
-                        response.raise_for_status()
-                        logger.debug(f"[autocosmos] HTTP {response.status_code} — {response.url}")
-                        break
-                    except Exception as e:
-                        if intento < _MAX_REINTENTOS_GET:
-                            logger.warning(
-                                f"[autocosmos] Error en página {pagina}"
-                                f" intento {intento}/{_MAX_REINTENTOS_GET}: {e} — reintentando en 2s"
+                        try:
+                            headers = {"User-Agent": self._ua.random}
+                            response = await cliente.get(
+                                URL_USADOS, params={"pidx": pagina}, headers=headers
                             )
-                            await asyncio.sleep(2)
-                        else:
-                            logger.error(
-                                f"[autocosmos] Página {pagina}: agotados {_MAX_REINTENTOS_GET}"
-                                f" reintentos, continuando con siguiente página"
-                            )
-                if response is None:
-                    pagina += 1
-                    continue
-
-                cards = _extraer_cards(response.text, vistos_href)
-                if not cards:
-                    logger.info(f"[autocosmos] Página {pagina}: sin resultados, fin paginación")
-                    break
-
-                avisos_pagina: list[AvisoAuto] = []
-                for card in cards:
-                    try:
-                        aviso = _parsear_aviso(card)
-                        if aviso:
-                            logger.debug(f"[autocosmos] Parseando aviso id={aviso.id_externo}")
-                            avisos_pagina.append(aviso)
-                    except Exception as e:
-                        logger.warning(f"[autocosmos] Error parseando card en página {pagina}: {e}")
-
-                # Batch: descargar fotos antes de avanzar página
-                fotos_pagina: dict[str, str] = {}
-                if self.guardar_raw and carpeta_fotos_raw and carpeta_fotos_processed and avisos_pagina:
-                    tareas_img = [
-                        _descargar_imagen(
-                            cliente, a, carpeta_fotos_raw, carpeta_fotos_processed, self._ua, fail_logs
-                        )
-                        for a in avisos_pagina
-                        if a.url_imagen
-                    ]
-                    if tareas_img:
-                        resultados = await asyncio.gather(*tareas_img, return_exceptions=True)
-                        avisos_con_imagen = [a for a in avisos_pagina if a.url_imagen]
-                        tareas_s3_info: list[tuple] = []  # (coro, aviso, etapa)
-                        for aviso, resultado in zip(avisos_con_imagen, resultados):
-                            if isinstance(resultado, BaseException):
-                                fail_logs.append(FailLog(
-                                    etapa="descarga_foto",
-                                    motivo="Excepción descargando imagen",
-                                    id_externo=aviso.id_externo,
-                                ))
-                                continue
-                            ruta_orig, ruta_avif = resultado
-                            if ruta_orig is not None:
-                                fotos_pagina[aviso.id_externo] = ruta_orig.name
-                                clave_raw = f"autocosmos/{fecha_dia}/raw/fotos/{ruta_orig.name}"
-                                tareas_s3_info.append(
-                                    (_cargar_a_s3_con_retry(ruta_orig, clave_raw), aviso, "upload_foto_raw")
+                            response.raise_for_status()
+                            log_ingesta.debug(f"[autocosmos] HTTP {response.status_code} — {response.url}")
+                            break
+                        except Exception as e:
+                            if intento < _MAX_REINTENTOS_GET:
+                                log_ingesta.warning(
+                                    f"[autocosmos] Error en página {pagina}"
+                                    f" intento {intento}/{_MAX_REINTENTOS_GET}: {e} — reintentando en 2s"
                                 )
+                                await asyncio.sleep(2)
                             else:
-                                fail_logs.append(FailLog(
-                                    etapa="descarga_foto",
-                                    motivo="Descarga de imagen fallida",
-                                    id_externo=aviso.id_externo,
-                                ))
-                            if ruta_avif is not None:
-                                clave_proc = f"autocosmos/{fecha_dia}/processed/fotos/{ruta_avif.name}"
-                                tareas_s3_info.append(
-                                    (_cargar_a_s3_con_retry(ruta_avif, clave_proc), aviso, "upload_foto_processed")
+                                log_ingesta.error(
+                                    f"[autocosmos] Página {pagina}: agotados {_MAX_REINTENTOS_GET}"
+                                    f" reintentos, continuando con siguiente página"
                                 )
-                        imgs_ok = sum(
-                            1 for r in resultados if isinstance(r, tuple) and r[0] is not None
+                    if response is None:
+                        pagina += 1
+                        continue
+
+                    cards = _extraer_cards(response.text, vistos_href)
+                    if not cards:
+                        log_ingesta.info(f"[autocosmos] Página {pagina}: sin resultados, fin paginación")
+                        break
+
+                    avisos_pagina: list[AvisoAuto] = []
+                    for card in cards:
+                        try:
+                            aviso = _parsear_aviso(card)
+                            if aviso:
+                                log_ingesta.debug(f"[autocosmos] Parseando aviso id={aviso.id_externo}")
+                                avisos_pagina.append(aviso)
+                        except Exception as e:
+                            log_ingesta.warning(f"[autocosmos] Error parseando card en página {pagina}: {e}")
+
+                    # Fetch descripciones de las páginas de detalle (concurrencia limitada)
+                    if avisos_pagina:
+                        tareas_desc = [
+                            _obtener_descripcion(cliente, aviso.url, self._ua, sem_desc)
+                            for aviso in avisos_pagina
+                        ]
+                        descripciones = await asyncio.gather(*tareas_desc, return_exceptions=True)
+                        for aviso, desc in zip(avisos_pagina, descripciones):
+                            aviso.descripcion = desc if isinstance(desc, str) else None
+                        desc_ok = sum(1 for d in descripciones if d is not None)
+                        log_ingesta.debug(
+                            f"[autocosmos] Página {pagina}:"
+                            f" {desc_ok}/{len(avisos_pagina)} descripciones obtenidas"
                         )
-                        imgs_fail = len(resultados) - imgs_ok
-                        logger.info(
-                            f"[autocosmos] Página {pagina}: {imgs_ok}/{len(resultados)} imágenes descargadas"
-                            + (f" ({imgs_fail} fallida)" if imgs_fail else "")
-                        )
-                        if tareas_s3_info:
-                            resultados_s3 = await asyncio.gather(*[t[0] for t in tareas_s3_info])
-                            for (_, aviso, etapa), s3_ok in zip(tareas_s3_info, resultados_s3):
-                                if not s3_ok:
+
+                    # Batch: descargar fotos antes de avanzar página
+                    fotos_pagina: dict[str, str] = {}
+                    if self.guardar_raw and carpeta_fotos_raw and carpeta_fotos_processed and avisos_pagina:
+                        tareas_img = [
+                            _descargar_imagen(
+                                cliente, a, carpeta_fotos_raw, carpeta_fotos_processed, self._ua, fail_logs
+                            )
+                            for a in avisos_pagina
+                            if a.url_imagen
+                        ]
+                        if tareas_img:
+                            resultados = await asyncio.gather(*tareas_img, return_exceptions=True)
+                            avisos_con_imagen = [a for a in avisos_pagina if a.url_imagen]
+                            tareas_s3_info: list[tuple] = []  # (coro, aviso, etapa)
+                            for aviso, resultado in zip(avisos_con_imagen, resultados):
+                                if isinstance(resultado, BaseException):
                                     fail_logs.append(FailLog(
-                                        etapa=etapa,
-                                        motivo="S3 upload agotó reintentos",
+                                        etapa="descarga_foto",
+                                        motivo="Excepción descargando imagen",
                                         id_externo=aviso.id_externo,
                                     ))
+                                    continue
+                                ruta_orig, ruta_avif = resultado
+                                if ruta_orig is not None:
+                                    fotos_pagina[aviso.id_externo] = ruta_orig.name
+                                    clave_raw = f"autocosmos/{fecha_dia}/raw/fotos/{ruta_orig.name}"
+                                    tareas_s3_info.append(
+                                        (_cargar_a_s3_con_retry(ruta_orig, clave_raw, tipo="fotos"), aviso, "upload_foto_raw")
+                                    )
+                                else:
+                                    fail_logs.append(FailLog(
+                                        etapa="descarga_foto",
+                                        motivo="Descarga de imagen fallida",
+                                        id_externo=aviso.id_externo,
+                                    ))
+                                if ruta_avif is not None:
+                                    clave_proc = f"autocosmos/{fecha_dia}/processed/fotos/{ruta_avif.name}"
+                                    tareas_s3_info.append(
+                                        (_cargar_a_s3_con_retry(ruta_avif, clave_proc, tipo="fotos"), aviso, "upload_foto_processed")
+                                    )
+                            imgs_ok = sum(
+                                1 for r in resultados if isinstance(r, tuple) and r[0] is not None
+                            )
+                            imgs_fail = len(tareas_img) - imgs_ok
+                            fotos_ok_total += imgs_ok
+                            fotos_total += len(tareas_img)
+                            log_fotos.info(
+                                f"[autocosmos] Página {pagina}: {imgs_ok}/{len(tareas_img)} imágenes descargadas"
+                                + (f" ({imgs_fail} fallida{'s' if imgs_fail > 1 else ''})" if imgs_fail else "")
+                            )
+                            if tareas_s3_info:
+                                resultados_s3 = await asyncio.gather(*[t[0] for t in tareas_s3_info])
+                                for (_, aviso, etapa), s3_ok in zip(tareas_s3_info, resultados_s3):
+                                    if not s3_ok:
+                                        fail_logs.append(FailLog(
+                                            etapa=etapa,
+                                            motivo="S3 upload agotó reintentos",
+                                            id_externo=aviso.id_externo,
+                                        ))
 
-                # Append JSONL
-                if self.guardar_raw and ruta_jsonl and avisos_pagina:
-                    ok = _append_avisos_jsonl(avisos_pagina, ruta_jsonl, fotos=fotos_pagina)
-                    if not ok:
-                        for aviso in avisos_pagina:
-                            fail_logs.append(FailLog(
-                                etapa="dedup_json",
-                                motivo=f"Error al serializar JSONL página {pagina}",
-                                id_externo=aviso.id_externo,
-                            ))
+                    # Append JSONL
+                    if self.guardar_raw and ruta_jsonl and avisos_pagina:
+                        ok = _append_avisos_jsonl(avisos_pagina, ruta_jsonl, fotos=fotos_pagina)
+                        if not ok:
+                            for aviso in avisos_pagina:
+                                fail_logs.append(FailLog(
+                                    etapa="dedup_json",
+                                    motivo=f"Error al serializar JSONL página {pagina}",
+                                    id_externo=aviso.id_externo,
+                                ))
+                        else:
+                            log_meta.info(
+                                f"[autocosmos] Página {pagina}: {len(avisos_pagina)} avisos guardados en JSONL"
+                            )
 
-                avisos_raw.extend(avisos_pagina)
-                logger.debug(f"[autocosmos] Página {pagina}: {len(avisos_pagina)} avisos obtenidos")
-                paginas_procesadas += 1
-                pagina += 1
-                await self.espera_aleatoria()
+                    avisos_raw.extend(avisos_pagina)
+                    log_ingesta.debug(f"[autocosmos] Página {pagina}: {len(avisos_pagina)} avisos obtenidos")
+                    paginas_procesadas += 1
+                    pagina += 1
+                    await self.espera_aleatoria()
 
-        logger.info(
-            f"[autocosmos] Ingesta completa — {len(avisos_raw)} avisos en {paginas_procesadas} páginas"
-        )
+            duracion_ingesta = (datetime.now() - t_ingesta).total_seconds()
+            log_resumen_fase("autocosmos", "INGESTA", {
+                "avisos": len(avisos_raw),
+                "páginas": paginas_procesadas,
+                "fotos": f"{fotos_ok_total}/{fotos_total}" if fotos_total else "n/a",
+                "duración": f"{duracion_ingesta:.0f}s",
+            })
 
-
-
-
-        # ── LIMPIEZA (deduplicación por id_externo) ───────────────────────────
-        vistos_id: set[str] = set()
-        avisos_unicos: list[AvisoAuto] = []
-        for aviso in avisos_raw:
-            if aviso.id_externo in vistos_id:
-                logger.warning(f"[autocosmos] Duplicado detectado id={aviso.id_externo}, descartando")
-                fail_logs.append(FailLog(
-                    etapa="dedup_json",
-                    motivo="id_externo duplicado entre páginas",
-                    id_externo=aviso.id_externo,
-                ))
-            else:
-                vistos_id.add(aviso.id_externo)
-                avisos_unicos.append(aviso)
-
-        dups = len(avisos_raw) - len(avisos_unicos)
-        logger.info(
-            f"[autocosmos] Deduplicación: {len(avisos_raw)} → {len(avisos_unicos)} únicos"
-            f" ({dups} descartados)"
-        )
-
-
-# TODO:( hacer que la validación y limpieza ocurra despues del guardado en data/raw )
-
-
-        # ── VALIDACIÓN ────────────────────────────────────────────────────────
-        avisos_validos: list[AvisoAuto] = []
-        rechazados = 0
-        for aviso in avisos_unicos:
-            errores = _validar_aviso(aviso)
-            if errores:
-                logger.error(f"[autocosmos] Aviso rechazado id={aviso.id_externo}: {errores}")
-                fail_logs.append(FailLog(
-                    etapa="validacion_json",
-                    motivo="; ".join(errores),
-                    id_externo=aviso.id_externo,
-                ))
-                rechazados += 1
-            else:
-                avisos_validos.append(aviso)
-
-        logger.info(
-            f"[autocosmos] Validación: {len(avisos_validos)}/{len(avisos_unicos)} avisos pasan"
-            f" ({rechazados} rechazados)"
-        )
-
-
-
-
-
-
-
-
-
-        # ── PROCESADOS (limpieza + validación superada) ──────────────────────
-        if self.guardar_raw and avisos_validos and carpeta:
-            carpeta_procesados = carpeta / "processed"
-            ruta_procesados = carpeta_procesados / "avisos.jsonl"
-            ok = _append_avisos_jsonl(avisos_validos, ruta_procesados)
-            if ok:
-                logger.info(
-                    f"[autocosmos] {len(avisos_validos)} avisos procesados escritos en {ruta_procesados}"
-                )
-            else:
-                logger.error(f"[autocosmos] Error al escribir avisos procesados en {ruta_procesados}")
-
-        # ── Metadata JSONL raw → S3 ───────────────────────────────────────────
-        if self.guardar_raw and ruta_jsonl and ruta_jsonl.exists():
-            metadata_ok = await _cargar_a_s3_con_retry(
-                ruta_jsonl,
-                f"autocosmos/{fecha_dia}/raw/avisos.jsonl",
-            )
-            if not metadata_ok:
-                fail_logs.append(FailLog(
-                    etapa="upload_metadata",
-                    motivo="S3 upload de raw/avisos.jsonl agotó reintentos",
-                    id_externo="avisos.jsonl",
-                ))
-
-        # ── Processed JSONL → S3 ─────────────────────────────────────────────
-        if self.guardar_raw and avisos_validos and carpeta:
-            ruta_procesados_jsonl = carpeta / "processed" / "avisos.jsonl"
-            if ruta_procesados_jsonl.exists():
-                processed_ok = await _cargar_a_s3_con_retry(
-                    ruta_procesados_jsonl,
-                    f"autocosmos/{fecha_dia}/processed/avisos.jsonl",
-                )
-                if not processed_ok:
+            # ── LIMPIEZA (deduplicación por id_externo) ───────────────────────
+            log_banner_fase("autocosmos", 2, "LIMPIEZA")
+            vistos_id: set[str] = set()
+            avisos_unicos: list[AvisoAuto] = []
+            for aviso in avisos_raw:
+                if aviso.id_externo in vistos_id:
+                    log_limpieza.warning(f"[autocosmos] Duplicado detectado id={aviso.id_externo}, descartando")
                     fail_logs.append(FailLog(
-                        etapa="upload_processed",
-                        motivo="S3 upload de processed/avisos.jsonl agotó reintentos",
+                        etapa="dedup_json",
+                        motivo="id_externo duplicado entre páginas",
+                        id_externo=aviso.id_externo,
+                    ))
+                else:
+                    vistos_id.add(aviso.id_externo)
+                    avisos_unicos.append(aviso)
+
+            dups = len(avisos_raw) - len(avisos_unicos)
+            log_resumen_fase("autocosmos", "LIMPIEZA", {
+                "entrada": len(avisos_raw),
+                "únicos": len(avisos_unicos),
+                "duplicados": dups,
+            })
+
+            # ── VALIDACIÓN ────────────────────────────────────────────────────
+            log_banner_fase("autocosmos", 3, "VALIDACIÓN")
+            avisos_validos: list[AvisoAuto] = []
+            rechazados = 0
+            for aviso in avisos_unicos:
+                errores = _validar_aviso(aviso)
+                if errores:
+                    log_validacion.error(f"[autocosmos] Aviso rechazado id={aviso.id_externo}: {errores}")
+                    fail_logs.append(FailLog(
+                        etapa="validacion_json",
+                        motivo="; ".join(errores),
+                        id_externo=aviso.id_externo,
+                    ))
+                    rechazados += 1
+                else:
+                    avisos_validos.append(aviso)
+
+            log_resumen_fase("autocosmos", "VALIDACIÓN", {
+                "válidos": len(avisos_validos),
+                "rechazados": rechazados,
+                "total": len(avisos_unicos),
+            })
+
+
+
+
+
+
+            # ── PROCESADOS (limpieza + validación superada) ──────────────────
+            if self.guardar_raw and avisos_validos and carpeta:
+                carpeta_procesados = carpeta / "processed"
+                ruta_procesados = carpeta_procesados / "avisos.jsonl"
+                ok = _append_avisos_jsonl(avisos_validos, ruta_procesados)
+                if ok:
+                    log_meta.info(
+                        f"[autocosmos] {len(avisos_validos)} avisos procesados escritos en {ruta_procesados}"
+                    )
+                else:
+                    log_meta.error(f"[autocosmos] Error al escribir avisos procesados en {ruta_procesados}")
+
+            # ── Metadata JSONL raw → S3 ───────────────────────────────────────
+            if self.guardar_raw and ruta_jsonl and ruta_jsonl.exists():
+                metadata_ok = await _cargar_a_s3_con_retry(
+                    ruta_jsonl,
+                    f"autocosmos/{fecha_dia}/raw/avisos.jsonl",
+                    tipo="metadata",
+                )
+                if not metadata_ok:
+                    fail_logs.append(FailLog(
+                        etapa="upload_metadata",
+                        motivo="S3 upload de raw/avisos.jsonl agotó reintentos",
                         id_externo="avisos.jsonl",
                     ))
 
-        duracion = (datetime.now(utc_4) - inicio).total_seconds()
-        logger.info(
-            f"[autocosmos] Scrape finalizado — {len(avisos_validos)} avisos válidos"
-            f" listos para carga ({duracion:.1f}s)"
-        )
+            # ── Processed JSONL → S3 ─────────────────────────────────────────
+            if self.guardar_raw and avisos_validos and carpeta:
+                ruta_procesados_jsonl = carpeta / "processed" / "avisos.jsonl"
+                if ruta_procesados_jsonl.exists():
+                    processed_ok = await _cargar_a_s3_con_retry(
+                        ruta_procesados_jsonl,
+                        f"autocosmos/{fecha_dia}/processed/avisos.jsonl",
+                        tipo="metadata",
+                    )
+                    if not processed_ok:
+                        fail_logs.append(FailLog(
+                            etapa="upload_processed",
+                            motivo="S3 upload de processed/avisos.jsonl agotó reintentos",
+                            id_externo="avisos.jsonl",
+                        ))
 
-        # ── Reporte de ejecución → S3 (siempre, con o sin fallos) ────────────
-        if self.guardar_raw and carpeta:
-            ruta_reporte = carpeta / "processed" / "run_report.json"
-            reporte = {
-                "fuente": "autocosmos",
-                "timestamp": inicio.isoformat(),
-                "duracion_segundos": round(duracion, 1),
-                "paginas_procesadas": paginas_procesadas,
-                "avisos_encontrados": len(avisos_raw),
-                "avisos_unicos": len(avisos_unicos),
-                "avisos_validos": len(avisos_validos),
-                "avisos_rechazados": len(avisos_unicos) - len(avisos_validos),
-                "fail_logs": [asdict(fl) for fl in fail_logs],
-            }
-            try:
-                ruta_reporte.write_text(
-                    json.dumps(reporte, ensure_ascii=False, indent=2),
-                    encoding="utf-8",
-                )
-                logger.info(
-                    f"[autocosmos] Reporte escrito — {len(fail_logs)} FAIL LOGs, {duracion:.1f}s"
-                )
-                await _cargar_a_s3_con_retry(
-                    ruta_reporte,
-                    f"autocosmos/{fecha_dia}/logs/run_report.json",
-                )
-            except Exception as e:
-                logger.error(f"[autocosmos] No se pudo escribir run_report.json: {e}")
-        elif fail_logs:
+            duracion = (datetime.now(utc_4) - inicio).total_seconds()
             logger.info(
-                f"[autocosmos] {len(fail_logs)} FAIL LOGs generados (guardar_raw=False, no persistidos)"
+                f"[autocosmos] Scrape finalizado — {len(avisos_validos)} avisos válidos"
+                f" listos para carga ({duracion:.1f}s)"
             )
 
-        return avisos_validos
+            # ── Reporte de ejecución → S3 (siempre, con o sin fallos) ────────
+            if self.guardar_raw and carpeta:
+                ruta_reporte = carpeta / "processed" / "run_report.json"
+                reporte = {
+                    "fuente": "autocosmos",
+                    "timestamp": inicio.isoformat(),
+                    "duracion_segundos": round(duracion, 1),
+                    "paginas_procesadas": paginas_procesadas,
+                    "avisos_encontrados": len(avisos_raw),
+                    "avisos_unicos": len(avisos_unicos),
+                    "avisos_validos": len(avisos_validos),
+                    "avisos_rechazados": len(avisos_unicos) - len(avisos_validos),
+                    "fail_logs": [asdict(fl) for fl in fail_logs],
+                }
+                try:
+                    ruta_reporte.write_text(
+                        json.dumps(reporte, ensure_ascii=False, indent=2),
+                        encoding="utf-8",
+                    )
+                    log_meta.info(
+                        f"[autocosmos] Reporte escrito — {len(fail_logs)} FAIL LOGs, {duracion:.1f}s"
+                    )
+                    await _cargar_a_s3_con_retry(
+                        ruta_reporte,
+                        f"autocosmos/{fecha_dia}/logs/run_report.json",
+                        tipo="metadata",
+                    )
+                except Exception as e:
+                    log_meta.error(f"[autocosmos] No se pudo escribir run_report.json: {e}")
+            elif fail_logs:
+                logger.info(
+                    f"[autocosmos] {len(fail_logs)} FAIL LOGs generados (guardar_raw=False, no persistidos)"
+                )
+
+            return avisos_validos
+
+        finally:
+            eliminar_sinks(sink_ids)
 
 
 

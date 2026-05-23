@@ -62,21 +62,27 @@ class ResultadoScraping:
 
 class ScraperBase(ABC):
     fuente: str = ""
-    model_class: type | None = None  # tabla Supabase destino, declarada en cada scraper
+    model_class: type | None = None  # tabla PostgreSQL destino, declarada en cada scraper
 
     async def ejecutar(self, sesion: AsyncSession) -> ResultadoScraping:
         from carflip.database.uploader import upsert_avisos
+        from carflip.scrapers.logging_utils import log_banner_fase
 
         resultado = ResultadoScraping(fuente=self.fuente)
+        log_banner_fase(self.fuente, 0, "INICIO")
         logger.info(f"[{self.fuente}] Iniciando scraping")
         try:
             avisos = await self.scrape()
             resultado.avisos = avisos
-            logger.info(f"[{self.fuente}] {len(avisos)} avisos obtenidos")
 
             if avisos and self.model_class is not None:
+                log_banner_fase(self.fuente, 4, "CARGA BD")
                 n = await upsert_avisos(sesion, avisos, self.model_class)
-                logger.info(f"[{self.fuente}] {n} avisos subidos a PostgreSQL ({self.model_class.__tablename__})")
+                logger.info(
+                    f"[{self.fuente}] CARGA BD — {n} avisos upserted en {self.model_class.__tablename__}"
+                )
+            else:
+                logger.info(f"[{self.fuente}] {len(avisos)} avisos obtenidos (sin carga a BD)")
         except Exception as exc:
             resultado.errores += 1
             logger.error(f"[{self.fuente}] Error fatal: {exc}")
