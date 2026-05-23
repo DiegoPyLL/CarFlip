@@ -18,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
+import httpx
 from loguru import logger
 from playwright.async_api import async_playwright
 
@@ -34,6 +35,9 @@ _PRECIO_MAXIMO = 250_000_000
 _PATRON_FECHA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 _MAX_AVISOS = 1_000
+
+_CONCURRENCIA_DETALLES = 5   # páginas de detalle procesadas en paralelo (Playwright)
+_SEM_IMGS = 20               # descargas de imagen concurrentes
 
 _HEADERS_HTTP = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -105,7 +109,7 @@ def _aviso_a_dict(aviso: AvisoAuto, foto_local: str | None = None) -> dict:
         "id_externo": aviso.id_externo,
         "url": aviso.url,
         "titulo": aviso.titulo,
-        "precio": str(aviso.precio) if aviso.precio is not None else None,
+        "precio": int(aviso.precio) if aviso.precio is not None else None,
         "moneda": aviso.moneda,
         "marca": aviso.marca,
         "modelo": aviso.modelo,
@@ -129,6 +133,7 @@ def _append_avisos_jsonl(
     """Append avisos a un JSONL, una línea por aviso."""
     if fotos is None:
         fotos = {}
+    _log = logger.bind(tipo="metadata")
     try:
         with open(ruta_jsonl, "a", encoding="utf-8") as f:
             for aviso in avisos:
@@ -137,10 +142,10 @@ def _append_avisos_jsonl(
                     ensure_ascii=False,
                 )
                 f.write(linea + "\n")
-        logger.debug(f"[yapo] {len(avisos)} avisos appended a {ruta_jsonl.name}")
+        _log.debug(f"[yapo] {len(avisos)} avisos appended a {ruta_jsonl.name}")
         return True
     except Exception as e:
-        logger.error(f"[yapo] Error appending avisos a JSONL: {e}")
+        _log.error(f"[yapo] Error appending avisos a JSONL: {e}")
         return False
 
 
@@ -220,45 +225,65 @@ class ScraperYapoCloud(ScraperBase):
 
     async def _descargar_imagen(
         self,
+        cliente_http: httpx.AsyncClient,
         url: str,
         ruta_raw: Path,
         carpeta_processed: Path,
         fail_logs: list[FailLog],
         aviso_id: str,
+        sem_imgs: asyncio.Semaphore,
     ) -> tuple[Path | None, Path | None]:
         """Descarga la imagen original a raw/fotos/ y la convierte a AVIF en processed/fotos/."""
+        _log = logger.bind(tipo="fotos")
         if not url:
             return None, None
         if ruta_raw.exists():
             ruta_avif = carpeta_processed / f"{ruta_raw.stem}.avif"
             return ruta_raw, ruta_avif if ruta_avif.exists() else None
-        try:
-            import httpx
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(url, headers=_HEADERS_HTTP, timeout=15)
+        async with sem_imgs:
+            try:
+                resp = await cliente_http.get(url, headers=_HEADERS_HTTP, timeout=15)
                 resp.raise_for_status()
                 ruta_raw.write_bytes(resp.content)
-            ruta_avif = convertir_a_avif(ruta_raw, destino=carpeta_processed)
-            if ruta_avif is None:
-                fail_logs.append(FailLog(
-                    etapa="conversion_avif",
-                    motivo="Conversión AVIF fallida",
-                    id_externo=aviso_id,
-                ))
-                logger.debug(f"[yapo] Imagen descargada (sin AVIF): id={aviso_id} → {ruta_raw.name}")
-            else:
-                logger.debug(
-                    f"[yapo] Imagen descargada y convertida a AVIF:"
-                    f" id={aviso_id} → raw/{ruta_raw.name}, processed/{ruta_avif.name}"
-                )
-            return ruta_raw, ruta_avif
-        except Exception as e:
-            logger.warning(f"[yapo] No se pudo descargar imagen {ruta_raw.name}: {e}")
-            return None, None
+            except Exception as e:
+                _log.warning(f"[yapo] No se pudo descargar imagen {ruta_raw.name}: {e}")
+                return None, None
+        # Conversión AVIF en thread pool — CPU-bound, no debe bloquear el event loop
+        ruta_avif = await asyncio.to_thread(convertir_a_avif, ruta_raw, destino=carpeta_processed)
+        if ruta_avif is None:
+            fail_logs.append(FailLog(
+                etapa="conversion_avif",
+                motivo="Conversión AVIF fallida",
+                id_externo=aviso_id,
+            ))
+            _log.debug(f"[yapo] Imagen descargada (sin AVIF): id={aviso_id} → {ruta_raw.name}")
+        else:
+            _log.debug(
+                f"[yapo] Imagen descargada y convertida a AVIF:"
+                f" id={aviso_id} → raw/{ruta_raw.name}, processed/{ruta_avif.name}"
+            )
+        return ruta_raw, ruta_avif
 
     async def scrape(self) -> list[AvisoAuto]:
+        from carflip.scrapers.logging_utils import (
+            carpeta_logs_run, configurar_sinks_run, eliminar_sinks,
+            log_banner_fase, log_resumen_fase,
+        )
+
         utc_4 = timezone(timedelta(hours=-4))
         inicio = datetime.now(utc_4)
+
+        carpeta_logs = carpeta_logs_run("yapo", inicio.replace(tzinfo=None))
+        sink_ids = configurar_sinks_run("yapo", carpeta_logs)
+
+        log_ingesta    = logger.bind(fase="ingesta")
+        log_fotos      = logger.bind(fase="ingesta", tipo="fotos")
+        log_meta       = logger.bind(fase="ingesta", tipo="metadata")
+        log_limpieza   = logger.bind(fase="limpieza")
+        log_validacion = logger.bind(fase="validacion")
+
+        logger.info(f"[yapo] Iniciando scrape cloud — {inicio.strftime('%H:%M:%S %d/%m/%Y')}")
+
         fecha_str = inicio.strftime("%H-%M-%S_%d-%m-%Y")
         fecha_dia = inicio.strftime("%Y/%m/%d")
         carpeta = (Path("yapo") / fecha_str) if self.guardar_raw else None
@@ -269,311 +294,360 @@ class ScraperYapoCloud(ScraperBase):
         carpeta_fotos_raw = carpeta / "raw" / "fotos" if carpeta else None
         carpeta_fotos_processed = carpeta / "processed" / "fotos" if carpeta else None
 
-        logger.info(f"[yapo] Iniciando scrape cloud — {inicio.strftime('%H:%M:%S %d/%m/%Y')}")
-
         fail_logs: list[FailLog] = []
         avisos_raw: list[AvisoAuto] = []
         fotos_run: dict[str, str] = {}
+        fotos_ok_total = 0
+        fotos_total = 0
         vistos_urls: set[str] = set()
         avisos_info = []
 
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
-            ctx = await browser.new_context(
-                user_agent=_HEADERS_HTTP["User-Agent"],
-                viewport={"width": 1280, "height": 800},
-                locale="es-CL",
-            )
-            page = await ctx.new_page()
-            await page.route("**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,otf}", lambda route: route.abort())
+        try:
+            # ── INGESTA ──────────────────────────────────────────────────────
+            log_banner_fase("yapo", 1, "INGESTA")
+            t_ingesta = datetime.now()
 
-            # ── INGESTA: listado ──────────────────────────────────────────────
-            pagina = 0
-            while True:
-                pagina += 1
-                if self.max_paginas and pagina > self.max_paginas:
-                    break
-                url = f"{YAPO_BASE}/autos-usados.{pagina}"
-                logger.info(f"[yapo] Listado página {pagina}: {url}")
-                try:
-                    await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-                    await page.wait_for_selector("div.d3-ads-grid", timeout=20_000)
-                except Exception as e:
-                    logger.warning(f"[yapo] Timeout en página {pagina}: {e}")
-                    break
-
-                await page.wait_for_timeout(2_000)
-                cards = await page.query_selector_all("div.d3-ad-tile")
-                if not cards:
-                    logger.info(f"[yapo] Página {pagina}: sin resultados, fin paginación")
-                    break
-
-                count_antes = len(avisos_info)
-                for card in cards:
-                    link = await card.query_selector("a[href^='/autos-usados']")
-                    if not link:
-                        continue
-                    href = await link.get_attribute("href")
-                    if not href:
-                        continue
-
-                    url_aviso = YAPO_BASE + href
-                    if url_aviso in vistos_urls:
-                        continue
-                    vistos_urls.add(url_aviso)
-
-                    async def _safe(sel: str) -> str:
-                        try:
-                            n = await card.query_selector(sel)
-                            return (await n.inner_text()).strip() if n else ""
-                        except Exception:
-                            return ""
-
-                    avisos_info.append({
-                        "url": url_aviso,
-                        "precio": await _safe("[class*='d3-ad-tile__price']"),
-                        "region": await _safe("[class*='d3-ad-tile__location']"),
-                        "fecha": await _safe("time, [class*='date']") or datetime.now().strftime("%Y-%m-%d"),
-                    })
-
-                nuevos = len(avisos_info) - count_antes
-                logger.info(f"[yapo] Página {pagina}: {nuevos} URLs recolectadas (total {len(avisos_info)})")
-
-                if len(avisos_info) >= _MAX_AVISOS:
-                    avisos_info = avisos_info[:_MAX_AVISOS]
-                    logger.info(f"[yapo] Límite de {_MAX_AVISOS} publicaciones alcanzado, deteniendo paginación")
-                    break
-
-            # ── INGESTA: detalles ─────────────────────────────────────────────
-            for i, info in enumerate(avisos_info, 1):
-                logger.debug(f"[yapo] Detalle {i}/{len(avisos_info)}: {info['url']}")
-                url = info["url"]
-                aviso_id = hashlib.sha256(url.encode()).hexdigest()
-
-                try:
-                    await page.goto(url, wait_until="domcontentloaded", timeout=25_000)
-                    await page.wait_for_timeout(1_500)
-                    attrs = await page.evaluate(self._JS_ATTRS)
-                except Exception as e:
-                    logger.error(f"[yapo] Error cargando detalle id={aviso_id}: {e}")
-                    fail_logs.append(FailLog(etapa="ingesta", motivo=str(e), id_externo=aviso_id))
-                    continue
-
-                km_raw = self._get_attr(attrs, "Kilómetros", "Kilometros", "Kilometraje")
-                precio_raw = self._limpiar_precio(info["precio"])
-                km = self._limpiar_km(km_raw) if km_raw else None
-                anio_s = self._get_attr(attrs, "Año", "Ano")
-                anio = int(anio_s) if anio_s.isdigit() else None
-                marca = self._get_attr(attrs, "Marca") or None
-                modelo = self._get_attr(attrs, "Modelo") or None
-                img_url = attrs.get("imagen_url", "") or None
-
-                logger.debug(f"[yapo] Parseando aviso id={aviso_id}")
-                if precio_raw is None:
-                    logger.warning(f"[yapo] id={aviso_id} sin precio")
-                if km is None:
-                    logger.warning(f"[yapo] id={aviso_id} km no encontrado")
-                if not marca and not modelo:
-                    logger.warning(f"[yapo] id={aviso_id} sin marca ni modelo, título con fallback")
-
-                av_auto = AvisoAuto(
-                    fuente=self.fuente,
-                    id_externo=aviso_id,
-                    url=url,
-                    titulo=f"{marca or ''} {modelo or ''} {anio_s} usado precio {info['precio'].split(chr(10))[0]}".strip(),
-                    precio=Decimal(precio_raw) if precio_raw is not None else None,
-                    moneda="CLP",
-                    marca=marca,
-                    modelo=modelo,
-                    anio=anio,
-                    km=km,
-                    ubicacion=info["region"] or None,
-                    combustible=self._normalizar_combustible(self._get_attr(attrs, "Combustible")),
-                    url_imagen=img_url,
-                    disponible=True,
-                    fecha_publicacion=info["fecha"],
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
+                ctx = await browser.new_context(
+                    user_agent=_HEADERS_HTTP["User-Agent"],
+                    viewport={"width": 1280, "height": 800},
+                    locale="es-CL",
                 )
+                page = await ctx.new_page()
+                await page.route("**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,otf}", lambda route: route.abort())
 
-                # Descarga y subida a S3 durante la ingesta
-                if self.guardar_raw and carpeta_fotos_raw and carpeta_fotos_processed and img_url:
-                    ruta_foto_raw = carpeta_fotos_raw / f"{aviso_id}.jpg"
-                    ruta_orig, ruta_avif = await self._descargar_imagen(
-                        img_url, ruta_foto_raw, carpeta_fotos_processed, fail_logs, aviso_id
-                    )
-                    if ruta_orig is not None:
-                        fotos_run[aviso_id] = ruta_orig.name
-                        clave_raw = f"yapo/{fecha_dia}/raw/fotos/{ruta_orig.name}"
-                        s3_ok = await cargar_a_s3_con_retry(
-                            ruta_orig, clave_raw, etiqueta_log="yapo"
-                        )
-                        if not s3_ok:
-                            fail_logs.append(FailLog(
-                                etapa="upload_foto_raw",
-                                motivo="S3 upload de imagen agotó reintentos",
-                                id_externo=aviso_id,
-                            ))
-                        if ruta_avif is not None:
-                            clave_avif = f"yapo/{fecha_dia}/processed/fotos/{ruta_avif.name}"
-                            s3_ok_avif = await cargar_a_s3_con_retry(
-                                ruta_avif, clave_avif, etiqueta_log="yapo"
+                # ── INGESTA: listado ──────────────────────────────────────────
+                pagina = 0
+                while True:
+                    pagina += 1
+                    if self.max_paginas and pagina > self.max_paginas:
+                        break
+                    url = f"{YAPO_BASE}/autos-usados.{pagina}"
+                    log_ingesta.info(f"[yapo] Listado página {pagina}: {url}")
+                    try:
+                        await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+                        await page.wait_for_selector("div.d3-ads-grid", timeout=20_000)
+                    except Exception as e:
+                        log_ingesta.warning(f"[yapo] Timeout en página {pagina}: {e}")
+                        break
+
+                    await page.wait_for_timeout(2_000)
+                    cards = await page.query_selector_all("div.d3-ad-tile")
+                    if not cards:
+                        log_ingesta.info(f"[yapo] Página {pagina}: sin resultados, fin paginación")
+                        break
+
+                    count_antes = len(avisos_info)
+                    for card in cards:
+                        link = await card.query_selector("a[href^='/autos-usados']")
+                        if not link:
+                            continue
+                        href = await link.get_attribute("href")
+                        if not href:
+                            continue
+
+                        url_aviso = YAPO_BASE + href
+                        if url_aviso in vistos_urls:
+                            continue
+                        vistos_urls.add(url_aviso)
+
+                        async def _safe(sel: str) -> str:
+                            try:
+                                n = await card.query_selector(sel)
+                                return (await n.inner_text()).strip() if n else ""
+                            except Exception:
+                                return ""
+
+                        avisos_info.append({
+                            "url": url_aviso,
+                            "precio": await _safe("[class*='d3-ad-tile__price']"),
+                            "region": await _safe("[class*='d3-ad-tile__location']"),
+                            "fecha": await _safe("time, [class*='date']") or datetime.now().strftime("%Y-%m-%d"),
+                        })
+
+                    nuevos = len(avisos_info) - count_antes
+                    log_ingesta.info(f"[yapo] Página {pagina}: {nuevos} URLs recolectadas (total {len(avisos_info)})")
+
+                    if len(avisos_info) >= _MAX_AVISOS:
+                        avisos_info = avisos_info[:_MAX_AVISOS]
+                        log_ingesta.info(f"[yapo] Límite de {_MAX_AVISOS} publicaciones alcanzado, deteniendo paginación")
+                        break
+
+                # ── INGESTA: detalles (pool de _CONCURRENCIA_DETALLES páginas en paralelo) ──
+                sem_detalles = asyncio.Semaphore(_CONCURRENCIA_DETALLES)
+                sem_imgs = asyncio.Semaphore(_SEM_IMGS)
+                lock_jsonl = asyncio.Lock()
+                total_avisos = len(avisos_info)
+
+                async with httpx.AsyncClient() as cliente_http:
+                    async def _tarea_detalle(info: dict, idx: int) -> AvisoAuto | None:
+                        nonlocal fotos_ok_total, fotos_total
+                        url_det = info["url"]
+                        aviso_id = hashlib.sha256(url_det.encode()).hexdigest()
+
+                        async with sem_detalles:
+                            p = await ctx.new_page()
+                            await p.route(
+                                "**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,otf}",
+                                lambda route: route.abort(),
                             )
-                            if not s3_ok_avif:
-                                fail_logs.append(FailLog(
-                                    etapa="upload_foto_processed",
-                                    motivo="S3 upload de imagen AVIF agotó reintentos",
+                            try:
+                                log_ingesta.debug(f"[yapo] Detalle {idx}/{total_avisos}: {url_det}")
+                                try:
+                                    await p.goto(url_det, wait_until="domcontentloaded", timeout=25_000)
+                                    await p.wait_for_timeout(1_500)
+                                    attrs = await p.evaluate(self._JS_ATTRS)
+                                except Exception as e:
+                                    log_ingesta.error(f"[yapo] Error cargando detalle id={aviso_id}: {e}")
+                                    fail_logs.append(FailLog(etapa="ingesta", motivo=str(e), id_externo=aviso_id))
+                                    return None
+
+                                km_raw = self._get_attr(attrs, "Kilómetros", "Kilometros", "Kilometraje")
+                                precio_raw = self._limpiar_precio(info["precio"])
+                                km = self._limpiar_km(km_raw) if km_raw else None
+                                anio_s = self._get_attr(attrs, "Año", "Ano")
+                                anio = int(anio_s) if anio_s.isdigit() else None
+                                marca = self._get_attr(attrs, "Marca") or None
+                                modelo = self._get_attr(attrs, "Modelo") or None
+                                img_url = attrs.get("imagen_url", "") or None
+
+                                log_ingesta.debug(f"[yapo] Parseando aviso id={aviso_id}")
+                                if precio_raw is None:
+                                    log_ingesta.warning(f"[yapo] id={aviso_id} sin precio")
+                                if km is None:
+                                    log_ingesta.warning(f"[yapo] id={aviso_id} km no encontrado")
+                                if not marca and not modelo:
+                                    log_ingesta.warning(f"[yapo] id={aviso_id} sin marca ni modelo, título con fallback")
+
+                                av_auto = AvisoAuto(
+                                    fuente=self.fuente,
                                     id_externo=aviso_id,
-                                ))
-                            elif url_cdn := url_cdn_desde_clave_s3(clave_avif):
-                                av_auto.url_imagen = url_cdn
-                    else:
-                        fail_logs.append(FailLog(
-                            etapa="descarga_foto",
-                            motivo="Descarga de imagen fallida",
-                            id_externo=aviso_id,
-                        ))
+                                    url=url_det,
+                                    titulo=f"{marca or ''} {modelo or ''} {anio_s} usado precio {info['precio'].split(chr(10))[0]}".strip(),
+                                    precio=Decimal(precio_raw) if precio_raw is not None else None,
+                                    moneda="CLP",
+                                    marca=marca,
+                                    modelo=modelo,
+                                    anio=anio,
+                                    km=km,
+                                    ubicacion=info["region"] or None,
+                                    combustible=self._normalizar_combustible(self._get_attr(attrs, "Combustible")),
+                                    url_imagen=img_url,
+                                    disponible=True,
+                                    fecha_publicacion=info["fecha"],
+                                )
 
-                avisos_raw.append(av_auto)
+                                if self.guardar_raw and carpeta_fotos_raw and carpeta_fotos_processed and img_url:
+                                    ruta_foto_raw = carpeta_fotos_raw / f"{aviso_id}.jpg"
+                                    fotos_total += 1
+                                    ruta_orig, ruta_avif = await self._descargar_imagen(
+                                        cliente_http, img_url, ruta_foto_raw,
+                                        carpeta_fotos_processed, fail_logs, aviso_id, sem_imgs,
+                                    )
+                                    if ruta_orig is not None:
+                                        fotos_ok_total += 1
+                                        fotos_run[aviso_id] = ruta_orig.name
+                                        log_fotos.info(f"[yapo] [{idx}/{total_avisos}] Foto descargada id={aviso_id}")
+                                        clave_raw = f"yapo/{fecha_dia}/raw/fotos/{ruta_orig.name}"
+                                        tareas_s3: list[tuple] = [
+                                            (
+                                                cargar_a_s3_con_retry(
+                                                    ruta_orig, clave_raw, etiqueta_log="yapo"
+                                                ),
+                                                "upload_foto_raw",
+                                                None,
+                                            )
+                                        ]
+                                        clave_avif: str | None = None
+                                        if ruta_avif is not None:
+                                            clave_avif = (
+                                                f"yapo/{fecha_dia}/processed/fotos/{ruta_avif.name}"
+                                            )
+                                            tareas_s3.append(
+                                                (
+                                                    cargar_a_s3_con_retry(
+                                                        ruta_avif, clave_avif, etiqueta_log="yapo"
+                                                    ),
+                                                    "upload_foto_processed",
+                                                    clave_avif,
+                                                )
+                                            )
+                                        s3_res = await asyncio.gather(*[t[0] for t in tareas_s3])
+                                        for (_, etapa, clave), s3_ok in zip(tareas_s3, s3_res):
+                                            if not s3_ok:
+                                                fail_logs.append(FailLog(
+                                                    etapa=etapa,
+                                                    motivo="S3 upload de imagen agotó reintentos",
+                                                    id_externo=aviso_id,
+                                                ))
+                                            elif etapa == "upload_foto_processed" and clave:
+                                                if url_cdn := url_cdn_desde_clave_s3(clave):
+                                                    av_auto.url_imagen = url_cdn
+                                    else:
+                                        log_fotos.warning(f"[yapo] [{idx}/{total_avisos}] Foto fallida id={aviso_id}")
+                                        fail_logs.append(FailLog(etapa="descarga_foto", motivo="Descarga de imagen fallida", id_externo=aviso_id))
 
-                if self.guardar_raw and ruta_jsonl:
-                    ok = _append_avisos_jsonl([av_auto], ruta_jsonl, fotos=fotos_run)
-                    if not ok:
-                        fail_logs.append(FailLog(
-                            etapa="dedup_json",
-                            motivo="Error al serializar JSONL",
-                            id_externo=aviso_id,
-                        ))
+                                if self.guardar_raw and ruta_jsonl:
+                                    async with lock_jsonl:
+                                        ok = _append_avisos_jsonl([av_auto], ruta_jsonl, fotos=fotos_run)
+                                    if not ok:
+                                        fail_logs.append(FailLog(etapa="dedup_json", motivo="Error al serializar JSONL", id_externo=aviso_id))
+                                    else:
+                                        log_meta.info(f"[yapo] [{idx}/{total_avisos}] Metadata guardada id={aviso_id}")
 
-            await ctx.close()
-            await browser.close()
+                                return av_auto
+                            finally:
+                                await p.close()
 
-        logger.info(f"[yapo] Ingesta completa — {len(avisos_raw)} avisos")
+                    tareas_detalle = [_tarea_detalle(info, i) for i, info in enumerate(avisos_info, 1)]
+                    resultados_detalle = await asyncio.gather(*tareas_detalle, return_exceptions=True)
+                    for resultado in resultados_detalle:
+                        if isinstance(resultado, BaseException):
+                            log_ingesta.error(f"[yapo] Error inesperado en tarea de detalle: {resultado}")
+                        elif resultado is not None:
+                            avisos_raw.append(resultado)
 
+                await ctx.close()
+                await browser.close()
 
-        # ── LIMPIEZA (deduplicación por id_externo) ───────────────────────────
-        vistos_id: set[str] = set()
-        avisos_unicos: list[AvisoAuto] = []
-        for av in avisos_raw:
-            if av.id_externo in vistos_id:
-                logger.warning(f"[yapo] Duplicado detectado id={av.id_externo}, descartando")
-                fail_logs.append(FailLog(
-                    etapa="dedup_json",
-                    motivo="id_externo duplicado entre páginas",
-                    id_externo=av.id_externo,
-                ))
-            else:
-                vistos_id.add(av.id_externo)
-                avisos_unicos.append(av)
+            duracion_ingesta = (datetime.now() - t_ingesta).total_seconds()
+            log_resumen_fase("yapo", "INGESTA", {
+                "avisos": len(avisos_raw),
+                "fotos": f"{fotos_ok_total}/{fotos_total}" if fotos_total else "n/a",
+                "duración": f"{duracion_ingesta:.0f}s",
+            })
 
-        dups = len(avisos_raw) - len(avisos_unicos)
-        logger.info(
-            f"[yapo] Deduplicación: {len(avisos_raw)} → {len(avisos_unicos)} únicos"
-            f" ({dups} descartados)"
-        )
+            # ── LIMPIEZA (deduplicación por id_externo) ───────────────────────
+            log_banner_fase("yapo", 2, "LIMPIEZA")
+            vistos_id: set[str] = set()
+            avisos_unicos: list[AvisoAuto] = []
+            for av in avisos_raw:
+                if av.id_externo in vistos_id:
+                    log_limpieza.warning(f"[yapo] Duplicado detectado id={av.id_externo}, descartando")
+                    fail_logs.append(FailLog(
+                        etapa="dedup_json",
+                        motivo="id_externo duplicado entre páginas",
+                        id_externo=av.id_externo,
+                    ))
+                else:
+                    vistos_id.add(av.id_externo)
+                    avisos_unicos.append(av)
 
+            dups = len(avisos_raw) - len(avisos_unicos)
+            log_resumen_fase("yapo", "LIMPIEZA", {
+                "entrada": len(avisos_raw),
+                "únicos": len(avisos_unicos),
+                "duplicados": dups,
+            })
 
-        # ── VALIDACIÓN ────────────────────────────────────────────────────────
-        avisos_validos: list[AvisoAuto] = []
-        rechazados = 0
-        for av in avisos_unicos:
-            errores = _validar_aviso(av)
-            if errores:
-                logger.error(f"[yapo] Aviso rechazado id={av.id_externo}: {errores}")
-                fail_logs.append(FailLog(
-                    etapa="validacion_json",
-                    motivo="; ".join(errores),
-                    id_externo=av.id_externo,
-                ))
-                rechazados += 1
-            else:
-                avisos_validos.append(av)
+            # ── VALIDACIÓN ────────────────────────────────────────────────────
+            log_banner_fase("yapo", 3, "VALIDACIÓN")
+            avisos_validos: list[AvisoAuto] = []
+            rechazados = 0
+            for av in avisos_unicos:
+                errores = _validar_aviso(av)
+                if errores:
+                    log_validacion.error(f"[yapo] Aviso rechazado id={av.id_externo}: {errores}")
+                    fail_logs.append(FailLog(
+                        etapa="validacion_json",
+                        motivo="; ".join(errores),
+                        id_externo=av.id_externo,
+                    ))
+                    rechazados += 1
+                else:
+                    avisos_validos.append(av)
 
-        logger.info(
-            f"[yapo] Validación: {len(avisos_validos)}/{len(avisos_unicos)} avisos pasan"
-            f" ({rechazados} rechazados)"
-        )
+            log_resumen_fase("yapo", "VALIDACIÓN", {
+                "válidos": len(avisos_validos),
+                "rechazados": rechazados,
+                "total": len(avisos_unicos),
+            })
 
+            # ── PROCESADOS (limpieza + validación superada) ──────────────────
+            if self.guardar_raw and avisos_validos and carpeta:
+                ruta_procesados = carpeta / "processed" / "avisos.jsonl"
+                ok = _append_avisos_jsonl(avisos_validos, ruta_procesados, fotos=fotos_run)
+                if ok:
+                    log_meta.info(
+                        f"[yapo] {len(avisos_validos)} avisos procesados escritos en {ruta_procesados}"
+                    )
+                else:
+                    log_meta.error(f"[yapo] Error al escribir avisos procesados en {ruta_procesados}")
 
-        # ── PROCESADOS (limpieza + validación superada) ──────────────────────
-        if self.guardar_raw and avisos_validos and carpeta:
-            ruta_procesados = carpeta / "processed" / "avisos.jsonl"
-            ok = _append_avisos_jsonl(avisos_validos, ruta_procesados, fotos=fotos_run)
-            if ok:
-                logger.info(
-                    f"[yapo] {len(avisos_validos)} avisos procesados escritos en {ruta_procesados}"
-                )
-            else:
-                logger.error(f"[yapo] Error al escribir avisos procesados en {ruta_procesados}")
-
-        # ── Metadata JSONL raw → S3 ───────────────────────────────────────────
-        if self.guardar_raw and ruta_jsonl and ruta_jsonl.exists():
-            metadata_ok = await cargar_a_s3_con_retry(
-                ruta_jsonl,
-                f"yapo/{fecha_dia}/raw/avisos.jsonl",
-                etiqueta_log="yapo",
-            )
-            if not metadata_ok:
-                fail_logs.append(FailLog(
-                    etapa="upload_metadata",
-                    motivo="S3 upload de raw/avisos.jsonl agotó reintentos",
-                    id_externo="avisos.jsonl",
-                ))
-
-        # ── Processed JSONL → S3 ─────────────────────────────────────────────
-        if self.guardar_raw and avisos_validos and carpeta:
-            ruta_procesados_jsonl = carpeta / "processed" / "avisos.jsonl"
-            if ruta_procesados_jsonl.exists():
-                processed_ok = await cargar_a_s3_con_retry(
-                    ruta_procesados_jsonl,
-                    f"yapo/{fecha_dia}/processed/avisos.jsonl",
+            # ── Metadata JSONL raw → S3 ───────────────────────────────────────
+            if self.guardar_raw and ruta_jsonl and ruta_jsonl.exists():
+                metadata_ok = await cargar_a_s3_con_retry(
+                    ruta_jsonl,
+                    f"yapo/{fecha_dia}/raw/avisos.jsonl",
                     etiqueta_log="yapo",
                 )
-                if not processed_ok:
+                if not metadata_ok:
                     fail_logs.append(FailLog(
-                        etapa="upload_processed",
-                        motivo="S3 upload de processed/avisos.jsonl agotó reintentos",
+                        etapa="upload_metadata",
+                        motivo="S3 upload de raw/avisos.jsonl agotó reintentos",
                         id_externo="avisos.jsonl",
                     ))
 
-        duracion = (datetime.now(utc_4) - inicio).total_seconds()
-        logger.info(
-            f"[yapo] Scrape finalizado — {len(avisos_validos)} avisos válidos"
-            f" listos para carga ({duracion:.1f}s)"
-        )
+            # ── Processed JSONL → S3 ─────────────────────────────────────────
+            if self.guardar_raw and avisos_validos and carpeta:
+                ruta_procesados_jsonl = carpeta / "processed" / "avisos.jsonl"
+                if ruta_procesados_jsonl.exists():
+                    processed_ok = await cargar_a_s3_con_retry(
+                        ruta_procesados_jsonl,
+                        f"yapo/{fecha_dia}/processed/avisos.jsonl",
+                        etiqueta_log="yapo",
+                    )
+                    if not processed_ok:
+                        fail_logs.append(FailLog(
+                            etapa="upload_processed",
+                            motivo="S3 upload de processed/avisos.jsonl agotó reintentos",
+                            id_externo="avisos.jsonl",
+                        ))
 
-        # ── Reporte de ejecución → S3 (siempre, con o sin fallos) ────────────
-        if self.guardar_raw and carpeta:
-            ruta_reporte = carpeta / "processed" / "run_report.json"
-            reporte = {
-                "fuente": "yapo",
-                "timestamp": inicio.isoformat(),
-                "duracion_segundos": round(duracion, 1),
-                "avisos_encontrados": len(avisos_raw),
-                "avisos_unicos": len(avisos_unicos),
-                "avisos_validos": len(avisos_validos),
-                "avisos_rechazados": len(avisos_unicos) - len(avisos_validos),
-                "fail_logs": [asdict(fl) for fl in fail_logs],
-            }
-            try:
-                ruta_reporte.write_text(
-                    json.dumps(reporte, ensure_ascii=False, indent=2),
-                    encoding="utf-8",
-                )
-                logger.info(
-                    f"[yapo] Reporte escrito — {len(fail_logs)} FAIL LOGs, {duracion:.1f}s"
-                )
-                await cargar_a_s3_con_retry(
-                    ruta_reporte,
-                    f"yapo/{fecha_dia}/logs/run_report.json",
-                    etiqueta_log="yapo",
-                )
-            except Exception as e:
-                logger.error(f"[yapo] No se pudo escribir run_report.json: {e}")
-        elif fail_logs:
+            duracion = (datetime.now(utc_4) - inicio).total_seconds()
             logger.info(
-                f"[yapo] {len(fail_logs)} FAIL LOGs generados (guardar_raw=False, no persistidos)"
+                f"[yapo] Scrape finalizado — {len(avisos_validos)} avisos válidos"
+                f" listos para carga ({duracion:.1f}s)"
             )
 
-        return avisos_validos
+            # ── Reporte de ejecución → S3 (siempre, con o sin fallos) ────────
+            if self.guardar_raw and carpeta:
+                ruta_reporte = carpeta / "processed" / "run_report.json"
+                reporte = {
+                    "fuente": "yapo",
+                    "timestamp": inicio.isoformat(),
+                    "duracion_segundos": round(duracion, 1),
+                    "avisos_encontrados": len(avisos_raw),
+                    "avisos_unicos": len(avisos_unicos),
+                    "avisos_validos": len(avisos_validos),
+                    "avisos_rechazados": len(avisos_unicos) - len(avisos_validos),
+                    "fail_logs": [asdict(fl) for fl in fail_logs],
+                }
+                try:
+                    ruta_reporte.write_text(
+                        json.dumps(reporte, ensure_ascii=False, indent=2),
+                        encoding="utf-8",
+                    )
+                    log_meta.info(
+                        f"[yapo] Reporte escrito — {len(fail_logs)} FAIL LOGs, {duracion:.1f}s"
+                    )
+                    await cargar_a_s3_con_retry(
+                        ruta_reporte,
+                        f"yapo/{fecha_dia}/logs/run_report.json",
+                        etiqueta_log="yapo",
+                    )
+                except Exception as e:
+                    log_meta.error(f"[yapo] No se pudo escribir run_report.json: {e}")
+            elif fail_logs:
+                logger.info(
+                    f"[yapo] {len(fail_logs)} FAIL LOGs generados (guardar_raw=False, no persistidos)"
+                )
+
+            return avisos_validos
+
+        finally:
+            eliminar_sinks(sink_ids)
 
 
 # ─── ENTRYPOINT STANDALONE ───────────────────────────────────────────────────

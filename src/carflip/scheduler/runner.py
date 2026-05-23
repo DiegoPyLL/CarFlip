@@ -65,7 +65,7 @@ async def run_scrapers(scraper_name: str = "all") -> None:
     )
 
 
-def start_scheduler(intervalo_horas: int = 6) -> None:
+def start_scheduler(intervalo_horas: int = 12) -> None:
     """Ejecuta un ciclo inmediato y luego repite cada intervalo_horas. Bloquea indefinidamente."""
     logger.info("[orquestrador] Ejecutando ciclo inicial antes de iniciar el scheduler...")
     asyncio.run(run_scrapers("all"))

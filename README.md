@@ -1,35 +1,34 @@
-# CarFlip (TODO(MODIFICAR AL FINAL))
+# CarFlip
 
-Plataforma integral de inteligencia de mercado automotriz con agregación y análisis de datos en tiempo real desde múltiples portales de venta en Chile.
+Plataforma de inteligencia de mercado automotriz que agrega avisos de autos en venta desde múltiples portales chilenos, normaliza los datos, los persiste en PostgreSQL y detecta oportunidades de compra mediante análisis de historial de precios.
 
 ![CarFlip Logo](carflip_logo.png)
 
 ## Propuesta de Valor
 
-CarFlip proporciona una ventaja competitiva mediante:
-
-- **Agregación centralizada de datos**: Unifica precios, características y disponibilidad de vehículos desde MercadoLibre, Yapo, ChileAutos, Facebook Marketplace, etc en una única plataforma
-- **Inteligencia de mercado en tiempo real**: Monitoreo continuo cada 6 horas para identificar oportunidades de arbitraje y tendencias de precios
-- **Análisis de patrones históricos**: Historial automatizado de precios con cálculo de deltas porcentuales para detección de tendencias
-- **Operaciones sin intervención manual**: Scheduler automático que reduce costos operacionales y aumenta la frecuencia de monitoreo
-- **Escalabilidad de producción**: Arquitectura async-first diseñada para procesar miles de listados por ciclo sin degradación de rendimiento
+- **Agregación centralizada**: Unifica precios, características y disponibilidad desde portales chilenos en una sola plataforma
+- **Inteligencia en tiempo real**: Monitoreo automático cada 12 horas para identificar oportunidades de arbitraje y tendencias de precio
+- **Análisis de historial**: Registro automático de cambios de precio con cálculo de deltas porcentuales
+- **Pipeline de imágenes**: Descarga, conversión a AVIF y distribución vía CDN (Cloudflare R2)
+- **Operaciones sin intervención**: Scheduler automático reduce costos y aumenta frecuencia de monitoreo
 
 ## Capacidades Técnicas
 
-| Componente                   | Especificación                                       |
-| ---------------------------- | ----------------------------------------------------- |
-| Fuentes de datos             | MercadoLibre, Yapo, ChileAutos, Facebook Marketplace  |
-| Frecuencia de actualización | Configurable (default: cada 6 horas)                  |
-| Historización de datos      | Completa con deltas de precio y timestamps            |
-| Disponibilidad               | Ejecución automática sin intervención              |
-| Integridad de datos          | Normalización a esquema único, upsert por source+ID |
-| Seguridad de credenciales    | Windows Credential Manager + Fernet encryption        |
+| Componente                   | Especificación                                                      |
+| ---------------------------- | -------------------------------------------------------------------- |
+| Fuentes activas              | Autocosmos (httpx + BS4), Yapo (Playwright)                          |
+| Fuentes en roadmap           | MercadoLibre (API), Autosusados, Checkeados, Económicos             |
+| Frecuencia de actualización | Configurable (default: cada 12 horas)                                |
+| Historización de datos      | Deltas de precio calculados automáticamente en cada upsert          |
+| Pipeline de imágenes        | Descarga → S3 → deduplicación → AVIF → Cloudflare R2 CDN        |
+| Seguridad de credenciales    | Variables de entorno exclusivamente (`.env`)                       |
+| Integridad de datos          | Normalización a `AvisoAuto`, upsert por `id_externo` por fuente |
 
 ## Requerimientos
 
 - Python 3.12 o superior
 - PostgreSQL 12+ con base de datos `carflip`
-- Permisos administrativos (para Windows Credential Manager) o sistema equivalente de keyring
+- uv (gestor de paquetes)
 
 ## Instalación
 
@@ -37,7 +36,7 @@ CarFlip proporciona una ventaja competitiva mediante:
 
 ```bash
 # Clonar repositorio
-git clone <repo-url>
+git clone https://github.com/DiegoPyLL/CarFlip
 cd carflip
 
 # Instalar dependencias
@@ -52,28 +51,42 @@ createdb carflip
 Crear archivo `.env` en la raíz del proyecto:
 
 ```env
+# Base de datos
 DATABASE_URL=postgresql+asyncpg://usuario:password@localhost:5432/carflip
-MERCADOLIBRE_APP_ID=tu_app_id
-MERCADOLIBRE_CLIENT_SECRET=tu_client_secret
-MIN_DELAY_SECONDS=1
-MAX_DELAY_SECONDS=3
-SCRAPE_INTERVAL_HOURS=6
+
+# S3 (intermediario de fotos antes de R2)
+S3_ACCESS_KEY_ID=tu_access_key
+S3_SECRET_ACCESS_KEY=tu_secret_key
+S3_REGION=us-east-1
+S3_BUCKET=carflip-raw
+S3_PREFIX=raw/
+
+# Cloudflare R2 (CDN de imágenes finales)
+R2_ACCOUNT_ID=tu_account_id
+R2_BUCKET=carflip-fotos
+R2_ACCESS_KEY_ID=tu_r2_access_key
+R2_SECRET_ACCESS_KEY=tu_r2_secret_key
+R2_PREFIX=autocosmos/fotos/
+
+# Delays entre requests (rate limiting)
+MIN_DELAY_SECONDS=2.0
+MAX_DELAY_SECONDS=6.0
+
+# Scheduler
+SCRAPE_INTERVAL_HOURS=12
+
+# Detección de deals
+DEAL_THRESHOLD_PCT=15.0
+
+# Logging
 LOG_LEVEL=INFO
+LOG_FILE=logs/carflip.log
 ```
 
 ### 3. Aplicar esquema de base de datos
 
 ```bash
 alembic upgrade head
-```
-
-### 4. Configurar acceso a fuentes (opcional)
-
-Para portales que requieren autenticación:
-
-```bash
-carflip credentials set facebook usuario@email.com tu_password
-carflip credentials set yapo usuario@email.com tu_password
 ```
 
 ## Uso
@@ -84,7 +97,12 @@ carflip credentials set yapo usuario@email.com tu_password
 carflip run
 ```
 
-Ejecuta un ciclo completo de scraping en todas las fuentes y persiste los datos.
+Ejecuta un ciclo completo de scraping y persiste los datos en PostgreSQL. Si no se especifica scraper, muestra un menú interactivo.
+
+```bash
+# Ejecutar solo un scraper específico
+carflip run --scraper autocosmos
+```
 
 ### Activar scheduler automático
 
@@ -92,22 +110,12 @@ Ejecuta un ciclo completo de scraping en todas las fuentes y persiste los datos.
 carflip start
 ```
 
-Inicia el servicio de programación automática. El primer ciclo se ejecuta inmediatamente, subsecuentes se ejecutarán cada N horas según `SCRAPE_INTERVAL_HOURS`.
+Inicia el scheduler. El primer ciclo se ejecuta inmediatamente, los siguientes cada `SCRAPE_INTERVAL_HOURS` horas.
 
-### Gestionar credenciales
-
-```bash
-# Listar fuentes con credenciales configuradas
-carflip credentials list
-
-# Eliminar credencial de una fuente
-carflip credentials delete <source>
-```
-
-### Generar reportes de mercado
+### Estadísticas de mercado
 
 ```bash
-carflip market <brand> <model> <year>
+carflip market <marca> <modelo> <año>
 ```
 
 Ejemplo:
@@ -116,7 +124,7 @@ Ejemplo:
 carflip market Toyota Corolla 2020
 ```
 
-Retorna estadísticas agregadas: precio promedio, rango, tendencia, volumen de listados.
+Retorna precio promedio, mínimo, máximo y volumen de listados activos.
 
 ## Tests
 
@@ -136,150 +144,190 @@ pytest --cov=src/carflip
 ### Flujo de Datos
 
 ```
-Portal Web → HTTP/Playwright → HTML/JSON
+Portal Web → HTTP (httpx) / Headless (Playwright)
     ↓
-Parser (BeautifulSoup/JSON decode)
+Parser (BeautifulSoup4 / JS extraction)
     ↓
-Normalización (CarListing dataclass)
+Normalización (AvisoAuto dataclass)
+    ↓ INGESTA
+Descarga de fotos → S3 (con reintentos, hasta 2h)
+    ↓ LIMPIEZA
+Deduplicación por id_externo
+    ↓ VALIDACIÓN
+Validación estructural y semántica (precio, año, km, fecha)
+    ↓ CARGA
+PostgreSQL (upsert por id_externo, detección delta de precio)
+    ↓ PIPELINE IMÁGENES
+S3 → conversión AVIF → Cloudflare R2 CDN
     ↓
-Persistencia (PostgreSQL upsert)
-    ↓
-Historial de cambios (price_history)
-    ↓
-Agregaciones (market statistics)
+Estadísticas de mercado (price_tracker)
 ```
 
 ### Patrón de Scrapers
 
-Todos los scrapers heredan de `BaseScraper` en [`src/carflip/scrapers/base.py`](src/carflip/scrapers/base.py). La clase base proporciona:
-
-- Logging automático con niveles configurables
-- Medición de tiempo de ejecución
-- Manejo de excepciones y recuperación
-- Rate limiting con delays aleatorios
-- Almacenamiento de estados de ejecución
-
-Implementación requerida:
+Todos los scrapers heredan de `ScraperBase` en [src/carflip/scrapers/base.py](src/carflip/scrapers/base.py). El único método a implementar es `scrape()`. La clase base gestiona logging, timing, manejo de errores y el upsert automático a PostgreSQL.
 
 ```python
-class TuScraper(BaseScraper):
-    async def scrape(self) -> list[CarListing]:
-        # Lógica de scraping específica
-        # Retorna lista de CarListing normalizados
-        pass
+class MiScraper(ScraperBase):
+    fuente = "mi_fuente"
+    model_class = MiFuenteListing  # tabla SQLAlchemy destino
+
+    async def scrape(self) -> list[AvisoAuto]:
+        avisos = []
+        # lógica de scraping ...
+        await self.espera_aleatoria()  # rate limiting
+        return avisos
+```
+
+Nunca sobreescribir `ejecutar()` — solo implementar `scrape()`.
+
+### Dataclass normalizado
+
+```python
+@dataclass
+class AvisoAuto:
+    fuente: str
+    id_externo: str
+    url: str
+    titulo: str
+    precio: Decimal | None = None
+    moneda: str = "CLP"
+    marca: str | None = None
+    modelo: str | None = None
+    anio: int | None = None
+    km: int | None = None
+    ubicacion: str | None = None
+    combustible: str | None = None
+    descripcion: str | None = None
+    url_imagen: str | None = None
+    disponible: bool | None = None
+    fecha_publicacion: str | None = None
 ```
 
 ### Esquema de Base de Datos
 
-| Tabla               | Propósito                                            |
-| ------------------- | ----------------------------------------------------- |
-| `listings`        | Avisos normalizados (upsert por source + external_id) |
-| `price_history`   | Historial de precios con delta porcentual             |
-| `scraped_runs`    | Auditoría de ejecuciones por fuente                  |
-| `session_cookies` | Cookies de sesión cifradas por fuente                |
+Cada fuente tiene su propia tabla (sin tabla unificada). Todas comparten las mismas columnas vía `ListingMixin`.
+
+| Tabla                   | Propósito                                       |
+| ----------------------- | ------------------------------------------------ |
+| `autocosmos_listings` | Avisos de Autocosmos (upsert por `id_externo`) |
+| `yapo_listings`       | Avisos de Yapo (upsert por `id_externo`)       |
+| `scrape_runs`         | Bitácora de ejecuciones por fuente              |
+
+Columnas clave de cada tabla de avisos: `id_externo`, `precio`, `precio_anterior`, `delta_pct`, `primera_vez_visto`, `ultima_vez_visto`.
+
+Para agregar una nueva fuente: crear `NuevoSitioListing(ListingMixin, Base)` + migración Alembic + declarar `model_class` en el scraper.
+
+### Pipeline de Imágenes (S3 → R2) TODO("Actualizar según la estructura del R2")
+
+Las fotos se descargan durante el scraping y se suben a S3 como almacenamiento intermedio (con hasta 12 reintentos en ventana de 2 horas). Luego el pipeline de migración en [src/carflip/storage/migrar_s3_a_r2.py](src/carflip/storage/migrar_s3_a_r2.py):
+
+1. Lista objetos en S3
+2. Convierte imágenes a AVIF con Pillow ([src/carflip/scrapers/image_utils.py](src/carflip/scrapers/image_utils.py))
+3. Sube a Cloudflare R2 (CDN) con hasta 5 reintentos
+4. Verifica existencia antes de resubir
+
+### Logging Estructurado
+
+Cada ejecución de scraper genera logs separados por fase en `logs/{fuente}/run_{YYYYMMDD_HHMMSS}/`:
+
+| Archivo            | Contenido                          |
+| ------------------ | ---------------------------------- |
+| `todo.log`       | Todos los eventos del ciclo        |
+| `ingesta.log`    | Requests HTTP, parsing, fotos      |
+| `limpieza.log`   | Deduplicación, normalización     |
+| `validacion.log` | Avisos rechazados y razones        |
+| `fotos.log`      | Estado de subida de imágenes a S3 |
+
+Implementado en [src/carflip/scrapers/logging_utils.py](src/carflip/scrapers/logging_utils.py).
 
 ## Seguridad
 
-### Gestión de Credenciales
+### Credenciales
 
-- Passwords: Almacenados exclusivamente en Windows Credential Manager (keyring)
-- Cookies de sesión: Cifradas con Fernet, almacenadas en PostgreSQL
-- Claves Fernet: Generadas y recuperadas desde el Credential Manager
-- Validación: Código verificado para evitar exposición en logs
+- Todas las credenciales exclusivamente en `.env` — sin keyring, Fernet ni AWS Secrets Manager
+- `.env` nunca se commitea al repositorio
+- Nunca se loggean passwords, tokens de API ni strings de conexión a BD
 
-### Protección Contra Detección y Bloqueo
+### Protección Contra Detección
 
-- User-Agent rotation con fake-useragent
-- Delays aleatorios entre requests (configurable)
+- User-Agent rotation con `fake-useragent`
+- Delays aleatorios entre requests (configurable: `MIN_DELAY_SECONDS` / `MAX_DELAY_SECONDS`)
 - Playwright + stealth para sitios con protecciones JavaScript
 - Sin paralelización de requests al mismo dominio
 
 ### Integridad de Datos
 
-- Todas las queries usan SQLAlchemy ORM con parámetros vinculados
-- Nunca concatenación de strings en SQL
-- Validación de entrada con Pydantic en todos los puntos de entrada
+- SQLAlchemy ORM con parámetros vinculados — nunca concatenación de strings en SQL
+- Validación estructural y semántica antes de cada upsert a PostgreSQL
+
+## Docker
+
+Para entorno local sin instalación de PostgreSQL:
+
+```bash
+docker-compose up -d
+```
+
+Levanta PostgreSQL con la base de datos `carflip` preconfigurada.
 
 ## Versionamiento
 
 ### Versión Semántica
 
-Formato: `MAJOR.MINOR.PATCH`
-Versión actual: `0.1.0`
+Formato: `MAJOR.MINOR.PATCH` — Versión actual: `0.1.0`
 
-| Incremento | Cuándo                                 |
-| ---------- | --------------------------------------- |
-| PATCH      | Bug fixes, mejoras de estabilidad       |
-| MINOR      | Nuevos scrapers, comandos CLI, features |
-| MAJOR      | Breaking changes en CLI o esquema DB    |
+| Incremento | Cuándo                                             |
+| ---------- | --------------------------------------------------- |
+| PATCH      | Bug fixes, mejoras de estabilidad                   |
+| MINOR      | Nuevos scrapers, comandos CLI, features observables |
+| MAJOR      | Breaking changes en CLI o esquema DB incompatible   |
 
 ### Branching
 
 ```
-main                          # Rama de producción (siempre estable)
-├── feat/descripcion          # Nuevas features
-├── fix/descripcion           # Correcciones de bugs
-├── chore/descripcion         # Dependencias, config
-└── db/descripcion            # Cambios de esquema
+main                          # Siempre estable y ejecutable
+├── feat/nombre-scraper       # Nuevo scraper o funcionalidad
+├── fix/descripcion-bug       # Corrección de bug
+├── chore/descripcion         # Dependencias, config, refactor
+└── db/descripcion-migracion  # Cambios de esquema Alembic
 ```
 
 ### Commits (Conventional Commits)
 
-Formato: `<tipo>(<scope>): <descripción>`
-
-Ejemplos válidos:
+Formato: `<tipo>(<scope opcional>): <descripción en español>`
 
 ```
-feat(yapo): agregar filtro de año en búsqueda
-fix(facebook): manejar timeout en login
+feat(checkeados): agregar nuevo scraper Checkeados
+fix(autocosmos): manejar estructura DOM actualizada
 chore: actualizar httpx a 0.28
-db: agregar índice compuesto source+brand+model
-test(market): agregar test de detección de deals
+db: agregar índice en autocosmos_listings(marca, modelo)
 ```
 
 ## Contribución
 
-### Proceso de Integración
-
-1. Crear rama de trabajo desde `main`:
-
-   ```bash
-   git checkout -b feat/descripcion
-   ```
+1. Crear rama de trabajo desde `main`
 2. Implementar cambios siguiendo [CLAUDE.md](CLAUDE.md):
-
    - Type hints en todas las funciones
-   - Logging con loguru (nunca print)
+   - Logging con loguru (nunca `print()`)
    - Tests para funcionalidad nueva
    - Migraciones Alembic para cambios de schema
 3. Validar localmente:
-
    ```bash
    uv sync
    alembic upgrade head
    pytest
    carflip run
    ```
-4. Push a repositorio remoto:
-
-   ```bash
-   git push origin feat/descripcion
-   ```
-5. Crear Pull Request para revisión
-
-### Estándares de Código
-
-- **Type hints obligatorios** en todas las funciones y variables públicas
-- **Logging exclusivo** con loguru; prohibido print() en src/
-- **Testing requerido** para funcionalidad nueva o cambios en comportamiento
-- **Migraciones Alembic** para todos los cambios de esquema DB
-- **Documentación interna** en CLAUDE.md para decisiones arquitectónicas
+4. Mergear a `main` cuando los tests pasan y el scraper fue probado manualmente
 
 ## Documentación
 
-- [CLAUDE.md](CLAUDE.md) — Referencia completa de arquitectura, convenciones y desarrollo
-- `src/carflip/scrapers/` — Implementaciones de scrapers como referencia
-- `tests/` — Suite de tests y fixtures
+- [CLAUDE.md](CLAUDE.md) — Arquitectura, convenciones, decisiones de diseño y roadmap
+- [DEPLOY_EC2.md](DEPLOY_EC2.md) — Instrucciones de despliegue en EC2 con TMUX + APScheduler
+- [TESTS_GUIDE.md](TESTS_GUIDE.md) — Guía de testing
+- [src/carflip/scrapers/AutoCosmos/README.md](src/carflip/scrapers/AutoCosmos/README.md) — Detalles del scraper Autocosmos
+- [src/carflip/scrapers/Yapo/README.md](src/carflip/scrapers/Yapo/README.md) — Detalles del scraper Yapo
 
 ## Resolución de Problemas
 
@@ -289,25 +337,22 @@ test(market): agregar test de detección de deals
 # Windows (si está instalado):
 pg_ctl -D "C:\Program Files\PostgreSQL\data" start
 
-# O usando Docker:
-docker run --name carflip-db -e POSTGRES_PASSWORD=pass -p 5432:5432 -d postgres
-createdb -h localhost -U postgres carflip
+# Con Docker:
+docker-compose up -d
 ```
 
 ### Intérprete Python no detectado en VS Code
 
-Seleccionar manualmente el intérprete:
-
 1. `Ctrl+Shift+P` → "Python: Select Interpreter"
 2. Seleccionar `.venv\Scripts\python.exe`
 
-### Timeouts en Playwright
+### Timeouts en Playwright (Yapo)
 
-Aumentar los delays configurados en `.env`:
+Aumentar los delays en `.env`:
 
 ```env
 MIN_DELAY_SECONDS=3
-MAX_DELAY_SECONDS=5
+MAX_DELAY_SECONDS=8
 ```
 
 ---

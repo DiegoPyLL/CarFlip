@@ -2,7 +2,7 @@
 CLI de CarFlip.
 
 Comandos:
-  carflip start   — inicia el scheduler automático (cada 6h)
+  carflip start   — inicia el scheduler automático (cada 12h)
   carflip run     — ejecuta todos los scrapers una vez
   carflip market  — muestra precio promedio/min/max para marca/modelo/año
 """
