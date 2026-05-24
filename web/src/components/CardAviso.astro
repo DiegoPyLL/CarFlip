@@ -12,8 +12,8 @@ const urlImagen = resolverUrlImagen(aviso.url_imagen);
 const delta = signosDelta(aviso.delta_pct);
 
 const badgeFuente = aviso.fuente === 'autocosmos'
-  ? { texto: 'Autocosmos', clases: 'bg-orange-100 text-orange-700' }
-  : { texto: 'MercadoLibre', clases: 'bg-yellow-100 text-yellow-700' };
+  ? { texto: 'Autocosmos', clases: 'bg-blue-100 text-blue-700' }
+  : { texto: 'Yapo', clases: 'bg-orange-100 text-orange-700' };
 
 const metaItems = [
   aviso.anio ? String(aviso.anio) : null,
