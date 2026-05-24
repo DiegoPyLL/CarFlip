@@ -9,7 +9,6 @@ Etapas cubiertas en scrape():
 """
 
 import asyncio
-import hashlib
 import json
 import re
 import sys
@@ -29,9 +28,11 @@ from loguru import logger
 
 from carflip.config import settings
 from carflip.database.models import AutocosmosListing
-from carflip.scrapers.base import AvisoAuto, ScraperBase
+from carflip.scrapers.base import AvisoAuto, ScraperBase, construir_id_externo
 from carflip.scrapers.image_utils import convertir_a_avif
 from carflip.storage.s3_cdn import cargar_a_s3_con_retry, url_cdn_desde_clave_s3
+
+CODIGO_FUENTE = 100  # identificador único de autocosmos (ver ScraperBase.codigo_fuente)
 
 BASE_URL = "https://www.autocosmos.cl"
 URL_USADOS = f"{BASE_URL}/auto/usado"
@@ -254,7 +255,7 @@ def _parsear_aviso(tag: Tag) -> AvisoAuto | None:
         return None
 
     url = urljoin(BASE_URL, href)
-    id_externo = hashlib.sha256(url.encode()).hexdigest()
+    id_externo = construir_id_externo(CODIGO_FUENTE, match.group(1))
 
     partes = href.rstrip("/").split("/")
     marca = partes[3].replace("-", " ").title() if len(partes) > 3 else None
@@ -332,6 +333,7 @@ class ScraperAutocosmosCloud(ScraperBase):
     """
 
     fuente = "autocosmos"
+    codigo_fuente = CODIGO_FUENTE
     model_class = AutocosmosListing
 
     def __init__(self, max_paginas: int | None = None, guardar_raw: bool = True) -> None:
@@ -493,11 +495,12 @@ class ScraperAutocosmosCloud(ScraperBase):
                                 ruta_orig, ruta_avif = resultado
                                 if ruta_orig is not None:
                                     fotos_pagina[aviso.id_externo] = ruta_orig.name
-                                    clave_raw = f"autocosmos/{fecha_dia}/raw/fotos/{ruta_orig.name}"
+                                    clave_raw = f"autocosmos/raw/fotos/{ruta_orig.name}"
                                     tareas_s3_info.append(
                                         (
                                             cargar_a_s3_con_retry(
-                                                ruta_orig, clave_raw, etiqueta_log="autocosmos"
+                                                ruta_orig, clave_raw, etiqueta_log="autocosmos",
+                                                skip_si_existe=True,
                                             ),
                                             aviso,
                                             "upload_foto_raw",
@@ -511,11 +514,12 @@ class ScraperAutocosmosCloud(ScraperBase):
                                         id_externo=aviso.id_externo,
                                     ))
                                 if ruta_avif is not None:
-                                    clave_proc = f"autocosmos/{fecha_dia}/processed/fotos/{ruta_avif.name}"
+                                    clave_proc = f"autocosmos/processed/fotos/{ruta_avif.name}"
                                     tareas_s3_info.append(
                                         (
                                             cargar_a_s3_con_retry(
-                                                ruta_avif, clave_proc, etiqueta_log="autocosmos"
+                                                ruta_avif, clave_proc, etiqueta_log="autocosmos",
+                                                skip_si_existe=True,
                                             ),
                                             aviso,
                                             "upload_foto_processed",

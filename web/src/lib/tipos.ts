@@ -1,6 +1,6 @@
 export interface Aviso {
   id: number;
-  fuente: 'autocosmos' | 'mercadolibre';
+  fuente: 'autocosmos' | 'yapo';
   id_externo: string;
   url: string;
   titulo: string;
@@ -22,7 +22,7 @@ export interface Aviso {
 }
 
 export interface FiltrosAviso {
-  fuente?: 'autocosmos' | 'mercadolibre';
+  fuente?: 'autocosmos' | 'yapo';
   marca?: string;
   modelo?: string;
   anio?: number;
@@ -50,7 +50,7 @@ export interface FiltrosDisponibles {
 export interface Estadisticas {
   total_avisos: number;
   total_autocosmos: number;
-  total_mercadolibre: number;
+  total_yapo: number;
   precio_promedio: number | null;
   precio_minimo: number | null;
   precio_maximo: number | null;

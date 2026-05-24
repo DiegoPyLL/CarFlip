@@ -17,6 +17,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 from loguru import logger
@@ -24,9 +25,16 @@ from playwright.async_api import async_playwright
 
 from carflip.config import settings
 from carflip.database.models import YapoListing
-from carflip.scrapers.base import AvisoAuto, ScraperBase
+from carflip.scrapers.base import (
+    AvisoAuto,
+    ScraperBase,
+    construir_id_externo,
+    normalizar_url,
+)
 from carflip.scrapers.image_utils import convertir_a_avif
 from carflip.storage.s3_cdn import cargar_a_s3_con_retry, url_cdn_desde_clave_s3
+
+CODIGO_FUENTE = 101  # identificador único de yapo (ver ScraperBase.codigo_fuente)
 
 YAPO_BASE = "https://www.yapo.cl"
 _AÑO_MINIMO = 1970
@@ -43,6 +51,14 @@ _HEADERS_HTTP = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Referer": YAPO_BASE,
 }
+
+
+def _id_nativo_yapo(url: str) -> str:
+    """ID nativo de Yapo: último segmento numérico del path. Fallback a hash estable."""
+    ultimo = urlparse(url).path.rstrip("/").rsplit("/", 1)[-1]
+    if ultimo.isdigit():
+        return ultimo
+    return hashlib.sha256(normalizar_url(url).encode()).hexdigest()[:16]
 
 
 # ─── FAIL LOG ────────────────────────────────────────────────────────────────
@@ -154,6 +170,7 @@ def _append_avisos_jsonl(
 
 class ScraperYapoCloud(ScraperBase):
     fuente = "yapo"
+    codigo_fuente = CODIGO_FUENTE
     model_class = YapoListing
 
     _JS_ATTRS = """() => {
@@ -300,6 +317,7 @@ class ScraperYapoCloud(ScraperBase):
         fotos_ok_total = 0
         fotos_total = 0
         vistos_urls: set[str] = set()
+        lock_vistos_urls = asyncio.Lock()
         avisos_info = []
 
         try:
@@ -348,9 +366,10 @@ class ScraperYapoCloud(ScraperBase):
                             continue
 
                         url_aviso = YAPO_BASE + href
-                        if url_aviso in vistos_urls:
-                            continue
-                        vistos_urls.add(url_aviso)
+                        async with lock_vistos_urls:
+                            if url_aviso in vistos_urls:
+                                continue
+                            vistos_urls.add(url_aviso)
 
                         async def _safe(sel: str) -> str:
                             try:
@@ -384,7 +403,7 @@ class ScraperYapoCloud(ScraperBase):
                     async def _tarea_detalle(info: dict, idx: int) -> AvisoAuto | None:
                         nonlocal fotos_ok_total, fotos_total
                         url_det = info["url"]
-                        aviso_id = hashlib.sha256(url_det.encode()).hexdigest()
+                        aviso_id = construir_id_externo(CODIGO_FUENTE, _id_nativo_yapo(url_det))
 
                         async with sem_detalles:
                             p = await ctx.new_page()
@@ -449,11 +468,12 @@ class ScraperYapoCloud(ScraperBase):
                                         fotos_ok_total += 1
                                         fotos_run[aviso_id] = ruta_orig.name
                                         log_fotos.info(f"[yapo] [{idx}/{total_avisos}] Foto descargada id={aviso_id}")
-                                        clave_raw = f"yapo/{fecha_dia}/raw/fotos/{ruta_orig.name}"
+                                        clave_raw = f"yapo/raw/fotos/{ruta_orig.name}"
                                         tareas_s3: list[tuple] = [
                                             (
                                                 cargar_a_s3_con_retry(
-                                                    ruta_orig, clave_raw, etiqueta_log="yapo"
+                                                    ruta_orig, clave_raw, etiqueta_log="yapo",
+                                                    skip_si_existe=True,
                                                 ),
                                                 "upload_foto_raw",
                                                 None,
@@ -462,12 +482,13 @@ class ScraperYapoCloud(ScraperBase):
                                         clave_avif: str | None = None
                                         if ruta_avif is not None:
                                             clave_avif = (
-                                                f"yapo/{fecha_dia}/processed/fotos/{ruta_avif.name}"
+                                                f"yapo/processed/fotos/{ruta_avif.name}"
                                             )
                                             tareas_s3.append(
                                                 (
                                                     cargar_a_s3_con_retry(
-                                                        ruta_avif, clave_avif, etiqueta_log="yapo"
+                                                        ruta_avif, clave_avif, etiqueta_log="yapo",
+                                                        skip_si_existe=True,
                                                     ),
                                                     "upload_foto_processed",
                                                     clave_avif,

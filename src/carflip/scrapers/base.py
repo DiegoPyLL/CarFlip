@@ -6,11 +6,23 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
+from urllib.parse import urlparse, urlunparse
 
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from carflip.config import settings
+
+
+def normalizar_url(url: str) -> str:
+    """Quita query params, fragmento y trailing slash para hashing estable."""
+    p = urlparse(url)
+    return urlunparse(p._replace(query="", fragment="")).rstrip("/")
+
+
+def construir_id_externo(codigo_fuente: int, id_nativo: str) -> str:
+    """Identificador global estable y único por fuente: '{codigo}-{id_nativo}'."""
+    return f"{codigo_fuente}-{id_nativo}"
 
 
 @dataclass
@@ -62,6 +74,9 @@ class ResultadoScraping:
 
 class ScraperBase(ABC):
     fuente: str = ""
+    # Identificador único numérico por scraper, prefijo de id_externo.
+    # 100=autocosmos, 101=yapo, 102=mercadolibre, 103=autosusados, 104=checkeados, 105=economicos
+    codigo_fuente: int = 0
     model_class: type | None = None  # tabla PostgreSQL destino, declarada en cada scraper
 
     async def ejecutar(self, sesion: AsyncSession) -> ResultadoScraping:

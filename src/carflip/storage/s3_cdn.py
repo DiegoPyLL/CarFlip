@@ -41,6 +41,7 @@ async def cargar_a_s3_con_retry(
     clave_s3: str,
     *,
     etiqueta_log: str = "s3",
+    skip_si_existe: bool = False,
 ) -> bool:
     """Sube archivo a S3 con Content-Type correcto y reintentos."""
     sesion = aioboto3.Session(
@@ -52,6 +53,14 @@ async def cargar_a_s3_con_retry(
     content_type = content_type_desde_ruta(ruta_local)
 
     async with sesion.client("s3") as cliente:  # type: ignore[attr-defined]
+        if skip_si_existe:
+            try:
+                await cliente.head_object(Bucket=settings.s3_bucket, Key=clave_s3)
+                logger.debug(f"[{etiqueta_log}] S3 skip (ya existe): {clave_s3}")
+                return True
+            except ClientError:
+                pass
+
         for intento in range(1, _S3_MAX_REINTENTOS + 1):
             try:
                 await cliente.put_object(

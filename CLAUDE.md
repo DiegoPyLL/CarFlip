@@ -342,7 +342,7 @@ Cada scraper tiene su propia tabla en PostgreSQL. No existe una tabla `listings`
 - `checkeados_listings`
 - `economicos_listings`
 
-Para agregar un nuevo scraper: crear `NuevoSitioListing(ListingMixin, Base)` + migración Alembic + declarar `model_class` en el scraper.
+Para agregar un nuevo scraper: crear `NuevoSitioListing(ListingMixin, Base)` + migración Alembic + declarar `model_class` en el scraper. Ver checklist completo en la sección **Checklist: agregar un nuevo scraper**.
 
 **Columnas de cada tabla de avisos** (`ListingMixin`):
 
@@ -381,6 +381,52 @@ Clave única: `id_externo` (por tabla). El upsert se gestiona en `src/carflip/da
 | finished_at | DateTime(tz)  | fin                 |
 | items_found | Integer       | avisos obtenidos    |
 | errors      | Integer       | errores en el ciclo |
+
+---
+
+## Checklist: agregar un nuevo scraper
+
+**Regla obligatoria**: cada scraper nuevo debe integrarse en el backend Python Y en la web frontend. Un scraper sin integración web es incompleto — los datos existirán en la BD pero serán invisibles para el usuario.
+
+### 1. Backend Python
+
+1. Crear `src/carflip/scrapers/NombreSitio/NombreSitioCloud.py` heredando de `ScraperBase`, implementar `scrape()`
+2. Crear `NuevoSitioListing(ListingMixin, Base)` en `src/carflip/database/models.py`
+3. Generar y aplicar migración Alembic:
+   ```bash
+   alembic revision --autogenerate -m "add nuevositio listings"
+   # revisar el archivo generado antes de aplicar
+   alembic upgrade head
+   ```
+4. Declarar `model_class = NuevoSitioListing` y `fuente = "nuevositio"` en el scraper
+5. Registrar el scraper en `runner.py`
+
+### 2. Web frontend (`web/`)
+
+Los cinco archivos siguientes deben actualizarse siempre. Sin esto la fuente no aparece en el dropdown ni en los resultados.
+
+**`web/src/lib/tipos.ts`**
+- Agregar `'nuevositio'` al union type de `Aviso.fuente` y `FiltrosAviso.fuente`
+- Agregar `total_nuevositio: number` a la interfaz `Estadisticas`
+
+**`web/src/lib/filtros.ts`**
+- Agregar `|| fuente === 'nuevositio'` a la condición de `parsearFiltrosUrl`
+
+**`web/src/components/FiltrosBarra.astro`**
+- Agregar en el select de Fuente:
+  ```html
+  <option value="nuevositio" selected={filtros.fuente === 'nuevositio'}>NombreSitio</option>
+  ```
+
+**`web/src/lib/db.ts`**
+- `obtenerAvisos`: agregar rama `else if (filtros.fuente === 'nuevositio')` con query a `nuevositio_listings` + incluir `nuevositio_listings` en el `UNION ALL` del bloque "Todas"
+- `obtenerAviso`: agregar lookup en `nuevositio_listings` después del último fallback
+- `obtenerFiltrosDisponibles`: agregar queries de marcas, años y combustibles desde `nuevositio_listings`, combinar con `[...new Set([...existing, ...nuevositio])]`
+- `obtenerEstadisticas`: agregar query de stats desde `nuevositio_listings`, incluir en totales y promedio ponderado, agregar `total_nuevositio` al objeto retornado
+
+**`web/src/pages/index.astro`**
+- Agregar card de estadísticas para la nueva fuente
+- Ajustar el grid si es necesario (actualmente `grid-cols-2 sm:grid-cols-3 xl:grid-cols-5`)
 
 ---
 
