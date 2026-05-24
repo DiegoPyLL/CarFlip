@@ -13,3 +13,4 @@ logs/
 data/raw/
 .vercel
 .env*
+web/.env.example

@@ -45,11 +45,16 @@ _PATRON_FECHA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 _MAX_AVISOS = 1_000
 
-_CONCURRENCIA_DETALLES = 5   # páginas de detalle procesadas en paralelo (Playwright)
+_CONCURRENCIA_DETALLES = 1   # páginas de detalle procesadas en paralelo (Playwright)
 _SEM_IMGS = 20               # descargas de imagen concurrentes
 
 _GOTO_MAX_INTENTOS = 3       # reintentos de navegación por página de detalle
 _GOTO_BACKOFF_BASE = 3.0     # backoff entre reintentos: BASE * intento + jitter(0..1)
+
+_LOTE_UPSERT    = 50         # avisos por lote antes de subir a BD
+_LOTE_PAUSA     = 100        # avisos procesados antes de pausar
+_PAUSA_LOTE_SEG = 300        # 5 minutos de pausa entre lotes de 100
+
 _THROTTLE_MIN = 0.3          # delay jittered antes de navegar (espaciar/desincronizar)
 _THROTTLE_MAX = 1.2
 
@@ -319,6 +324,10 @@ class ScraperYapoCloud(ScraperBase):
 
         fail_logs: list[FailLog] = []
         avisos_raw: list[AvisoAuto] = []
+        avisos_validos: list[AvisoAuto] = []
+        vistos_dedup_id: set[str] = set()
+        rechazados_total = 0
+        dups_total = 0
         fotos_run: dict[str, str] = {}
         fotos_ok_total = 0
         fotos_total = 0
@@ -557,13 +566,82 @@ class ScraperYapoCloud(ScraperBase):
                             finally:
                                 await p.close()
 
-                    tareas_detalle = [_tarea_detalle(info, i) for i, info in enumerate(avisos_info, 1)]
-                    resultados_detalle = await asyncio.gather(*tareas_detalle, return_exceptions=True)
-                    for resultado in resultados_detalle:
-                        if isinstance(resultado, BaseException):
-                            log_ingesta.error(f"[yapo] Error inesperado en tarea de detalle: {resultado}")
-                        elif resultado is not None:
-                            avisos_raw.append(resultado)
+                    async def _upsert_parcial(lote_validos: list[AvisoAuto]) -> None:
+                        if not lote_validos or self.model_class is None:
+                            return
+                        from carflip.database.session import AsyncSessionLocal
+                        from carflip.database.uploader import upsert_avisos
+                        try:
+                            async with AsyncSessionLocal() as sesion_lote:
+                                n = await upsert_avisos(sesion_lote, lote_validos, self.model_class)
+                                logger.info(f"[yapo] Upsert parcial: {n} avisos subidos a BD")
+                        except Exception as e:
+                            logger.error(f"[yapo] Error en upsert parcial: {e}")
+
+                    for lote_inicio in range(0, total_avisos, _LOTE_UPSERT):
+                        lote_infos = avisos_info[lote_inicio : lote_inicio + _LOTE_UPSERT]
+                        tareas_lote = [
+                            _tarea_detalle(info, lote_inicio + i + 1)
+                            for i, info in enumerate(lote_infos)
+                        ]
+                        resultados_lote = await asyncio.gather(*tareas_lote, return_exceptions=True)
+
+                        lote_raw: list[AvisoAuto] = []
+                        for resultado in resultados_lote:
+                            if isinstance(resultado, BaseException):
+                                log_ingesta.error(f"[yapo] Error inesperado en tarea de detalle: {resultado}")
+                            elif resultado is not None:
+                                avisos_raw.append(resultado)
+                                lote_raw.append(resultado)
+
+                        # Deduplicación incremental del lote
+                        lote_unicos: list[AvisoAuto] = []
+                        for av in lote_raw:
+                            if av.id_externo in vistos_dedup_id:
+                                log_limpieza.warning(f"[yapo] Duplicado detectado id={av.id_externo}, descartando")
+                                fail_logs.append(FailLog(
+                                    etapa="dedup_json",
+                                    motivo="id_externo duplicado entre páginas",
+                                    id_externo=av.id_externo,
+                                ))
+                                dups_total += 1
+                            else:
+                                vistos_dedup_id.add(av.id_externo)
+                                lote_unicos.append(av)
+
+                        # Validación incremental del lote
+                        lote_validos: list[AvisoAuto] = []
+                        for av in lote_unicos:
+                            errores = _validar_aviso(av)
+                            if errores:
+                                log_validacion.error(f"[yapo] Aviso rechazado id={av.id_externo}: {errores}")
+                                fail_logs.append(FailLog(
+                                    etapa="validacion_json",
+                                    motivo="; ".join(errores),
+                                    id_externo=av.id_externo,
+                                ))
+                                rechazados_total += 1
+                            else:
+                                lote_validos.append(av)
+
+                        # Upsert parcial del lote a BD
+                        n_procesados = lote_inicio + len(lote_infos)
+                        log_ingesta.info(
+                            f"[yapo] Lote {lote_inicio // _LOTE_UPSERT + 1}: "
+                            f"{len(lote_validos)}/{len(lote_infos)} válidos "
+                            f"(procesados: {n_procesados}/{total_avisos})"
+                        )
+                        await _upsert_parcial(lote_validos)
+                        avisos_validos.extend(lote_validos)
+
+                        # Pausa cada _LOTE_PAUSA publicaciones procesadas
+                        es_ultimo = n_procesados >= total_avisos
+                        if not es_ultimo and n_procesados % _LOTE_PAUSA == 0:
+                            logger.info(
+                                f"[yapo] {n_procesados} avisos procesados — "
+                                f"pausa de {_PAUSA_LOTE_SEG // 60} min antes del siguiente lote"
+                            )
+                            await asyncio.sleep(_PAUSA_LOTE_SEG)
 
                 await ctx.close()
                 await browser.close()
@@ -571,54 +649,11 @@ class ScraperYapoCloud(ScraperBase):
             duracion_ingesta = (datetime.now() - t_ingesta).total_seconds()
             log_resumen_fase("yapo", "INGESTA", {
                 "avisos": len(avisos_raw),
+                "válidos": len(avisos_validos),
+                "duplicados": dups_total,
+                "rechazados": rechazados_total,
                 "fotos": f"{fotos_ok_total}/{fotos_total}" if fotos_total else "n/a",
                 "duración": f"{duracion_ingesta:.0f}s",
-            })
-
-            # ── LIMPIEZA (deduplicación por id_externo) ───────────────────────
-            log_banner_fase("yapo", 2, "LIMPIEZA")
-            vistos_id: set[str] = set()
-            avisos_unicos: list[AvisoAuto] = []
-            for av in avisos_raw:
-                if av.id_externo in vistos_id:
-                    log_limpieza.warning(f"[yapo] Duplicado detectado id={av.id_externo}, descartando")
-                    fail_logs.append(FailLog(
-                        etapa="dedup_json",
-                        motivo="id_externo duplicado entre páginas",
-                        id_externo=av.id_externo,
-                    ))
-                else:
-                    vistos_id.add(av.id_externo)
-                    avisos_unicos.append(av)
-
-            dups = len(avisos_raw) - len(avisos_unicos)
-            log_resumen_fase("yapo", "LIMPIEZA", {
-                "entrada": len(avisos_raw),
-                "únicos": len(avisos_unicos),
-                "duplicados": dups,
-            })
-
-            # ── VALIDACIÓN ────────────────────────────────────────────────────
-            log_banner_fase("yapo", 3, "VALIDACIÓN")
-            avisos_validos: list[AvisoAuto] = []
-            rechazados = 0
-            for av in avisos_unicos:
-                errores = _validar_aviso(av)
-                if errores:
-                    log_validacion.error(f"[yapo] Aviso rechazado id={av.id_externo}: {errores}")
-                    fail_logs.append(FailLog(
-                        etapa="validacion_json",
-                        motivo="; ".join(errores),
-                        id_externo=av.id_externo,
-                    ))
-                    rechazados += 1
-                else:
-                    avisos_validos.append(av)
-
-            log_resumen_fase("yapo", "VALIDACIÓN", {
-                "válidos": len(avisos_validos),
-                "rechazados": rechazados,
-                "total": len(avisos_unicos),
             })
 
             # ── PROCESADOS (limpieza + validación superada) ──────────────────
@@ -676,9 +711,9 @@ class ScraperYapoCloud(ScraperBase):
                     "timestamp": inicio.isoformat(),
                     "duracion_segundos": round(duracion, 1),
                     "avisos_encontrados": len(avisos_raw),
-                    "avisos_unicos": len(avisos_unicos),
+                    "avisos_unicos": len(vistos_dedup_id),
                     "avisos_validos": len(avisos_validos),
-                    "avisos_rechazados": len(avisos_unicos) - len(avisos_validos),
+                    "avisos_rechazados": rechazados_total,
                     "fail_logs": [asdict(fl) for fl in fail_logs],
                 }
                 try:
