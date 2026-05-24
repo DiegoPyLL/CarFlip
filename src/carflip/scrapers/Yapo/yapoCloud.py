@@ -11,6 +11,7 @@ Etapas cubiertas en scrape():
 import asyncio
 import hashlib
 import json
+import random
 import re
 import sys
 from dataclasses import asdict, dataclass, field
@@ -46,6 +47,11 @@ _MAX_AVISOS = 1_000
 
 _CONCURRENCIA_DETALLES = 5   # páginas de detalle procesadas en paralelo (Playwright)
 _SEM_IMGS = 20               # descargas de imagen concurrentes
+
+_GOTO_MAX_INTENTOS = 3       # reintentos de navegación por página de detalle
+_GOTO_BACKOFF_BASE = 3.0     # backoff entre reintentos: BASE * intento + jitter(0..1)
+_THROTTLE_MIN = 0.3          # delay jittered antes de navegar (espaciar/desincronizar)
+_THROTTLE_MAX = 1.2
 
 _HEADERS_HTTP = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -415,6 +421,10 @@ class ScraperYapoCloud(ScraperBase):
                         aviso_id = construir_id_externo(url_det)
 
                         async with sem_detalles:
+                            # Throttle jittered: espaciar/desincronizar navegaciones concurrentes
+                            # (anti-bot de Yapo + EC2 burstable: dormir aquí también baja la presión
+                            # de CPU, dando margen a que se recuperen los créditos).
+                            await asyncio.sleep(random.uniform(_THROTTLE_MIN, _THROTTLE_MAX))
                             p = await ctx.new_page()
                             await p.route(
                                 "**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,otf}",
@@ -422,14 +432,31 @@ class ScraperYapoCloud(ScraperBase):
                             )
                             try:
                                 log_ingesta.debug(f"[yapo] Detalle {idx}/{total_avisos}: {url_det}")
-                                try:
-                                    await p.goto(url_det, wait_until="domcontentloaded", timeout=25_000)
-                                    await p.wait_for_timeout(1_500)
-                                    attrs = await p.evaluate(self._JS_ATTRS)
-                                except Exception as e:
-                                    log_ingesta.error(f"[yapo] Error cargando detalle id={aviso_id}: {e}")
-                                    fail_logs.append(FailLog(etapa="ingesta", motivo=str(e), id_externo=aviso_id))
-                                    return None
+                                # Retry con backoff: un timeout aislado ya no descarta el aviso, y el
+                                # sleep entre intentos deja respirar al sitio y a la CPU del EC2.
+                                attrs = None
+                                for intento in range(1, _GOTO_MAX_INTENTOS + 1):
+                                    try:
+                                        await p.goto(url_det, wait_until="domcontentloaded", timeout=25_000)
+                                        await p.wait_for_timeout(1_500)
+                                        attrs = await p.evaluate(self._JS_ATTRS)
+                                        break
+                                    except Exception as e:
+                                        if intento < _GOTO_MAX_INTENTOS:
+                                            backoff = _GOTO_BACKOFF_BASE * intento + random.uniform(0, 1)
+                                            log_ingesta.warning(
+                                                f"[yapo] goto fallido id={aviso_id}"
+                                                f" intento {intento}/{_GOTO_MAX_INTENTOS}: {e}."
+                                                f" Reintentando en {backoff:.1f}s"
+                                            )
+                                            await asyncio.sleep(backoff)
+                                        else:
+                                            log_ingesta.error(
+                                                f"[yapo] Error cargando detalle id={aviso_id}"
+                                                f" tras {_GOTO_MAX_INTENTOS} intentos: {e}"
+                                            )
+                                            fail_logs.append(FailLog(etapa="ingesta", motivo=str(e), id_externo=aviso_id))
+                                            return None
 
                                 km_raw = self._get_attr(attrs, "Kilómetros", "Kilometros", "Kilometraje")
                                 precio_raw = self._limpiar_precio(info["precio"])
