@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(powershell.exe -Command \"Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/pbakaus/impeccable/main/.claude/skills/impeccable/SKILL.md' -OutFile '.claude\\\\skills\\\\impeccable\\\\SKILL.md'\")",
+      "Bash(powershell.exe -Command ' *)",
+      "WebFetch(domain:higgsfield.ai)",
+      "WebFetch(domain:mcp.higgsfield.ai)",
+      "WebSearch"
     ]
   }
 }
