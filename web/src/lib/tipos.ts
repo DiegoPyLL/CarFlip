@@ -30,6 +30,7 @@ export interface FiltrosAviso {
   precio_max?: number;
   km_max?: number;
   combustible?: string;
+  orden?: 'reciente' | 'precio_asc' | 'precio_desc' | 'km_asc';
   pagina?: number;
 }
 

@@ -24,7 +24,7 @@ const metaItems = [
 ---
 
 <article class="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200">
-  <a href={`/auto/${aviso.id}`} aria-label={`Ver ${aviso.titulo}`}>
+  <a href={`/auto/${aviso.id}?back=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`} aria-label={`Ver ${aviso.titulo}`}>
     <div class="aspect-[4/3] bg-gray-100 rounded-t-xl overflow-hidden">
       {urlImagen ? (
         <img
@@ -47,6 +47,11 @@ const metaItems = [
         {delta && (
           <span class={`text-xs font-medium px-2 py-0.5 rounded-full ${delta.clases}`}>
             {delta.texto}
+          </span>
+        )}
+        {aviso.disponible === false && (
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+            No disponible
           </span>
         )}
       </div>

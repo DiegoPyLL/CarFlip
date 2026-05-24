@@ -34,6 +34,20 @@ const { filtros, disponibles, total } = Astro.props;
         </select>
       </div>
 
+      <!-- Modelo -->
+      <div class="flex flex-col gap-1">
+        <label for="modelo" class="text-xs font-medium text-gray-600">Modelo</label>
+        <input
+          id="modelo"
+          type="text"
+          name="modelo"
+          value={filtros.modelo ?? ''}
+          placeholder="Ej: Corolla"
+          maxlength="100"
+          class="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
       <!-- Año -->
       <div class="flex flex-col gap-1">
         <label for="anio" class="text-xs font-medium text-gray-600">Año</label>
@@ -54,6 +68,21 @@ const { filtros, disponibles, total } = Astro.props;
             <option value={c} selected={filtros.combustible === c}>{c}</option>
           ))}
         </select>
+      </div>
+
+      <!-- Km máximo -->
+      <div class="flex flex-col gap-1">
+        <label for="km_max" class="text-xs font-medium text-gray-600">Km máx.</label>
+        <input
+          id="km_max"
+          type="number"
+          name="km_max"
+          min="0"
+          step="10000"
+          value={filtros.km_max ?? ''}
+          placeholder="Sin límite"
+          class="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
       </div>
 
       <!-- Precio mínimo -->
@@ -84,6 +113,17 @@ const { filtros, disponibles, total } = Astro.props;
           placeholder="Sin límite"
           class="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+      </div>
+
+      <!-- Ordenar por -->
+      <div class="flex flex-col gap-1">
+        <label for="orden" class="text-xs font-medium text-gray-600">Ordenar por</label>
+        <select id="orden" name="orden" class="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="reciente" selected={!filtros.orden || filtros.orden === 'reciente'}>Más reciente</option>
+          <option value="precio_asc"  selected={filtros.orden === 'precio_asc'}>Precio: menor a mayor</option>
+          <option value="precio_desc" selected={filtros.orden === 'precio_desc'}>Precio: mayor a menor</option>
+          <option value="km_asc"      selected={filtros.orden === 'km_asc'}>Menor kilometraje</option>
+        </select>
       </div>
     </div>
 

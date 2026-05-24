@@ -47,8 +47,6 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
   const pagina = filtros.pagina ?? 1;
   const offset = (pagina - 1) * POR_PAGINA;
 
-  // Condiciones parametrizadas (seguras contra SQL injection). Se usan tras "WHERE 1=1"
-  // para componer AND opcionales sin tener que manejar el primer AND.
   const condicionesSql = () => sql`
     ${filtros.marca ? sql`AND marca ILIKE ${'%' + filtros.marca + '%'}` : sql``}
     ${filtros.modelo ? sql`AND modelo ILIKE ${'%' + filtros.modelo + '%'}` : sql``}
@@ -58,6 +56,15 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
     ${filtros.km_max ? sql`AND km <= ${filtros.km_max}` : sql``}
     ${filtros.combustible ? sql`AND combustible ILIKE ${'%' + filtros.combustible + '%'}` : sql``}
   `;
+
+  const ordenarSql = () => {
+    switch (filtros.orden) {
+      case 'precio_asc':  return sql`ORDER BY precio ASC NULLS LAST`;
+      case 'precio_desc': return sql`ORDER BY precio DESC NULLS LAST`;
+      case 'km_asc':      return sql`ORDER BY km ASC NULLS LAST`;
+      default:            return sql`ORDER BY ultima_vez_visto DESC NULLS LAST`;
+    }
+  };
 
   let rows: RawAviso[];
 
@@ -69,7 +76,7 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
              COUNT(*) OVER() AS total_count
       FROM autocosmos_listings
       WHERE 1=1 ${condicionesSql()}
-      ORDER BY ultima_vez_visto DESC NULLS LAST
+      ${ordenarSql()}
       LIMIT ${POR_PAGINA} OFFSET ${offset}
     `;
   } else if (filtros.fuente === 'yapo') {
@@ -80,7 +87,7 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
              COUNT(*) OVER() AS total_count
       FROM yapo_listings
       WHERE 1=1 ${condicionesSql()}
-      ORDER BY ultima_vez_visto DESC NULLS LAST
+      ${ordenarSql()}
       LIMIT ${POR_PAGINA} OFFSET ${offset}
     `;
   } else {
@@ -98,7 +105,7 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
         FROM yapo_listings
         WHERE 1=1 ${condicionesSql()}
       ) combined
-      ORDER BY ultima_vez_visto DESC NULLS LAST
+      ${ordenarSql()}
       LIMIT ${POR_PAGINA} OFFSET ${offset}
     `;
   }

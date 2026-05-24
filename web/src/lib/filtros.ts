@@ -32,6 +32,11 @@ export function parsearFiltrosUrl(params: URLSearchParams): FiltrosAviso {
   const combustible = params.get('combustible')?.trim().slice(0, 50);
   if (combustible) filtros.combustible = combustible;
 
+  const orden = params.get('orden');
+  if (orden === 'reciente' || orden === 'precio_asc' || orden === 'precio_desc' || orden === 'km_asc') {
+    filtros.orden = orden;
+  }
+
   const pagina = parseInt(params.get('pagina') ?? '1');
   filtros.pagina = !isNaN(pagina) && pagina >= 1 ? pagina : 1;
 
