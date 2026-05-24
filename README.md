@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="carflip_logo.png" alt="CarFlip" width="100%">
+</p>
+
 # CarFlip
 
 Plataforma que agrega avisos de autos en venta desde portales chilenos, normaliza los datos, los almacena en PostgreSQL y detecta oportunidades de compra mediante análisis de historial de precios.
