@@ -1,18 +1,19 @@
-import postgres from 'postgres';
+import { createClient } from '@supabase/supabase-js';
 import type { Aviso, FiltrosAviso, PaginaResultado, FiltrosDisponibles, Estadisticas } from './tipos';
 
-const sql = postgres(process.env.DATABASE_URL!, {
-  max: 1,
-  idle_timeout: 20,
-  connect_timeout: 10,
-  ssl: process.env.USE_SSL === 'true' ? { rejectUnauthorized: false } : false,
-});
+const supabaseUrl = (import.meta.env.SUPABASE_URL as string) || (process.env.SUPABASE_URL as string);
+const supabaseKey = (import.meta.env.SUPABASE_SERVICE_KEY as string) || (process.env.SUPABASE_SERVICE_KEY as string);
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('SUPABASE_URL y SUPABASE_SERVICE_KEY deben estar definidas en web/.env');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const POR_PAGINA = 24;
 
 type RawAviso = {
   id: number;
-  fuente: string;
   id_externo: string;
   url: string;
   titulo: string;
@@ -29,9 +30,8 @@ type RawAviso = {
   disponible: boolean | null;
   precio_anterior: string | null;
   delta_pct: number | null;
-  primera_vez_visto: Date | null;
-  ultima_vez_visto: Date | null;
-  total_count: string;
+  primera_vez_visto: string | null;
+  ultima_vez_visto: string | null;
 };
 
 function mapearAviso(row: RawAviso, fuente: 'autocosmos' | 'yapo'): Aviso {
@@ -40,164 +40,158 @@ function mapearAviso(row: RawAviso, fuente: 'autocosmos' | 'yapo'): Aviso {
     fuente,
     precio: row.precio !== null ? parseFloat(row.precio) : null,
     precio_anterior: row.precio_anterior !== null ? parseFloat(row.precio_anterior) : null,
-  };
+    primera_vez_visto: row.primera_vez_visto ? new Date(row.primera_vez_visto) : null,
+    ultima_vez_visto: row.ultima_vez_visto ? new Date(row.ultima_vez_visto) : null,
+  } as unknown as Aviso;
+}
+
+function aplicarFiltros(query: any, filtros: FiltrosAviso) {
+  if (filtros.marca)      query = query.ilike('marca', `%${filtros.marca}%`);
+  if (filtros.modelo)     query = query.ilike('modelo', `%${filtros.modelo}%`);
+  if (filtros.anio)       query = query.eq('anio', filtros.anio);
+  if (filtros.precio_min) query = query.gte('precio', filtros.precio_min);
+  if (filtros.precio_max) query = query.lte('precio', filtros.precio_max);
+  if (filtros.km_max)     query = query.lte('km', filtros.km_max);
+  if (filtros.combustible) query = query.ilike('combustible', `%${filtros.combustible}%`);
+  return query;
+}
+
+function aplicarOrden(query: any, orden?: string) {
+  switch (orden) {
+    case 'precio_asc':  return query.order('precio',           { ascending: true,  nullsFirst: false });
+    case 'precio_desc': return query.order('precio',           { ascending: false, nullsFirst: false });
+    case 'km_asc':      return query.order('km',               { ascending: true,  nullsFirst: false });
+    default:            return query.order('ultima_vez_visto', { ascending: false, nullsFirst: false });
+  }
+}
+
+function ordenarCombinado(items: Aviso[], orden?: string): Aviso[] {
+  return items.sort((a, b) => {
+    switch (orden) {
+      case 'precio_asc':  return (a.precio ?? Infinity) - (b.precio ?? Infinity);
+      case 'precio_desc': return (b.precio ?? -Infinity) - (a.precio ?? -Infinity);
+      case 'km_asc':      return (a.km ?? Infinity) - (b.km ?? Infinity);
+      default: {
+        const aT = a.ultima_vez_visto ? new Date(a.ultima_vez_visto).getTime() : 0;
+        const bT = b.ultima_vez_visto ? new Date(b.ultima_vez_visto).getTime() : 0;
+        return bT - aT;
+      }
+    }
+  });
 }
 
 export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResultado<Aviso>> {
   const pagina = filtros.pagina ?? 1;
   const offset = (pagina - 1) * POR_PAGINA;
 
-  const condicionesSql = () => sql`
-    ${filtros.marca ? sql`AND marca ILIKE ${'%' + filtros.marca + '%'}` : sql``}
-    ${filtros.modelo ? sql`AND LOWER(REPLACE(modelo, '-', '')) ILIKE LOWER(REPLACE(${'%' + filtros.modelo + '%'}, '-', ''))` : sql``}
-    ${filtros.anio ? sql`AND anio = ${filtros.anio}` : sql``}
-    ${filtros.precio_min ? sql`AND precio >= ${filtros.precio_min}` : sql``}
-    ${filtros.precio_max ? sql`AND precio <= ${filtros.precio_max}` : sql``}
-    ${filtros.km_max ? sql`AND km <= ${filtros.km_max}` : sql``}
-    ${filtros.combustible ? sql`AND combustible ILIKE ${'%' + filtros.combustible + '%'}` : sql``}
-  `;
-
-  const ordenarSql = () => {
-    switch (filtros.orden) {
-      case 'precio_asc':  return sql`ORDER BY precio ASC NULLS LAST`;
-      case 'precio_desc': return sql`ORDER BY precio DESC NULLS LAST`;
-      case 'km_asc':      return sql`ORDER BY km ASC NULLS LAST`;
-      default:            return sql`ORDER BY ultima_vez_visto DESC NULLS LAST`;
-    }
-  };
-
-  let rows: RawAviso[];
-
   if (filtros.fuente === 'autocosmos') {
-    rows = await sql<RawAviso[]>`
-      SELECT id, 'autocosmos' AS fuente, id_externo, url, titulo, precio::text, moneda,
-             marca, CASE WHEN LOWER(REPLACE(modelo, '-', '')) = 'dmax' THEN 'D-MAX' ELSE modelo END AS modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
-             disponible, precio_anterior::text, delta_pct, primera_vez_visto, ultima_vez_visto,
-             COUNT(*) OVER() AS total_count
-      FROM autocosmos_listings
-      WHERE 1=1 ${condicionesSql()}
-      ${ordenarSql()}
-      LIMIT ${POR_PAGINA} OFFSET ${offset}
-    `;
-  } else if (filtros.fuente === 'yapo') {
-    rows = await sql<RawAviso[]>`
-      SELECT id, 'yapo' AS fuente, id_externo, url, titulo, precio::text, moneda,
-             marca, CASE WHEN LOWER(REPLACE(modelo, '-', '')) = 'dmax' THEN 'D-MAX' ELSE modelo END AS modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
-             disponible, precio_anterior::text, delta_pct, primera_vez_visto, ultima_vez_visto,
-             COUNT(*) OVER() AS total_count
-      FROM yapo_listings
-      WHERE 1=1 ${condicionesSql()}
-      ${ordenarSql()}
-      LIMIT ${POR_PAGINA} OFFSET ${offset}
-    `;
-  } else {
-    rows = await sql<RawAviso[]>`
-      SELECT combined.*, COUNT(*) OVER() AS total_count FROM (
-        SELECT id, 'autocosmos' AS fuente, id_externo, url, titulo, precio::text, moneda,
-               marca, CASE WHEN LOWER(REPLACE(modelo, '-', '')) = 'dmax' THEN 'D-MAX' ELSE modelo END AS modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
-               disponible, precio_anterior::text, delta_pct, primera_vez_visto, ultima_vez_visto
-        FROM autocosmos_listings
-        WHERE 1=1 ${condicionesSql()}
-        UNION ALL
-        SELECT id, 'yapo' AS fuente, id_externo, url, titulo, precio::text, moneda,
-               marca, CASE WHEN LOWER(REPLACE(modelo, '-', '')) = 'dmax' THEN 'D-MAX' ELSE modelo END AS modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
-               disponible, precio_anterior::text, delta_pct, primera_vez_visto, ultima_vez_visto
-        FROM yapo_listings
-        WHERE 1=1 ${condicionesSql()}
-      ) combined
-      ${ordenarSql()}
-      LIMIT ${POR_PAGINA} OFFSET ${offset}
-    `;
+    let q = supabase.from('autocosmos_listings').select('*', { count: 'exact' });
+    q = aplicarFiltros(q, filtros);
+    q = aplicarOrden(q, filtros.orden);
+    q = q.range(offset, offset + POR_PAGINA - 1);
+    const { data, count, error } = await q;
+    if (error) throw error;
+    const items = (data ?? []).map(r => mapearAviso(r as RawAviso, 'autocosmos'));
+    const total = count ?? 0;
+    return { items, total, pagina, total_paginas: Math.ceil(total / POR_PAGINA), por_pagina: POR_PAGINA };
   }
 
-  const total = rows.length > 0 ? parseInt(rows[0].total_count) : 0;
-  const items = rows.map((r) => mapearAviso(r, r.fuente as 'autocosmos' | 'yapo'));
+  if (filtros.fuente === 'yapo') {
+    let q = supabase.from('yapo_listings').select('*', { count: 'exact' });
+    q = aplicarFiltros(q, filtros);
+    q = aplicarOrden(q, filtros.orden);
+    q = q.range(offset, offset + POR_PAGINA - 1);
+    const { data, count, error } = await q;
+    if (error) throw error;
+    const items = (data ?? []).map(r => mapearAviso(r as RawAviso, 'yapo'));
+    const total = count ?? 0;
+    return { items, total, pagina, total_paginas: Math.ceil(total / POR_PAGINA), por_pagina: POR_PAGINA };
+  }
 
-  return {
-    items,
-    total,
-    pagina,
-    total_paginas: Math.ceil(total / POR_PAGINA),
-    por_pagina: POR_PAGINA,
-  };
+  // Todas las fuentes: combinar ambas tablas
+  let qAC = supabase.from('autocosmos_listings').select('*');
+  let qYP = supabase.from('yapo_listings').select('*');
+  qAC = aplicarFiltros(qAC, filtros);
+  qYP = aplicarFiltros(qYP, filtros);
+  qAC = aplicarOrden(qAC, filtros.orden);
+  qYP = aplicarOrden(qYP, filtros.orden);
+
+  const [{ data: dataAC, error: errAC }, { data: dataYP, error: errYP }] = await Promise.all([qAC, qYP]);
+  if (errAC) throw errAC;
+  if (errYP) throw errYP;
+
+  const combined = ordenarCombinado([
+    ...(dataAC ?? []).map(r => mapearAviso(r as RawAviso, 'autocosmos')),
+    ...(dataYP ?? []).map(r => mapearAviso(r as RawAviso, 'yapo')),
+  ], filtros.orden);
+
+  const total = combined.length;
+  const items = combined.slice(offset, offset + POR_PAGINA);
+  return { items, total, pagina, total_paginas: Math.ceil(total / POR_PAGINA), por_pagina: POR_PAGINA };
 }
 
 export async function obtenerAviso(id: number): Promise<Aviso | null> {
-  const [autoRow] = await sql<RawAviso[]>`
-    SELECT id, 'autocosmos' AS fuente, id_externo, url, titulo, precio::text, moneda,
-           marca, CASE WHEN LOWER(REPLACE(modelo, '-', '')) = 'dmax' THEN 'D-MAX' ELSE modelo END AS modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
-           disponible, precio_anterior::text, delta_pct, primera_vez_visto, ultima_vez_visto,
-           '1' AS total_count
-    FROM autocosmos_listings WHERE id = ${id}
-  `;
-  if (autoRow) return mapearAviso(autoRow, 'autocosmos');
+  const { data: acRow } = await supabase.from('autocosmos_listings').select('*').eq('id', id).maybeSingle();
+  if (acRow) return mapearAviso(acRow as RawAviso, 'autocosmos');
 
-  const [yapoRow] = await sql<RawAviso[]>`
-    SELECT id, 'yapo' AS fuente, id_externo, url, titulo, precio::text, moneda,
-           marca, CASE WHEN LOWER(REPLACE(modelo, '-', '')) = 'dmax' THEN 'D-MAX' ELSE modelo END AS modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
-           disponible, precio_anterior::text, delta_pct, primera_vez_visto, ultima_vez_visto,
-           '1' AS total_count
-    FROM yapo_listings WHERE id = ${id}
-  `;
-  return yapoRow ? mapearAviso(yapoRow, 'yapo') : null;
+  const { data: yapoRow } = await supabase.from('yapo_listings').select('*').eq('id', id).maybeSingle();
+  return yapoRow ? mapearAviso(yapoRow as RawAviso, 'yapo') : null;
 }
 
 export async function obtenerFiltrosDisponibles(): Promise<FiltrosDisponibles> {
-  const [marcasAC, marcasYP, aniosAC, aniosYP, combustiblesAC, combustiblesYP] = await Promise.all([
-    sql<{ marca: string }[]>`SELECT DISTINCT marca FROM autocosmos_listings WHERE marca IS NOT NULL ORDER BY marca`,
-    sql<{ marca: string }[]>`SELECT DISTINCT marca FROM yapo_listings WHERE marca IS NOT NULL ORDER BY marca`,
-    sql<{ anio: number }[]>`SELECT DISTINCT anio FROM autocosmos_listings WHERE anio IS NOT NULL ORDER BY anio DESC`,
-    sql<{ anio: number }[]>`SELECT DISTINCT anio FROM yapo_listings WHERE anio IS NOT NULL ORDER BY anio DESC`,
-    sql<{ combustible: string }[]>`SELECT DISTINCT combustible FROM autocosmos_listings WHERE combustible IS NOT NULL ORDER BY combustible`,
-    sql<{ combustible: string }[]>`SELECT DISTINCT combustible FROM yapo_listings WHERE combustible IS NOT NULL ORDER BY combustible`,
+  const [
+    { data: marcasAC }, { data: marcasYP },
+    { data: aniosAC },  { data: aniosYP },
+    { data: combsAC },  { data: combsYP },
+  ] = await Promise.all([
+    supabase.from('autocosmos_listings').select('marca').not('marca', 'is', null),
+    supabase.from('yapo_listings').select('marca').not('marca', 'is', null),
+    supabase.from('autocosmos_listings').select('anio').not('anio', 'is', null),
+    supabase.from('yapo_listings').select('anio').not('anio', 'is', null),
+    supabase.from('autocosmos_listings').select('combustible').not('combustible', 'is', null),
+    supabase.from('yapo_listings').select('combustible').not('combustible', 'is', null),
   ]);
 
-  const marcas = [...new Set([...marcasAC.map((r) => r.marca), ...marcasYP.map((r) => r.marca)])].sort();
-  const anios = [...new Set([...aniosAC.map((r) => r.anio), ...aniosYP.map((r) => r.anio)])].sort((a, b) => b - a);
-  const combustibles = [...new Set([...combustiblesAC.map((r) => r.combustible), ...combustiblesYP.map((r) => r.combustible)])].sort();
+  const marcas = [...new Set([
+    ...(marcasAC ?? []).map((r: any) => r.marca as string),
+    ...(marcasYP ?? []).map((r: any) => r.marca as string),
+  ])].sort();
+
+  const anios = [...new Set([
+    ...(aniosAC ?? []).map((r: any) => r.anio as number),
+    ...(aniosYP ?? []).map((r: any) => r.anio as number),
+  ])].sort((a, b) => b - a);
+
+  const combustibles = [...new Set([
+    ...(combsAC ?? []).map((r: any) => r.combustible as string),
+    ...(combsYP ?? []).map((r: any) => r.combustible as string),
+  ])].sort();
 
   return { marcas, anios, combustibles };
 }
 
 export async function obtenerEstadisticas(): Promise<Estadisticas> {
-  type StatsRow = { total: string; precio_promedio: string | null; precio_minimo: string | null; precio_maximo: string | null; ultima: Date | null };
-
-  const [[ac], [yp]] = await Promise.all([
-    sql<StatsRow[]>`
-      SELECT COUNT(*) AS total, AVG(precio) AS precio_promedio, MIN(precio) AS precio_minimo,
-             MAX(precio) AS precio_maximo, MAX(ultima_vez_visto) AS ultima
-      FROM autocosmos_listings
-    `,
-    sql<StatsRow[]>`
-      SELECT COUNT(*) AS total, AVG(precio) AS precio_promedio, MIN(precio) AS precio_minimo,
-             MAX(precio) AS precio_maximo, MAX(ultima_vez_visto) AS ultima
-      FROM yapo_listings
-    `,
+  const [{ data: statsAC }, { data: statsYP }] = await Promise.all([
+    supabase.from('autocosmos_listings').select('precio, ultima_vez_visto'),
+    supabase.from('yapo_listings').select('precio, ultima_vez_visto'),
   ]);
 
-  const totalAC = parseInt(ac.total);
-  const totalYP = parseInt(yp.total);
+  const preciosAC = (statsAC ?? []).map((r: any) => r.precio ? parseFloat(r.precio) : null).filter((p): p is number => p !== null);
+  const preciosYP = (statsYP ?? []).map((r: any) => r.precio ? parseFloat(r.precio) : null).filter((p): p is number => p !== null);
+
+  const totalAC = statsAC?.length ?? 0;
+  const totalYP = statsYP?.length ?? 0;
   const total = totalAC + totalYP;
 
-  const promedioAC = ac.precio_promedio !== null ? parseFloat(ac.precio_promedio) : null;
-  const promedioYP = yp.precio_promedio !== null ? parseFloat(yp.precio_promedio) : null;
+  const todosPrecios = [...preciosAC, ...preciosYP];
+  const precio_promedio = todosPrecios.length > 0 ? todosPrecios.reduce((a, b) => a + b, 0) / todosPrecios.length : null;
+  const precio_minimo = todosPrecios.length > 0 ? Math.min(...todosPrecios) : null;
+  const precio_maximo = todosPrecios.length > 0 ? Math.max(...todosPrecios) : null;
 
-  let precio_promedio: number | null = null;
-  if (promedioAC !== null && promedioYP !== null && total > 0) {
-    precio_promedio = (promedioAC * totalAC + promedioYP * totalYP) / total;
-  } else {
-    precio_promedio = promedioAC ?? promedioYP;
-  }
-
-  const minimoAC = ac.precio_minimo !== null ? parseFloat(ac.precio_minimo) : null;
-  const minimoYP = yp.precio_minimo !== null ? parseFloat(yp.precio_minimo) : null;
-  const maximoAC = ac.precio_maximo !== null ? parseFloat(ac.precio_maximo) : null;
-  const maximoYP = yp.precio_maximo !== null ? parseFloat(yp.precio_maximo) : null;
-
-  const precio_minimo = minimoAC !== null && minimoYP !== null ? Math.min(minimoAC, minimoYP) : minimoAC ?? minimoYP;
-  const precio_maximo = maximoAC !== null && maximoYP !== null ? Math.max(maximoAC, maximoYP) : maximoAC ?? maximoYP;
-
-  const ultima_actualizacion = ac.ultima && yp.ultima ? (ac.ultima > yp.ultima ? ac.ultima : yp.ultima) : ac.ultima ?? yp.ultima;
+  const fechasAC = (statsAC ?? []).map((r: any) => r.ultima_vez_visto ? new Date(r.ultima_vez_visto) : null).filter((d): d is Date => d !== null);
+  const fechasYP = (statsYP ?? []).map((r: any) => r.ultima_vez_visto ? new Date(r.ultima_vez_visto) : null).filter((d): d is Date => d !== null);
+  const todasFechas = [...fechasAC, ...fechasYP];
+  const ultima_actualizacion = todasFechas.length > 0 ? new Date(Math.max(...todasFechas.map(d => d.getTime()))) : null;
 
   return {
     total_avisos: total,
