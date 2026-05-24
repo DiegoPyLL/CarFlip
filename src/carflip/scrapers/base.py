@@ -20,9 +20,9 @@ def normalizar_url(url: str) -> str:
     return urlunparse(p._replace(query="", fragment="")).rstrip("/")
 
 
-def construir_id_externo(codigo_fuente: int, id_nativo: str) -> str:
-    """Identificador global estable y único por fuente: '{codigo}-{id_nativo}'."""
-    return f"{codigo_fuente}-{id_nativo}"
+def construir_id_externo(url: str) -> str:
+    """Identificador global estable y único: SHA256 del URL canónico."""
+    return hashlib.sha256(normalizar_url(url).encode()).hexdigest()
 
 
 @dataclass

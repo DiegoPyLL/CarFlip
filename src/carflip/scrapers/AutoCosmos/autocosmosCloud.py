@@ -255,7 +255,7 @@ def _parsear_aviso(tag: Tag) -> AvisoAuto | None:
         return None
 
     url = urljoin(BASE_URL, href)
-    id_externo = construir_id_externo(CODIGO_FUENTE, match.group(1))
+    id_externo = construir_id_externo(url)
 
     partes = href.rstrip("/").split("/")
     marca = partes[3].replace("-", " ").title() if len(partes) > 3 else None
@@ -495,7 +495,7 @@ class ScraperAutocosmosCloud(ScraperBase):
                                 ruta_orig, ruta_avif = resultado
                                 if ruta_orig is not None:
                                     fotos_pagina[aviso.id_externo] = ruta_orig.name
-                                    clave_raw = f"autocosmos/raw/fotos/{ruta_orig.name}"
+                                    clave_raw = f"autocosmos/{fecha_dia}/raw/fotos/{ruta_orig.name}"
                                     tareas_s3_info.append(
                                         (
                                             cargar_a_s3_con_retry(
@@ -514,7 +514,7 @@ class ScraperAutocosmosCloud(ScraperBase):
                                         id_externo=aviso.id_externo,
                                     ))
                                 if ruta_avif is not None:
-                                    clave_proc = f"autocosmos/processed/fotos/{ruta_avif.name}"
+                                    clave_proc = f"autocosmos/{fecha_dia}/processed/fotos/{ruta_avif.name}"
                                     tareas_s3_info.append(
                                         (
                                             cargar_a_s3_con_retry(

@@ -403,7 +403,7 @@ class ScraperYapoCloud(ScraperBase):
                     async def _tarea_detalle(info: dict, idx: int) -> AvisoAuto | None:
                         nonlocal fotos_ok_total, fotos_total
                         url_det = info["url"]
-                        aviso_id = construir_id_externo(CODIGO_FUENTE, _id_nativo_yapo(url_det))
+                        aviso_id = construir_id_externo(url_det)
 
                         async with sem_detalles:
                             p = await ctx.new_page()
