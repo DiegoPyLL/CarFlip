@@ -1,7 +1,9 @@
 """Subida a S3 y URLs públicas vía CloudFront."""
 
 import asyncio
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import AsyncIterator
 
 import aioboto3
 from botocore.exceptions import ClientError
@@ -36,26 +38,39 @@ def url_cdn_desde_clave_s3(clave_s3: str) -> str | None:
     return f"{base}/{clave_s3.lstrip('/')}"
 
 
+@asynccontextmanager
+async def cliente_s3() -> AsyncIterator:
+    """Context manager que abre un único cliente S3 compartible por toda una ejecución."""
+    sesion = aioboto3.Session(
+        aws_access_key_id=settings.s3_access_key_id,
+        aws_secret_access_key=settings.s3_secret_access_key,
+        region_name=settings.s3_region,
+    )
+    async with sesion.client("s3") as cliente:  # type: ignore[attr-defined]
+        yield cliente
+
+
 async def cargar_a_s3_con_retry(
     ruta_local: Path,
     clave_s3: str,
     *,
     etiqueta_log: str = "s3",
     skip_si_existe: bool = False,
+    cliente: object | None = None,
 ) -> bool:
-    """Sube archivo a S3 con Content-Type correcto y reintentos."""
-    sesion = aioboto3.Session(
-        aws_access_key_id=settings.s3_access_key_id,
-        aws_secret_access_key=settings.s3_secret_access_key,
-        region_name=settings.s3_region,
-    )
+    """Sube archivo a S3 con Content-Type correcto y reintentos.
+
+    Si se pasa `cliente` (obtenido de `async with cliente_s3()`), se reutiliza
+    la conexión existente — evita crear/destruir un cliente por cada archivo,
+    lo que causaba ClientConnectionResetError en uploads concurrentes.
+    """
     datos = ruta_local.read_bytes()
     content_type = content_type_desde_ruta(ruta_local)
 
-    async with sesion.client("s3") as cliente:  # type: ignore[attr-defined]
+    async def _subir(c: object) -> bool:
         if skip_si_existe:
             try:
-                await cliente.head_object(Bucket=settings.s3_bucket, Key=clave_s3)
+                await c.head_object(Bucket=settings.s3_bucket, Key=clave_s3)  # type: ignore[attr-defined]
                 logger.debug(f"[{etiqueta_log}] S3 skip (ya existe): {clave_s3}")
                 return True
             except ClientError:
@@ -63,13 +78,13 @@ async def cargar_a_s3_con_retry(
 
         for intento in range(1, _S3_MAX_REINTENTOS + 1):
             try:
-                await cliente.put_object(
+                await c.put_object(  # type: ignore[attr-defined]
                     Bucket=settings.s3_bucket,
                     Key=clave_s3,
                     Body=datos,
                     ContentType=content_type,
                 )
-                await cliente.head_object(Bucket=settings.s3_bucket, Key=clave_s3)
+                await c.head_object(Bucket=settings.s3_bucket, Key=clave_s3)  # type: ignore[attr-defined]
                 logger.debug(f"[{etiqueta_log}] S3 upload OK: {clave_s3} ({content_type})")
                 return True
             except (ClientError, Exception) as exc:
@@ -84,4 +99,10 @@ async def cargar_a_s3_con_retry(
                         f"[{etiqueta_log}] S3 upload agotó {_S3_MAX_REINTENTOS} reintentos:"
                         f" {clave_s3} — {exc}"
                     )
-    return False
+        return False
+
+    if cliente is not None:
+        return await _subir(cliente)
+
+    async with cliente_s3() as c:
+        return await _subir(c)

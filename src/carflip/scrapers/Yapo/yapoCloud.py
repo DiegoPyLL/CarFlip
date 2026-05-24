@@ -32,7 +32,7 @@ from carflip.scrapers.base import (
     normalizar_url,
 )
 from carflip.scrapers.image_utils import convertir_a_avif
-from carflip.storage.s3_cdn import cargar_a_s3_con_retry, url_cdn_desde_clave_s3
+from carflip.storage.s3_cdn import cargar_a_s3_con_retry, cliente_s3, url_cdn_desde_clave_s3
 
 CODIGO_FUENTE = 101  # identificador único de yapo (ver ScraperBase.codigo_fuente)
 
@@ -408,7 +408,7 @@ class ScraperYapoCloud(ScraperBase):
                 lock_jsonl = asyncio.Lock()
                 total_avisos = len(avisos_info)
 
-                async with httpx.AsyncClient() as cliente_http:
+                async with httpx.AsyncClient() as cliente_http, cliente_s3() as s3:
                     async def _tarea_detalle(info: dict, idx: int) -> AvisoAuto | None:
                         nonlocal fotos_ok_total, fotos_total
                         url_det = info["url"]
@@ -482,7 +482,7 @@ class ScraperYapoCloud(ScraperBase):
                                             (
                                                 cargar_a_s3_con_retry(
                                                     ruta_orig, clave_raw, etiqueta_log="yapo",
-                                                    skip_si_existe=True,
+                                                    skip_si_existe=True, cliente=s3,
                                                 ),
                                                 "upload_foto_raw",
                                                 None,
@@ -497,7 +497,7 @@ class ScraperYapoCloud(ScraperBase):
                                                 (
                                                     cargar_a_s3_con_retry(
                                                         ruta_avif, clave_avif, etiqueta_log="yapo",
-                                                        skip_si_existe=True,
+                                                        skip_si_existe=True, cliente=s3,
                                                     ),
                                                     "upload_foto_processed",
                                                     clave_avif,
