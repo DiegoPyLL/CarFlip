@@ -49,7 +49,7 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
 
   const condicionesSql = () => sql`
     ${filtros.marca ? sql`AND marca ILIKE ${'%' + filtros.marca + '%'}` : sql``}
-    ${filtros.modelo ? sql`AND modelo ILIKE ${'%' + filtros.modelo + '%'}` : sql``}
+    ${filtros.modelo ? sql`AND LOWER(REPLACE(modelo, '-', '')) ILIKE LOWER(REPLACE(${'%' + filtros.modelo + '%'}, '-', ''))` : sql``}
     ${filtros.anio ? sql`AND anio = ${filtros.anio}` : sql``}
     ${filtros.precio_min ? sql`AND precio >= ${filtros.precio_min}` : sql``}
     ${filtros.precio_max ? sql`AND precio <= ${filtros.precio_max}` : sql``}
@@ -71,7 +71,7 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
   if (filtros.fuente === 'autocosmos') {
     rows = await sql<RawAviso[]>`
       SELECT id, 'autocosmos' AS fuente, id_externo, url, titulo, precio::text, moneda,
-             marca, modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
+             marca, CASE WHEN LOWER(REPLACE(modelo, '-', '')) = 'dmax' THEN 'D-MAX' ELSE modelo END AS modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
              disponible, precio_anterior::text, delta_pct, primera_vez_visto, ultima_vez_visto,
              COUNT(*) OVER() AS total_count
       FROM autocosmos_listings
@@ -82,7 +82,7 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
   } else if (filtros.fuente === 'yapo') {
     rows = await sql<RawAviso[]>`
       SELECT id, 'yapo' AS fuente, id_externo, url, titulo, precio::text, moneda,
-             marca, modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
+             marca, CASE WHEN LOWER(REPLACE(modelo, '-', '')) = 'dmax' THEN 'D-MAX' ELSE modelo END AS modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
              disponible, precio_anterior::text, delta_pct, primera_vez_visto, ultima_vez_visto,
              COUNT(*) OVER() AS total_count
       FROM yapo_listings
@@ -94,13 +94,13 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
     rows = await sql<RawAviso[]>`
       SELECT combined.*, COUNT(*) OVER() AS total_count FROM (
         SELECT id, 'autocosmos' AS fuente, id_externo, url, titulo, precio::text, moneda,
-               marca, modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
+               marca, CASE WHEN LOWER(REPLACE(modelo, '-', '')) = 'dmax' THEN 'D-MAX' ELSE modelo END AS modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
                disponible, precio_anterior::text, delta_pct, primera_vez_visto, ultima_vez_visto
         FROM autocosmos_listings
         WHERE 1=1 ${condicionesSql()}
         UNION ALL
         SELECT id, 'yapo' AS fuente, id_externo, url, titulo, precio::text, moneda,
-               marca, modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
+               marca, CASE WHEN LOWER(REPLACE(modelo, '-', '')) = 'dmax' THEN 'D-MAX' ELSE modelo END AS modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
                disponible, precio_anterior::text, delta_pct, primera_vez_visto, ultima_vez_visto
         FROM yapo_listings
         WHERE 1=1 ${condicionesSql()}
@@ -125,7 +125,7 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
 export async function obtenerAviso(id: number): Promise<Aviso | null> {
   const [autoRow] = await sql<RawAviso[]>`
     SELECT id, 'autocosmos' AS fuente, id_externo, url, titulo, precio::text, moneda,
-           marca, modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
+           marca, CASE WHEN LOWER(REPLACE(modelo, '-', '')) = 'dmax' THEN 'D-MAX' ELSE modelo END AS modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
            disponible, precio_anterior::text, delta_pct, primera_vez_visto, ultima_vez_visto,
            '1' AS total_count
     FROM autocosmos_listings WHERE id = ${id}
@@ -134,7 +134,7 @@ export async function obtenerAviso(id: number): Promise<Aviso | null> {
 
   const [yapoRow] = await sql<RawAviso[]>`
     SELECT id, 'yapo' AS fuente, id_externo, url, titulo, precio::text, moneda,
-           marca, modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
+           marca, CASE WHEN LOWER(REPLACE(modelo, '-', '')) = 'dmax' THEN 'D-MAX' ELSE modelo END AS modelo, anio, km, ubicacion, combustible, descripcion, url_imagen,
            disponible, precio_anterior::text, delta_pct, primera_vez_visto, ultima_vez_visto,
            '1' AS total_count
     FROM yapo_listings WHERE id = ${id}
