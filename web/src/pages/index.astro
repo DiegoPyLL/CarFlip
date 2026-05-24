@@ -2,70 +2,190 @@
 import Base from '@layouts/Base.astro';
 import CardAviso from '@components/CardAviso.astro';
 import FiltrosBarra from '@components/FiltrosBarra.astro';
+import FiltrosSidebar from '@components/FiltrosSidebar.astro';
 import Paginacion from '@components/Paginacion.astro';
 import { obtenerAvisos, obtenerFiltrosDisponibles, obtenerEstadisticas } from '@lib/db';
 import { parsearFiltrosUrl } from '@lib/filtros';
 import { formatearPrecio, formatearFecha } from '@lib/formato';
+import { normalizarBusqueda } from '@lib/busqueda';
 
 const params = Astro.url.searchParams;
 const filtros = parsearFiltrosUrl(params);
 
-const [resultado, disponibles, estadisticas] = await Promise.all([
-  obtenerAvisos(filtros),
+// Obtenemos las marcas disponibles primero para poder normalizar el término de búsqueda.
+// Así "peugot" → "Peugeot" antes de hacer la query a la BD.
+const [disponibles, estadisticas] = await Promise.all([
   obtenerFiltrosDisponibles(),
   obtenerEstadisticas(),
 ]);
+
+if (filtros.modelo) {
+  filtros.modelo = normalizarBusqueda(filtros.modelo, disponibles.marcas);
+}
+
+const resultado = await obtenerAvisos(filtros);
+
+const ordenOptions = [
+  { value: 'reciente',    label: 'Más reciente' },
+  { value: 'precio_asc',  label: 'Precio: menor a mayor' },
+  { value: 'precio_desc', label: 'Precio: mayor a menor' },
+  { value: 'km_asc',      label: 'Menor kilometraje' },
+];
 ---
 
 <Base titulo="CarFlip — Autos en venta en Chile">
-  <!-- Stats row -->
-  <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
-    <div class="bg-white rounded-xl shadow-sm p-4">
-      <p class="text-xs text-gray-500 mb-1">Total avisos</p>
-      <p class="text-2xl font-bold text-gray-900">{estadisticas.total_avisos.toLocaleString('es-CL')}</p>
-    </div>
-    <div class="bg-white rounded-xl shadow-sm p-4">
-      <p class="text-xs text-gray-500 mb-1">Precio promedio</p>
-      <p class="text-xl font-bold text-gray-900">
-        {estadisticas.precio_promedio ? formatearPrecio(Math.round(estadisticas.precio_promedio)) : '—'}
-      </p>
-    </div>
-    <div class="bg-white rounded-xl shadow-sm p-4">
-      <p class="text-xs text-gray-500 mb-1">Autocosmos</p>
-      <p class="text-2xl font-bold text-blue-600">{estadisticas.total_autocosmos.toLocaleString('es-CL')}</p>
-    </div>
-    <div class="bg-white rounded-xl shadow-sm p-4">
-      <p class="text-xs text-gray-500 mb-1">Yapo</p>
-      <p class="text-2xl font-bold text-orange-600">{estadisticas.total_yapo.toLocaleString('es-CL')}</p>
-    </div>
-    <div class="bg-white rounded-xl shadow-sm p-4">
-      <p class="text-xs text-gray-500 mb-1">Última actualización</p>
-      <p class="text-sm font-medium text-gray-700">{formatearFecha(estadisticas.ultima_actualizacion)}</p>
-    </div>
+
+  <!-- Stats strip -->
+  <div class="flex flex-wrap items-baseline gap-x-5 gap-y-1.5 mb-6">
+    <span class="flex items-baseline gap-2">
+      <span class="text-2xl font-black text-zinc-100 tabular-nums">
+        {estadisticas.total_avisos.toLocaleString('es-CL')}
+      </span>
+      <span class="text-sm text-zinc-600">avisos</span>
+    </span>
+
+    <span class="text-zinc-800 hidden sm:block">·</span>
+
+    <span class="flex items-baseline gap-2">
+      <span class="text-lg font-bold text-amber-400 tabular-nums">
+        {estadisticas.precio_promedio
+          ? formatearPrecio(Math.round(estadisticas.precio_promedio))
+          : '—'}
+      </span>
+      <span class="text-sm text-zinc-600">promedio</span>
+    </span>
+
+    <span class="text-zinc-800 hidden sm:block">·</span>
+
+    <span class="text-sm text-zinc-500">
+      Autocosmos
+      <span class="text-zinc-300 font-semibold ml-1">
+        {estadisticas.total_autocosmos.toLocaleString('es-CL')}
+      </span>
+    </span>
+
+    <span class="text-zinc-800 hidden sm:block">·</span>
+
+    <span class="text-sm text-zinc-500">
+      Yapo
+      <span class="text-zinc-300 font-semibold ml-1">
+        {estadisticas.total_yapo.toLocaleString('es-CL')}
+      </span>
+    </span>
+
+    {estadisticas.ultima_actualizacion && (
+      <>
+        <span class="text-zinc-800 hidden sm:block">·</span>
+        <span class="text-sm text-zinc-600">
+          {formatearFecha(estadisticas.ultima_actualizacion)}
+        </span>
+      </>
+    )}
   </div>
 
-  <!-- Filtros -->
-  <FiltrosBarra filtros={filtros} disponibles={disponibles} total={resultado.total} />
+  <!-- Único form que engloba todos los filtros -->
+  <form method="GET" action="/" id="filtros-form">
 
-  <!-- Grid de avisos -->
-  {resultado.items.length > 0 ? (
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-      {resultado.items.map((aviso) => (
-        <CardAviso aviso={aviso} />
-      ))}
-    </div>
-  ) : (
-    <div class="text-center py-16 text-gray-500">
-      <p class="text-4xl mb-4" aria-hidden="true">🔍</p>
-      <p class="text-lg font-medium">No se encontraron avisos</p>
-      <p class="text-sm mt-1">Prueba con otros filtros o <a href="/" class="text-blue-700 hover:underline">ver todos</a></p>
-    </div>
-  )}
+    <!-- Barra superior: fuente + marca + año -->
+    <FiltrosBarra filtros={filtros} disponibles={disponibles} />
 
-  <!-- Paginación -->
-  <Paginacion
-    pagina={resultado.pagina}
-    total_paginas={resultado.total_paginas}
-    params={params}
-  />
+    <!-- Layout de dos columnas (en mobile se apila verticalmente) -->
+    <div class="flex flex-col lg:flex-row gap-5 items-start">
+
+      <!-- Sidebar izquierdo (filtros avanzados) -->
+      <FiltrosSidebar filtros={filtros} disponibles={disponibles} />
+
+      <!-- Contenido principal -->
+      <div class="flex-1 min-w-0">
+
+        <!-- Barra: ordenar + contador -->
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-sm text-zinc-500">
+            {resultado.total === 0
+              ? 'Sin resultados'
+              : <><span class="text-zinc-200 font-semibold">{resultado.total.toLocaleString('es-CL')}</span> {resultado.total === 1 ? 'aviso' : 'avisos'}</>
+            }
+          </p>
+          <div class="flex items-center gap-2">
+            <label for="orden" class="text-xs text-zinc-600 hidden sm:block shrink-0">
+              Ordenar por
+            </label>
+            <select
+              id="orden"
+              name="orden"
+              onchange="document.getElementById('filtros-form').submit()"
+              class="text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-zinc-300 appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-amber-400/50 transition-colors"
+            >
+              {ordenOptions.map(({ value, label }) => (
+                <option
+                  value={value}
+                  selected={filtros.orden === value || (!filtros.orden && value === 'reciente')}
+                >
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <!-- Grid de avisos -->
+        {resultado.items.length > 0 ? (
+          <div
+            id="listings-grid"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4"
+          >
+            {resultado.items.map((aviso) => (
+              <CardAviso aviso={aviso} />
+            ))}
+          </div>
+        ) : (
+          <div class="text-center py-24">
+            <p class="text-zinc-500 font-medium">Sin resultados para estos filtros</p>
+            <a
+              href="/"
+              class="mt-3 inline-block text-sm text-amber-400 hover:text-amber-300 transition-colors"
+            >
+              Ver todos los avisos
+            </a>
+          </div>
+        )}
+
+        <!-- Paginación -->
+        <Paginacion
+          pagina={resultado.pagina}
+          total_paginas={resultado.total_paginas}
+          params={params}
+        />
+
+      </div>
+    </div>
+  </form>
+
 </Base>
+
+<!-- Animaciones de entrada con Motion.dev -->
+<script>
+  import { animate, inView, stagger } from 'motion';
+
+  const grid = document.getElementById('listings-grid');
+  if (grid) {
+    const cards = grid.querySelectorAll('article');
+    animate(cards, { opacity: 0, y: 12 }, { duration: 0 });
+
+    inView(
+      grid,
+      () => {
+        animate(
+          cards,
+          { opacity: 1, y: 0 },
+          {
+            duration: 0.36,
+            delay: stagger(0.04),
+            easing: [0.2, 0, 0, 1],
+          }
+        );
+      },
+      { amount: 0.05 }
+    );
+  }
+</script>

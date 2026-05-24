@@ -8,7 +8,8 @@
       "Bash(powershell.exe -Command ' *)",
       "WebFetch(domain:higgsfield.ai)",
       "WebFetch(domain:mcp.higgsfield.ai)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(npm run *)"
     ]
   }
 }

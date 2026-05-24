@@ -27,7 +27,7 @@ export function parsearFiltrosUrl(params: URLSearchParams): FiltrosAviso {
   if (!isNaN(precioMax) && precioMax > 0) filtros.precio_max = precioMax;
 
   const kmMax = parseFloat(params.get('km_max') ?? '');
-  if (!isNaN(kmMax) && kmMax > 0) filtros.km_max = kmMax;
+  if (!isNaN(kmMax) && kmMax >= 0) filtros.km_max = kmMax;
 
   const combustible = params.get('combustible')?.trim().slice(0, 50);
   if (combustible) filtros.combustible = combustible;

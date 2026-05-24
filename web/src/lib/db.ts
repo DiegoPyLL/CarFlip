@@ -47,7 +47,11 @@ function mapearAviso(row: RawAviso, fuente: 'autocosmos' | 'yapo'): Aviso {
 
 function aplicarFiltros(query: any, filtros: FiltrosAviso) {
   if (filtros.marca)      query = query.ilike('marca', `%${filtros.marca}%`);
-  if (filtros.modelo)     query = query.ilike('modelo', `%${filtros.modelo}%`);
+  // "modelo" busca en titulo + marca + modelo para que "jeep", "grand cherokee", etc. funcionen
+  if (filtros.modelo) {
+    const q = filtros.modelo.replace(/'/g, "''"); // escape básico de comilla simple
+    query = query.or(`titulo.ilike.%${q}%,marca.ilike.%${q}%,modelo.ilike.%${q}%`);
+  }
   if (filtros.anio)       query = query.eq('anio', filtros.anio);
   if (filtros.precio_min) query = query.gte('precio', filtros.precio_min);
   if (filtros.precio_max) query = query.lte('precio', filtros.precio_max);

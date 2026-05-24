@@ -33,14 +33,15 @@ const ventana = calcularVentana(pagina, total_paginas);
 ---
 
 {total_paginas > 1 && (
-  <nav aria-label="Paginación de resultados" class="flex justify-center mt-8">
+  <nav aria-label="Paginación de resultados" class="flex justify-center mt-10">
     <ul class="flex items-center gap-1">
+
       <!-- Anterior -->
       <li>
         {pagina > 1 ? (
           <a
             href={urlPagina(pagina - 1)}
-            class="px-3 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+            class="px-3 py-2 text-sm rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
             aria-label="Página anterior"
           >
             ‹
@@ -48,7 +49,7 @@ const ventana = calcularVentana(pagina, total_paginas);
         ) : (
           <span
             aria-disabled="true"
-            class="px-3 py-2 text-sm rounded-lg text-gray-300 cursor-not-allowed"
+            class="px-3 py-2 text-sm rounded-lg text-zinc-700 cursor-not-allowed"
             aria-label="Página anterior (deshabilitada)"
           >
             ‹
@@ -60,18 +61,18 @@ const ventana = calcularVentana(pagina, total_paginas);
       {ventana.map((item) => (
         <li>
           {item === '...' ? (
-            <span class="px-2 py-2 text-sm text-gray-400" aria-hidden="true">…</span>
+            <span class="px-2 py-2 text-sm text-zinc-700" aria-hidden="true">…</span>
           ) : item === pagina ? (
             <span
               aria-current="page"
-              class="px-3 py-2 text-sm font-semibold bg-blue-700 text-white rounded-lg"
+              class="px-3 py-2 text-sm font-semibold bg-amber-400 text-zinc-900 rounded-lg"
             >
               {item}
             </span>
           ) : (
             <a
               href={urlPagina(item)}
-              class="px-3 py-2 text-sm rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+              class="px-3 py-2 text-sm rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
               aria-label={`Página ${item}`}
             >
               {item}
@@ -85,7 +86,7 @@ const ventana = calcularVentana(pagina, total_paginas);
         {pagina < total_paginas ? (
           <a
             href={urlPagina(pagina + 1)}
-            class="px-3 py-2 text-sm rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+            class="px-3 py-2 text-sm rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
             aria-label="Página siguiente"
           >
             ›
@@ -93,7 +94,7 @@ const ventana = calcularVentana(pagina, total_paginas);
         ) : (
           <span
             aria-disabled="true"
-            class="px-3 py-2 text-sm rounded-lg text-gray-300 cursor-not-allowed"
+            class="px-3 py-2 text-sm rounded-lg text-zinc-700 cursor-not-allowed"
             aria-label="Página siguiente (deshabilitada)"
           >
             ›
