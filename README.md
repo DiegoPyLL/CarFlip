@@ -169,20 +169,46 @@ Reconectar: `tmux attach -t carflip`
 
 ## Web (Vercel + Astro)
 
-La web está en `web/` y se despliega en Vercel. Consume PostgreSQL directamente desde funciones serverless y sirve imágenes desde Cloudflare R2.
+La web está en `web/` y se despliega en Vercel. Consume Supabase vía JS client y sirve imágenes desde CloudFront.
+
+### Levantar en local
+
+**Requisitos:** Node.js 18+
 
 ```bash
-# Desarrollo local
+# 1. Entrar a la carpeta web
 cd web
+
+# 2. Instalar dependencias
 npm install
+
+# 3. Crear web/.env con las claves de Supabase
+# (copiar desde web/.env.example y completar)
+```
+
+Contenido de `web/.env`:
+
+```env
+SUPABASE_URL=https://iyxguiigteuzxnoteuuu.supabase.co
+SUPABASE_SERVICE_KEY=<service_role key desde Supabase → Settings → API>
+CDN_BASE_URL=https://dviw1kdj4cast.cloudfront.net
+```
+
+```bash
+# 4. Levantar servidor de desarrollo
 npm run dev
 ```
 
-Variables de entorno requeridas en Vercel:
+Abrir: http://localhost:4321
+
+> No se necesita PostgreSQL local, Python ni ninguna otra dependencia. Todo conecta directo a Supabase vía HTTPS.
+
+### Variables de entorno en Vercel
 
 ```env
-DATABASE_URL=postgresql://...
-CDN_BASE_URL=https://...
+SUPABASE_URL=https://iyxguiigteuzxnoteuuu.supabase.co
+SUPABASE_SERVICE_KEY=...
+CDN_BASE_URL=https://dviw1kdj4cast.cloudfront.net
 ```
 
 ---
