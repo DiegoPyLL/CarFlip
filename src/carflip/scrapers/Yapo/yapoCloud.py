@@ -378,11 +378,20 @@ class ScraperYapoCloud(ScraperBase):
                             except Exception:
                                 return ""
 
+                        # Extraer fecha desde atributo datetime del elemento time
+                        # (inner_text() retorna "hace 2 días", no YYYY-MM-DD)
+                        fecha_card = datetime.now().strftime("%Y-%m-%d")
+                        time_el = await card.query_selector("time[datetime]")
+                        if time_el:
+                            dt_attr = await time_el.get_attribute("datetime") or ""
+                            if re.match(r"^\d{4}-\d{2}-\d{2}", dt_attr):
+                                fecha_card = dt_attr[:10]
+
                         avisos_info.append({
                             "url": url_aviso,
                             "precio": await _safe("[class*='d3-ad-tile__price']"),
                             "region": await _safe("[class*='d3-ad-tile__location']"),
-                            "fecha": await _safe("time, [class*='date']") or datetime.now().strftime("%Y-%m-%d"),
+                            "fecha": fecha_card,
                         })
 
                     nuevos = len(avisos_info) - count_antes
