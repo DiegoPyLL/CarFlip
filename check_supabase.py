@@ -1,9 +1,11 @@
-"""Verifica conexión a Supabase por dos vías: transaction pooler y API REST."""
+"""Verifica conexión a Supabase por tres vías, en orden de lo más simple a lo más real."""
 import asyncio
 import os
 
 import httpx
 from dotenv import load_dotenv
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 
 load_dotenv()
 
@@ -12,18 +14,8 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
 
 
-async def check_pooler():
-    import asyncpg
-
-    # Transaction pooler usa puerto 6543; session pooler usa 5432
-    url = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://").replace(":5432/", ":6543/")
-    conn = await asyncpg.connect(dsn=url, ssl="require")
-    version = await conn.fetchval("SELECT version()")
-    await conn.close()
-    return version
-
-
 async def check_api():
+    """REST API — lo más básico, solo verifica URL y SERVICE_KEY."""
     headers = {
         "apikey": SUPABASE_SERVICE_KEY,
         "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
@@ -34,18 +26,52 @@ async def check_api():
         return r.status_code, r.text[:120]
 
 
+async def check_sqlalchemy_scraper():
+    """SQLAlchemy — idéntico a lo que usa session.py en los scrapers."""
+    import sys
+    sys.path.insert(0, "src")
+    from carflip.config import settings
+    from carflip.database.session import engine
+
+    async with engine.connect() as conn:
+        row = await conn.execute(text("SELECT current_user, current_database(), version()"))
+        return row.fetchone()
+
+
+async def check_sqlalchemy_ssl():
+    """SQLAlchemy con SSL forzado — para comparar si el problema es SSL."""
+    connect_args = {"ssl": "require", "statement_cache_size": 0}
+    e = create_async_engine(DATABASE_URL, connect_args=connect_args)
+    async with e.connect() as conn:
+        row = await conn.execute(text("SELECT current_user, current_database()"))
+        return row.fetchone()
+
+
 async def main():
-    print("--- Transaction Pooler (puerto 6543) ---")
+    print("=" * 60)
+    print("1. Supabase REST API (verifica URL + SERVICE_KEY)")
+    print("=" * 60)
     try:
-        version = await check_pooler()
-        print(f"OK — {version}\n")
+        status, body = await check_api()
+        print(f"OK — HTTP {status}\n")
     except Exception as e:
         print(f"ERROR: {type(e).__name__}: {e}\n")
 
-    print("--- Supabase REST API ---")
+    print("=" * 60)
+    print("2. SQLAlchemy — igual que los scrapers (usa settings)")
+    print("=" * 60)
     try:
-        status, body = await check_api()
-        print(f"OK — HTTP {status} — {body}\n")
+        row = await check_sqlalchemy_scraper()
+        print(f"OK — usuario={row[0]}, db={row[1]}\n")
+    except Exception as e:
+        print(f"ERROR: {type(e).__name__}: {e}\n")
+
+    print("=" * 60)
+    print("3. SQLAlchemy con SSL forzado (para comparar)")
+    print("=" * 60)
+    try:
+        row = await check_sqlalchemy_ssl()
+        print(f"OK — usuario={row[0]}, db={row[1]}\n")
     except Exception as e:
         print(f"ERROR: {type(e).__name__}: {e}\n")
 

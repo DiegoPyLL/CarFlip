@@ -4,9 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from carflip.config import settings
 
-_connect_args: dict = {}
+_connect_args: dict = {"prepared_statement_cache_size": 0}
 if settings.use_ssl:
-    _connect_args = {"ssl": "require", "prepared_statement_cache_size": 0}
+    _connect_args["ssl"] = "require"
 
 engine = create_async_engine(
     settings.database_url,
