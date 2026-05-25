@@ -1,10 +1,10 @@
-import { supabase } from './client';
+import { getSupabase } from './client';
 import type { Estadisticas } from '../tipos';
 
 export async function obtenerEstadisticas(): Promise<Estadisticas> {
   const [{ data: statsAC }, { data: statsYP }] = await Promise.all([
-    supabase.from('autocosmos_listings').select('precio, ultima_vez_visto'),
-    supabase.from('yapo_listings').select('precio, ultima_vez_visto'),
+    getSupabase().from('autocosmos_listings').select('precio, ultima_vez_visto'),
+    getSupabase().from('yapo_listings').select('precio, ultima_vez_visto'),
   ]);
 
   const preciosAC = (statsAC ?? []).map((r: any) => r.precio ? parseFloat(r.precio) : null).filter((p): p is number => p !== null);

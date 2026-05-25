@@ -1,4 +1,4 @@
-import { supabase } from './client';
+import { getSupabase } from './client';
 import type { Aviso } from '../tipos';
 
 type RawAviso = {
@@ -38,7 +38,7 @@ export async function obtenerDeals(fuente?: 'autocosmos' | 'yapo', limite = 48):
   const THRESHOLD = -5;
 
   async function queryTabla(tabla: string, src: 'autocosmos' | 'yapo') {
-    const { data } = await supabase
+    const { data } = await getSupabase()
       .from(tabla)
       .select('*')
       .lt('delta_pct', THRESHOLD)

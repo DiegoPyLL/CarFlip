@@ -1,4 +1,4 @@
-import { supabase, POR_PAGINA } from './client';
+import { getSupabase, POR_PAGINA } from './client';
 import type { Aviso, FiltrosAviso, PaginaResultado, FiltrosDisponibles } from '../tipos';
 
 type RawAviso = {
@@ -77,7 +77,7 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
   const offset = (pagina - 1) * POR_PAGINA;
 
   if (filtros.fuente === 'autocosmos') {
-    let q = supabase.from('autocosmos_listings').select('*', { count: 'exact' });
+    let q = getSupabase().from('autocosmos_listings').select('*', { count: 'exact' });
     q = aplicarFiltros(q, filtros);
     q = aplicarOrden(q, filtros.orden);
     q = q.range(offset, offset + POR_PAGINA - 1);
@@ -89,7 +89,7 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
   }
 
   if (filtros.fuente === 'yapo') {
-    let q = supabase.from('yapo_listings').select('*', { count: 'exact' });
+    let q = getSupabase().from('yapo_listings').select('*', { count: 'exact' });
     q = aplicarFiltros(q, filtros);
     q = aplicarOrden(q, filtros.orden);
     q = q.range(offset, offset + POR_PAGINA - 1);
@@ -101,8 +101,8 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
   }
 
   // Todas las fuentes
-  let qAC = supabase.from('autocosmos_listings').select('*');
-  let qYP = supabase.from('yapo_listings').select('*');
+  let qAC = getSupabase().from('autocosmos_listings').select('*');
+  let qYP = getSupabase().from('yapo_listings').select('*');
   qAC = aplicarFiltros(qAC, filtros);
   qYP = aplicarFiltros(qYP, filtros);
   qAC = aplicarOrden(qAC, filtros.orden);
@@ -123,10 +123,10 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
 }
 
 export async function obtenerAviso(id: number): Promise<Aviso | null> {
-  const { data: acRow } = await supabase.from('autocosmos_listings').select('*').eq('id', id).maybeSingle();
+  const { data: acRow } = await getSupabase().from('autocosmos_listings').select('*').eq('id', id).maybeSingle();
   if (acRow) return mapearAviso(acRow as RawAviso, 'autocosmos');
 
-  const { data: yapoRow } = await supabase.from('yapo_listings').select('*').eq('id', id).maybeSingle();
+  const { data: yapoRow } = await getSupabase().from('yapo_listings').select('*').eq('id', id).maybeSingle();
   return yapoRow ? mapearAviso(yapoRow as RawAviso, 'yapo') : null;
 }
 
@@ -136,12 +136,12 @@ export async function obtenerFiltrosDisponibles(): Promise<FiltrosDisponibles> {
     { data: aniosAC },  { data: aniosYP },
     { data: combsAC },  { data: combsYP },
   ] = await Promise.all([
-    supabase.from('autocosmos_listings').select('marca').not('marca', 'is', null),
-    supabase.from('yapo_listings').select('marca').not('marca', 'is', null),
-    supabase.from('autocosmos_listings').select('anio').not('anio', 'is', null),
-    supabase.from('yapo_listings').select('anio').not('anio', 'is', null),
-    supabase.from('autocosmos_listings').select('combustible').not('combustible', 'is', null),
-    supabase.from('yapo_listings').select('combustible').not('combustible', 'is', null),
+    getSupabase().from('autocosmos_listings').select('marca').not('marca', 'is', null),
+    getSupabase().from('yapo_listings').select('marca').not('marca', 'is', null),
+    getSupabase().from('autocosmos_listings').select('anio').not('anio', 'is', null),
+    getSupabase().from('yapo_listings').select('anio').not('anio', 'is', null),
+    getSupabase().from('autocosmos_listings').select('combustible').not('combustible', 'is', null),
+    getSupabase().from('yapo_listings').select('combustible').not('combustible', 'is', null),
   ]);
 
   const marcas = [...new Set([

@@ -1,11 +1,16 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = (import.meta.env.SUPABASE_URL as string) || (process.env.SUPABASE_URL as string);
-const supabaseKey = (import.meta.env.SUPABASE_SERVICE_KEY as string) || (process.env.SUPABASE_SERVICE_KEY as string);
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('SUPABASE_URL y SUPABASE_SERVICE_KEY deben estar definidas en web/.env');
-}
-
-export const supabase = createClient(supabaseUrl, supabaseKey);
 export const POR_PAGINA = 24;
+
+let _client: SupabaseClient | null = null;
+
+export function getSupabase(): SupabaseClient {
+  if (_client) return _client;
+  const url = (import.meta.env.SUPABASE_URL as string | undefined) ?? process.env.SUPABASE_URL;
+  const key = (import.meta.env.SUPABASE_SERVICE_KEY as string | undefined) ?? process.env.SUPABASE_SERVICE_KEY;
+  if (!url || !key) {
+    throw new Error('SUPABASE_URL y SUPABASE_SERVICE_KEY no están configuradas en las variables de entorno de Vercel');
+  }
+  _client = createClient(url, key);
+  return _client;
+}

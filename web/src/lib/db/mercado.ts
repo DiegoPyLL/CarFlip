@@ -1,4 +1,4 @@
-import { supabase } from './client';
+import { getSupabase } from './client';
 
 export interface EstadisticaMarca {
   marca: string;
@@ -26,7 +26,7 @@ export async function obtenerDatosMercado(fuente?: 'autocosmos' | 'yapo'): Promi
   type Fila = { marca: string | null; modelo: string | null; precio: string | null };
 
   async function fetchTabla(tabla: string): Promise<Fila[]> {
-    const { data } = await supabase
+    const { data } = await getSupabase()
       .from(tabla)
       .select('marca, modelo, precio')
       .not('marca', 'is', null)
@@ -121,7 +121,7 @@ export async function obtenerDatosMarca(marca: string): Promise<{
   type Fila = { modelo: string | null; precio: string | null; anio: number | null };
 
   async function fetchTabla(tabla: string): Promise<Fila[]> {
-    const { data } = await supabase
+    const { data } = await getSupabase()
       .from(tabla)
       .select('modelo, precio, anio')
       .ilike('marca', marca)
