@@ -1,9 +1,9 @@
 ---
 import Base from '@layouts/Base.astro';
-import CardAviso from '@components/CardAviso.astro';
-import FiltrosBarra from '@components/FiltrosBarra.astro';
-import FiltrosSidebar from '@components/FiltrosSidebar.astro';
-import Paginacion from '@components/Paginacion.astro';
+import CardAviso from '@components/avisos/CardAviso.astro';
+import FiltrosBarra from '@components/avisos/FiltrosBarra.astro';
+import FiltrosSidebar from '@components/avisos/FiltrosSidebar.astro';
+import Paginacion from '@components/avisos/Paginacion.astro';
 import { obtenerAvisos, obtenerFiltrosDisponibles, obtenerEstadisticas } from '@lib/db';
 import { parsearFiltrosUrl } from '@lib/filtros';
 import { formatearPrecio, formatearFecha } from '@lib/formato';

@@ -1,6 +1,28 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Aviso, FiltrosAviso, PaginaResultado, FiltrosDisponibles, Estadisticas } from './tipos';
 
+export interface EstadisticaMarca {
+  marca: string;
+  total: number;
+  precio_promedio: number | null;
+  precio_minimo: number | null;
+  precio_maximo: number | null;
+}
+
+export interface EstadisticaModelo {
+  modelo: string;
+  marca: string;
+  total: number;
+  precio_promedio: number | null;
+}
+
+export interface DatosMercado {
+  marcas: EstadisticaMarca[];
+  modelos: EstadisticaModelo[];
+  distribucion: { etiqueta: string; min: number; max: number; total: number }[];
+  total: number;
+}
+
 const supabaseUrl = (import.meta.env.SUPABASE_URL as string) || (process.env.SUPABASE_URL as string);
 const supabaseKey = (import.meta.env.SUPABASE_SERVICE_KEY as string) || (process.env.SUPABASE_SERVICE_KEY as string);
 
@@ -134,6 +156,35 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
   return { items, total, pagina, total_paginas: Math.ceil(total / POR_PAGINA), por_pagina: POR_PAGINA };
 }
 
+export async function obtenerDeals(fuente?: 'autocosmos' | 'yapo', limite = 48): Promise<Aviso[]> {
+  const THRESHOLD = -5; // bajada de 5% o más
+
+  async function queryTabla(tabla: string, src: 'autocosmos' | 'yapo') {
+    const { data } = await supabase
+      .from(tabla)
+      .select('*')
+      .lt('delta_pct', THRESHOLD)
+      .not('precio', 'is', null)
+      .not('delta_pct', 'is', null)
+      .eq('disponible', true)
+      .order('delta_pct', { ascending: true })
+      .limit(limite);
+    return (data ?? []).map(r => mapearAviso(r as RawAviso, src));
+  }
+
+  if (fuente === 'autocosmos') return queryTabla('autocosmos_listings', 'autocosmos');
+  if (fuente === 'yapo')       return queryTabla('yapo_listings', 'yapo');
+
+  const [ac, yp] = await Promise.all([
+    queryTabla('autocosmos_listings', 'autocosmos'),
+    queryTabla('yapo_listings', 'yapo'),
+  ]);
+
+  return [...ac, ...yp]
+    .sort((a, b) => (a.delta_pct ?? 0) - (b.delta_pct ?? 0))
+    .slice(0, limite);
+}
+
 export async function obtenerAviso(id: number): Promise<Aviso | null> {
   const { data: acRow } = await supabase.from('autocosmos_listings').select('*').eq('id', id).maybeSingle();
   if (acRow) return mapearAviso(acRow as RawAviso, 'autocosmos');
@@ -172,6 +223,93 @@ export async function obtenerFiltrosDisponibles(): Promise<FiltrosDisponibles> {
   ])].sort();
 
   return { marcas, anios, combustibles };
+}
+
+export async function obtenerDatosMercado(fuente?: 'autocosmos' | 'yapo'): Promise<DatosMercado> {
+  type Fila = { marca: string | null; modelo: string | null; precio: string | null };
+
+  async function fetchTabla(tabla: string): Promise<Fila[]> {
+    const { data } = await supabase
+      .from(tabla)
+      .select('marca, modelo, precio')
+      .not('marca', 'is', null)
+      .limit(10000);
+    return (data ?? []) as Fila[];
+  }
+
+  let rows: Fila[];
+  if (fuente === 'autocosmos') {
+    rows = await fetchTabla('autocosmos_listings');
+  } else if (fuente === 'yapo') {
+    rows = await fetchTabla('yapo_listings');
+  } else {
+    const [ac, yp] = await Promise.all([
+      fetchTabla('autocosmos_listings'),
+      fetchTabla('yapo_listings'),
+    ]);
+    rows = [...ac, ...yp];
+  }
+
+  // ── Marcas ──────────────────────────────────────────────────────────
+  const marcaMap = new Map<string, { total: number; precios: number[] }>();
+  for (const row of rows) {
+    if (!row.marca) continue;
+    const entry = marcaMap.get(row.marca) ?? { total: 0, precios: [] };
+    entry.total++;
+    if (row.precio) entry.precios.push(parseFloat(row.precio));
+    marcaMap.set(row.marca, entry);
+  }
+
+  const marcas: EstadisticaMarca[] = Array.from(marcaMap.entries())
+    .map(([marca, { total, precios }]) => ({
+      marca,
+      total,
+      precio_promedio: precios.length ? precios.reduce((a, b) => a + b, 0) / precios.length : null,
+      precio_minimo:   precios.length ? Math.min(...precios) : null,
+      precio_maximo:   precios.length ? Math.max(...precios) : null,
+    }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 20);
+
+  // ── Modelos ─────────────────────────────────────────────────────────
+  const modeloMap = new Map<string, { marca: string; total: number; precios: number[] }>();
+  for (const row of rows) {
+    if (!row.modelo || !row.marca) continue;
+    const key = `${row.marca}||${row.modelo}`;
+    const entry = modeloMap.get(key) ?? { marca: row.marca, total: 0, precios: [] };
+    entry.total++;
+    if (row.precio) entry.precios.push(parseFloat(row.precio));
+    modeloMap.set(key, entry);
+  }
+
+  const modelos: EstadisticaModelo[] = Array.from(modeloMap.entries())
+    .map(([key, { marca, total, precios }]) => ({
+      modelo: key.split('||')[1],
+      marca,
+      total,
+      precio_promedio: precios.length ? precios.reduce((a, b) => a + b, 0) / precios.length : null,
+    }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 15);
+
+  // ── Distribución de precios ─────────────────────────────────────────
+  const brackets = [
+    { etiqueta: 'Hasta $5M',       min: 0,          max: 5_000_000 },
+    { etiqueta: '$5M — $10M',       min: 5_000_000,  max: 10_000_000 },
+    { etiqueta: '$10M — $20M',      min: 10_000_000, max: 20_000_000 },
+    { etiqueta: '$20M — $35M',      min: 20_000_000, max: 35_000_000 },
+    { etiqueta: 'Más de $35M',      min: 35_000_000, max: Infinity },
+  ];
+
+  const distribucion = brackets.map(b => ({
+    ...b,
+    total: rows.filter(r => {
+      const p = r.precio ? parseFloat(r.precio) : null;
+      return p !== null && p >= b.min && p < b.max;
+    }).length,
+  }));
+
+  return { marcas, modelos, distribucion, total: rows.length };
 }
 
 export async function obtenerEstadisticas(): Promise<Estadisticas> {

@@ -1,0 +1,223 @@
+---
+import Base from '@layouts/Base.astro';
+import { obtenerEstadisticas } from '@lib/db';
+import { formatearPrecio } from '@lib/formato';
+
+const stats = await obtenerEstadisticas();
+---
+
+<Base
+  titulo="Cómo funciona CarFlip"
+  descripcion="CarFlip recopila avisos de autos en venta desde los principales portales de Chile, normaliza la información y detecta oportunidades de precio en tiempo real."
+>
+  <div class="max-w-3xl mx-auto">
+
+    <!-- Hero -->
+    <div class="mb-14">
+      <p class="text-xs font-semibold text-amber-400 uppercase tracking-widest mb-3">Cómo funciona</p>
+      <h1 class="text-3xl sm:text-4xl font-black text-zinc-100 leading-tight mb-4">
+        Un comparador de precios,<br class="hidden sm:block" /> no un portal de autos.
+      </h1>
+      <p class="text-base text-zinc-500 leading-relaxed max-w-xl">
+        CarFlip no publica avisos propios. Recopila automáticamente lo que otros portales publican,
+        lo normaliza y lo deja en un solo lugar para que puedas comparar precios sin abrir cinco pestañas.
+      </p>
+    </div>
+
+    <!-- Proceso -->
+    <section class="mb-14">
+      <h2 class="text-xs font-semibold text-zinc-600 uppercase tracking-widest mb-6">El proceso</h2>
+
+      <div class="space-y-0">
+
+        <div class="flex gap-5 pb-8 relative">
+          <div class="flex flex-col items-center">
+            <div class="w-8 h-8 rounded-lg bg-amber-400 text-zinc-900 text-sm font-black flex items-center justify-center shrink-0">1</div>
+            <div class="w-px flex-1 bg-zinc-800 mt-2"></div>
+          </div>
+          <div class="pt-1 pb-2">
+            <h3 class="text-base font-bold text-zinc-200 mb-1">Recopilación automática</h3>
+            <p class="text-sm text-zinc-500 leading-relaxed">
+              Cada 6 horas un proceso recorre los portales activos y extrae todos los avisos de autos en venta.
+              Descarga imágenes, precios, kilometraje, año y todos los datos disponibles del aviso.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-5 pb-8 relative">
+          <div class="flex flex-col items-center">
+            <div class="w-8 h-8 rounded-lg bg-amber-400 text-zinc-900 text-sm font-black flex items-center justify-center shrink-0">2</div>
+            <div class="w-px flex-1 bg-zinc-800 mt-2"></div>
+          </div>
+          <div class="pt-1 pb-2">
+            <h3 class="text-base font-bold text-zinc-200 mb-1">Normalización</h3>
+            <p class="text-sm text-zinc-500 leading-relaxed">
+              Cada portal usa formatos distintos. CarFlip convierte todo a un esquema común:
+              misma estructura de campos, misma moneda, misma escala de kilometraje.
+              Los duplicados se eliminan antes de guardar.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-5 pb-8 relative">
+          <div class="flex flex-col items-center">
+            <div class="w-8 h-8 rounded-lg bg-amber-400 text-zinc-900 text-sm font-black flex items-center justify-center shrink-0">3</div>
+            <div class="w-px flex-1 bg-zinc-800 mt-2"></div>
+          </div>
+          <div class="pt-1 pb-2">
+            <h3 class="text-base font-bold text-zinc-200 mb-1">Detección de bajadas de precio</h3>
+            <p class="text-sm text-zinc-500 leading-relaxed">
+              Si un aviso que ya existe cambia de precio, CarFlip guarda el precio anterior
+              y calcula el porcentaje de variación. Los avisos con bajada significativa
+              se marcan para que los encuentres fácil.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-5">
+          <div class="flex flex-col items-center">
+            <div class="w-8 h-8 rounded-lg bg-amber-400 text-zinc-900 text-sm font-black flex items-center justify-center shrink-0">4</div>
+          </div>
+          <div class="pt-1">
+            <h3 class="text-base font-bold text-zinc-200 mb-1">Todo en un solo lugar</h3>
+            <p class="text-sm text-zinc-500 leading-relaxed">
+              Filtra por marca, año, kilometraje o precio sobre todos los portales simultáneamente.
+              Cuando encuentras algo, el botón "Ver aviso original" te lleva directo a la fuente para contactar al vendedor.
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Fuentes activas -->
+    <section class="mb-14">
+      <h2 class="text-xs font-semibold text-zinc-600 uppercase tracking-widest mb-6">Fuentes de datos</h2>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+
+        <div class="bg-zinc-900 rounded-xl border border-zinc-800/60 p-4 flex items-start gap-3">
+          <div class="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0"></div>
+          <div>
+            <p class="text-sm font-semibold text-zinc-200">Autocosmos</p>
+            <p class="text-xs text-zinc-600 mt-0.5">autocosmos.cl — Portal HTML, actualización cada 6h</p>
+          </div>
+        </div>
+
+        <div class="bg-zinc-900 rounded-xl border border-zinc-800/60 p-4 flex items-start gap-3">
+          <div class="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0"></div>
+          <div>
+            <p class="text-sm font-semibold text-zinc-200">Yapo</p>
+            <p class="text-xs text-zinc-600 mt-0.5">yapo.cl — Portal dinámico, actualización cada 6h</p>
+          </div>
+        </div>
+
+        <div class="bg-zinc-900/50 rounded-xl border border-zinc-800/40 p-4 flex items-start gap-3">
+          <div class="w-2 h-2 rounded-full bg-zinc-700 mt-1.5 shrink-0"></div>
+          <div>
+            <p class="text-sm font-medium text-zinc-600">MercadoLibre</p>
+            <p class="text-xs text-zinc-700 mt-0.5">Próximamente</p>
+          </div>
+        </div>
+
+        <div class="bg-zinc-900/50 rounded-xl border border-zinc-800/40 p-4 flex items-start gap-3">
+          <div class="w-2 h-2 rounded-full bg-zinc-700 mt-1.5 shrink-0"></div>
+          <div>
+            <p class="text-sm font-medium text-zinc-600">Autosusados, Checkeados, Económicos</p>
+            <p class="text-xs text-zinc-700 mt-0.5">Próximamente</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Stats en vivo -->
+    <section class="mb-14">
+      <div class="bg-zinc-900 rounded-xl border border-zinc-800/60 p-6">
+        <p class="text-xs font-semibold text-zinc-600 uppercase tracking-widest mb-5">En este momento</p>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-6">
+          <div>
+            <p class="text-2xl font-black text-zinc-100 tabular-nums">
+              {stats.total_avisos.toLocaleString('es-CL')}
+            </p>
+            <p class="text-xs text-zinc-600 mt-0.5">avisos indexados</p>
+          </div>
+          <div>
+            <p class="text-2xl font-black text-amber-400 tabular-nums">
+              {stats.precio_promedio ? formatearPrecio(Math.round(stats.precio_promedio)) : '—'}
+            </p>
+            <p class="text-xs text-zinc-600 mt-0.5">precio promedio</p>
+          </div>
+          <div>
+            <p class="text-2xl font-black text-zinc-100 tabular-nums">
+              {stats.total_autocosmos.toLocaleString('es-CL')}
+            </p>
+            <p class="text-xs text-zinc-600 mt-0.5">de Autocosmos</p>
+          </div>
+          <div>
+            <p class="text-2xl font-black text-zinc-100 tabular-nums">
+              {stats.total_yapo.toLocaleString('es-CL')}
+            </p>
+            <p class="text-xs text-zinc-600 mt-0.5">de Yapo</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Preguntas frecuentes -->
+    <section class="mb-14">
+      <h2 class="text-xs font-semibold text-zinc-600 uppercase tracking-widest mb-6">Preguntas frecuentes</h2>
+
+      <div class="space-y-5">
+
+        <div class="border-b border-zinc-800/60 pb-5">
+          <h3 class="text-sm font-semibold text-zinc-300 mb-1.5">¿CarFlip vende autos?</h3>
+          <p class="text-sm text-zinc-600 leading-relaxed">
+            No. CarFlip solo agrega y compara avisos de terceros. Para contactar al vendedor
+            usa el botón "Ver aviso original" en cada ficha — te lleva directo al portal donde está publicado.
+          </p>
+        </div>
+
+        <div class="border-b border-zinc-800/60 pb-5">
+          <h3 class="text-sm font-semibold text-zinc-300 mb-1.5">¿Cada cuánto se actualizan los datos?</h3>
+          <p class="text-sm text-zinc-600 leading-relaxed">
+            Cada 6 horas. Los avisos nuevos aparecen en el siguiente ciclo de recopilación.
+            Los que se eliminan del portal original se marcan como no disponibles.
+          </p>
+        </div>
+
+        <div class="border-b border-zinc-800/60 pb-5">
+          <h3 class="text-sm font-semibold text-zinc-300 mb-1.5">¿Qué significa el badge de bajada de precio?</h3>
+          <p class="text-sm text-zinc-600 leading-relaxed">
+            Cuando detectamos que el precio de un aviso bajó respecto a la última vez que lo vimos,
+            mostramos el porcentaje de bajada. Es útil para encontrar vendedores con urgencia de venta.
+          </p>
+        </div>
+
+        <div class="pb-2">
+          <h3 class="text-sm font-semibold text-zinc-300 mb-1.5">¿Los precios son exactos?</h3>
+          <p class="text-sm text-zinc-600 leading-relaxed">
+            Son los que aparecen publicados en cada portal. Algunos vendedores no actualizan el precio
+            en línea o negocian directamente. Siempre verifica con el vendedor antes de asumir el precio final.
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <div class="border-t border-zinc-800/60 pt-8 flex items-center justify-between">
+      <p class="text-sm text-zinc-600">Ver todos los avisos disponibles ahora</p>
+      <a
+        href="/"
+        class="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-zinc-900 text-sm font-bold px-5 py-2.5 rounded-xl transition-colors duration-150"
+      >
+        Ir al inicio
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
+
+  </div>
+</Base>

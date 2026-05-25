@@ -1,0 +1,134 @@
+---
+import Base from '@layouts/Base.astro';
+import CardDeal from '@components/deals/CardDeal.astro';
+import { obtenerDeals } from '@lib/db';
+import { parsearFiltrosUrl } from '@lib/filtros';
+
+const params  = Astro.url.searchParams;
+const filtros = parsearFiltrosUrl(params);
+
+// Solo usamos el filtro de fuente en esta página
+const fuente = filtros.fuente;
+const deals  = await obtenerDeals(fuente, 48);
+
+// Stats para el header
+const totalDeals = deals.length;
+const promedioPct = totalDeals > 0
+  ? deals.reduce((acc, d) => acc + Math.abs(d.delta_pct ?? 0), 0) / totalDeals
+  : 0;
+const mayorBajada = totalDeals > 0
+  ? Math.abs(Math.min(...deals.map(d => d.delta_pct ?? 0)))
+  : 0;
+
+const fuentes = [
+  { value: '', label: 'Todas' },
+  { value: 'autocosmos', label: 'Autocosmos' },
+  { value: 'yapo', label: 'Yapo' },
+];
+---
+
+<Base
+  titulo="Deals — Autos con bajada de precio"
+  descripcion="Autos en Chile que bajaron de precio recientemente. Ordenados por mayor bajada porcentual."
+>
+
+  <!-- Header de sección -->
+  <div class="mb-8">
+    <p class="text-xs font-semibold text-green-500 uppercase tracking-widest mb-2">Bajadas de precio</p>
+    <h1 class="text-3xl font-black text-zinc-100 mb-3">Deals</h1>
+    <p class="text-sm text-zinc-500 max-w-xl">
+      Autos que bajaron de precio desde la última vez que los vimos. Ordenados por mayor bajada.
+      Se actualiza cada 6 horas.
+    </p>
+  </div>
+
+  <!-- Stats strip -->
+  {totalDeals > 0 && (
+    <div class="flex flex-wrap items-baseline gap-x-5 gap-y-1.5 mb-6 pb-5 border-b border-zinc-800/60">
+      <span class="flex items-baseline gap-2">
+        <span class="text-2xl font-black text-zinc-100 tabular-nums">{totalDeals}</span>
+        <span class="text-sm text-zinc-600">deals activos</span>
+      </span>
+      <span class="text-zinc-800 hidden sm:block">·</span>
+      <span class="flex items-baseline gap-2">
+        <span class="text-lg font-bold text-green-500 tabular-nums">▼ {promedioPct.toFixed(1)}%</span>
+        <span class="text-sm text-zinc-600">bajada promedio</span>
+      </span>
+      <span class="text-zinc-800 hidden sm:block">·</span>
+      <span class="flex items-baseline gap-2">
+        <span class="text-lg font-bold text-green-500 tabular-nums">▼ {mayorBajada.toFixed(1)}%</span>
+        <span class="text-sm text-zinc-600">mayor bajada</span>
+      </span>
+    </div>
+  )}
+
+  <!-- Filtro de fuente -->
+  <form method="GET" action="/deals" class="mb-6">
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0">Fuente</span>
+      <div class="flex gap-1">
+        {fuentes.map(({ value, label }) => (
+          <label class="cursor-pointer select-none">
+            <input
+              type="radio"
+              name="fuente"
+              value={value}
+              class="sr-only peer"
+              checked={fuente === value || (!fuente && value === '')}
+              onchange="this.form.submit()"
+            />
+            <span class="inline-block px-3 py-1.5 text-xs font-semibold rounded-lg border border-zinc-700 text-zinc-500 peer-checked:bg-amber-400 peer-checked:text-zinc-900 peer-checked:border-amber-400 hover:border-zinc-500 hover:text-zinc-300 transition-all">
+              {label}
+            </span>
+          </label>
+        ))}
+      </div>
+    </div>
+  </form>
+
+  <!-- Grid de deals -->
+  {totalDeals > 0 ? (
+    <div
+      id="deals-grid"
+      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+    >
+      {deals.map((aviso) => (
+        <CardDeal aviso={aviso} />
+      ))}
+    </div>
+  ) : (
+    <div class="text-center py-24 border border-zinc-800/60 rounded-xl">
+      <p class="text-zinc-500 font-medium">Sin deals disponibles ahora</p>
+      <p class="text-sm text-zinc-700 mt-2 max-w-xs mx-auto">
+        Los deals aparecen cuando detectamos una bajada de precio en un aviso existente.
+        Vuelve a revisar en las próximas horas.
+      </p>
+      <a href="/" class="mt-5 inline-block text-sm text-amber-400 hover:text-amber-300 transition-colors">
+        Ver todos los avisos
+      </a>
+    </div>
+  )}
+
+</Base>
+
+<!-- Animación de entrada -->
+<script>
+  import { animate, inView, stagger } from 'motion';
+
+  const grid = document.getElementById('deals-grid');
+  if (grid) {
+    const cards = grid.querySelectorAll('article');
+    animate(cards, { opacity: 0, y: 12 }, { duration: 0 });
+    inView(
+      grid,
+      () => {
+        animate(cards, { opacity: 1, y: 0 }, {
+          duration: 0.36,
+          delay: stagger(0.04),
+          easing: [0.2, 0, 0, 1],
+        });
+      },
+      { amount: 0.05 }
+    );
+  }
+</script>

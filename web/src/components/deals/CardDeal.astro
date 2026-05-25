@@ -1,0 +1,92 @@
+---
+import type { Aviso } from '@lib/tipos';
+import { resolverUrlImagen } from '@lib/cdn';
+import { formatearPrecio, formatearKm } from '@lib/formato';
+
+interface Props {
+  aviso: Aviso;
+}
+
+const { aviso } = Astro.props;
+const urlImagen  = resolverUrlImagen(aviso.url_imagen);
+const fuenteLabel = aviso.fuente === 'autocosmos' ? 'Autocosmos' : 'Yapo';
+
+const pct     = aviso.delta_pct ?? 0;          // negativo
+const ahorro  = aviso.precio_anterior && aviso.precio
+  ? aviso.precio_anterior - aviso.precio
+  : null;
+
+const metaItems = [
+  aviso.anio    ? String(aviso.anio)                          : null,
+  aviso.km !== null ? formatearKm(aviso.km)                  : null,
+  aviso.ubicacion ?? null,
+].filter(Boolean);
+---
+
+<article class="group bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800/50 hover:border-zinc-700 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-zinc-950/60">
+  <a
+    href={`/auto/${aviso.id}?back=${encodeURIComponent('/deals')}`}
+    aria-label={`Ver ${aviso.titulo}`}
+    class="block"
+  >
+    <!-- Imagen con badge de bajada destacado -->
+    <div class="aspect-[4/3] bg-zinc-800 relative overflow-hidden">
+      {urlImagen ? (
+        <img
+          src={urlImagen}
+          alt={aviso.titulo}
+          width={400}
+          height={300}
+          loading="lazy"
+          class="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300 ease-out"
+        />
+      ) : (
+        <div class="w-full h-full flex items-center justify-center text-zinc-700 text-xs">Sin imagen</div>
+      )}
+
+      <!-- Badge de bajada: protagonista en esta pantalla -->
+      <div class="absolute top-2.5 right-2.5">
+        <span class="text-sm font-black px-2.5 py-1 rounded-lg bg-green-500 text-zinc-950 tabular-nums shadow-lg">
+          ▼ {Math.abs(pct).toFixed(1)}%
+        </span>
+      </div>
+
+      <!-- Fuente -->
+      <div class="absolute top-2.5 left-2.5">
+        <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-zinc-950/75 text-zinc-300 backdrop-blur-sm">
+          {fuenteLabel}
+        </span>
+      </div>
+    </div>
+
+    <!-- Contenido -->
+    <div class="p-4">
+      <h2 class="text-sm font-medium text-zinc-200 line-clamp-2 leading-snug mb-3">
+        {aviso.titulo}
+      </h2>
+
+      <!-- Precio actual + anterior -->
+      <div class="flex items-baseline gap-2 mb-1">
+        <span class="text-xl font-bold text-amber-400 tabular-nums">
+          {aviso.precio ? formatearPrecio(aviso.precio, aviso.moneda) : '—'}
+        </span>
+        {aviso.precio_anterior && (
+          <span class="text-xs text-zinc-600 line-through tabular-nums">
+            {formatearPrecio(aviso.precio_anterior, aviso.moneda)}
+          </span>
+        )}
+      </div>
+
+      <!-- Ahorro en pesos -->
+      {ahorro && ahorro > 0 && (
+        <p class="text-xs font-semibold text-green-500 mb-2">
+          Ahorro: {formatearPrecio(ahorro, aviso.moneda)}
+        </p>
+      )}
+
+      {metaItems.length > 0 && (
+        <p class="text-xs text-zinc-600 truncate">{metaItems.join(' · ')}</p>
+      )}
+    </div>
+  </a>
+</article>
