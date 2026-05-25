@@ -1,0 +1,267 @@
+---
+import Base from '@layouts/Base.astro';
+import CardAviso from '@components/avisos/CardAviso.astro';
+import { obtenerAvisos } from '@lib/db/avisos';
+import { obtenerDatosMarca } from '@lib/db/mercado';
+import { formatearPrecio } from '@lib/formato';
+
+const { marca } = Astro.params;
+
+if (!marca) return Astro.redirect('/mercado');
+
+const marcaDecoded = decodeURIComponent(marca);
+
+// Cargamos en paralelo: stats de la marca + primeros avisos
+const [datos, resultado] = await Promise.all([
+  obtenerDatosMarca(marcaDecoded),
+  obtenerAvisos({ marca: marcaDecoded, pagina: 1 }),
+]);
+
+if (datos.total === 0) return Astro.redirect('/mercado');
+
+const maxModelo = datos.modelos[0]?.total ?? 1;
+const maxAnio   = datos.anios[0]?.total ?? 1;
+const maxDist   = Math.max(...datos.distribucion.map(d => d.total), 1);
+---
+
+<Base
+  titulo={`${marcaDecoded} en Chile — Precios y avisos`}
+  descripcion={`${datos.total} avisos de ${marcaDecoded} en Chile. Precio promedio ${formatearPrecio(datos.precio_promedio ? Math.round(datos.precio_promedio) : null)}. Compara modelos, años y precios.`}
+>
+
+  <!-- Breadcrumb -->
+  <nav class="text-xs text-zinc-600 mb-6 flex items-center gap-1.5">
+    <a href="/" class="hover:text-zinc-400 transition-colors">Avisos</a>
+    <span>/</span>
+    <a href="/mercado" class="hover:text-zinc-400 transition-colors">Mercado</a>
+    <span>/</span>
+    <span class="text-zinc-400">{marcaDecoded}</span>
+  </nav>
+
+  <!-- Header -->
+  <div class="mb-8">
+    <p class="text-xs font-semibold text-amber-400 uppercase tracking-widest mb-2">Marca</p>
+    <h1 class="text-3xl font-black text-zinc-100 mb-4">{marcaDecoded}</h1>
+
+    <!-- Stats strip -->
+    <div class="flex flex-wrap gap-x-6 gap-y-2">
+      <div>
+        <span class="text-2xl font-black text-zinc-100 tabular-nums">
+          {datos.total.toLocaleString('es-CL')}
+        </span>
+        <span class="text-sm text-zinc-600 ml-1.5">avisos activos</span>
+      </div>
+      {datos.precio_promedio && (
+        <div>
+          <span class="text-2xl font-black text-amber-400 tabular-nums">
+            {formatearPrecio(Math.round(datos.precio_promedio))}
+          </span>
+          <span class="text-sm text-zinc-600 ml-1.5">precio promedio</span>
+        </div>
+      )}
+      {datos.precio_minimo && datos.precio_maximo && (
+        <div class="flex items-baseline gap-1.5 text-sm text-zinc-500">
+          <span>{formatearPrecio(Math.round(datos.precio_minimo))}</span>
+          <span class="text-zinc-700">—</span>
+          <span>{formatearPrecio(Math.round(datos.precio_maximo))}</span>
+        </div>
+      )}
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-6 mb-10">
+
+    <!-- Columna principal: modelos + años -->
+    <div class="space-y-5">
+
+      <!-- Modelos más listados -->
+      <section class="bg-zinc-900 rounded-xl border border-zinc-800/60 overflow-hidden">
+        <div class="px-5 py-4 border-b border-zinc-800/60">
+          <h2 class="text-sm font-bold text-zinc-200">Modelos más listados</h2>
+          <p class="text-xs text-zinc-600 mt-0.5">Top {datos.modelos.length} por cantidad de avisos</p>
+        </div>
+        <div class="divide-y divide-zinc-800/40">
+          {datos.modelos.map((m, i) => (
+            <div class="flex items-center gap-4 px-5 py-3 hover:bg-zinc-800/30 transition-colors">
+              <span class="text-xs font-bold text-zinc-700 w-5 shrink-0 tabular-nums text-right">
+                {i + 1}
+              </span>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1.5">
+                  <a
+                    href={`/?marca=${encodeURIComponent(marcaDecoded)}&modelo=${encodeURIComponent(m.modelo)}`}
+                    class="text-sm font-semibold text-zinc-200 hover:text-amber-400 transition-colors truncate"
+                  >
+                    {m.modelo}
+                  </a>
+                  <span class="text-xs text-zinc-500 tabular-nums ml-3 shrink-0">
+                    {m.total.toLocaleString('es-CL')}
+                  </span>
+                </div>
+                <div class="h-1 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    class="h-full bg-amber-400/70 rounded-full"
+                    style={`width: ${(m.total / maxModelo * 100).toFixed(1)}%`}
+                  />
+                </div>
+              </div>
+              <span class="text-xs tabular-nums text-zinc-500 w-24 text-right shrink-0 hidden sm:block">
+                {m.precio_promedio ? formatearPrecio(Math.round(m.precio_promedio)) : '—'}
+              </span>
+            </div>
+          ))}
+        </div>
+        <!-- CTA ver todos -->
+        <div class="px-5 py-3 border-t border-zinc-800/60">
+          <a
+            href={`/?marca=${encodeURIComponent(marcaDecoded)}`}
+            class="text-xs text-amber-400 hover:text-amber-300 transition-colors font-medium"
+          >
+            Ver todos los {datos.total.toLocaleString('es-CL')} avisos de {marcaDecoded} →
+          </a>
+        </div>
+      </section>
+
+      <!-- Distribución por año -->
+      {datos.anios.length > 0 && (
+        <section class="bg-zinc-900 rounded-xl border border-zinc-800/60 overflow-hidden">
+          <div class="px-5 py-4 border-b border-zinc-800/60">
+            <h2 class="text-sm font-bold text-zinc-200">Avisos por año</h2>
+            <p class="text-xs text-zinc-600 mt-0.5">Últimos {datos.anios.length} años con stock</p>
+          </div>
+          <div class="divide-y divide-zinc-800/40">
+            {datos.anios.map(a => (
+              <div class="flex items-center gap-4 px-5 py-3 hover:bg-zinc-800/30 transition-colors">
+                <a
+                  href={`/?marca=${encodeURIComponent(marcaDecoded)}&anio=${a.anio}`}
+                  class="text-sm font-semibold text-zinc-400 hover:text-amber-400 transition-colors w-12 shrink-0 tabular-nums"
+                >
+                  {a.anio}
+                </a>
+                <div class="flex-1">
+                  <div class="h-1 bg-zinc-800 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-zinc-500/60 rounded-full"
+                      style={`width: ${(a.total / maxAnio * 100).toFixed(1)}%`}
+                    />
+                  </div>
+                </div>
+                <span class="text-xs text-zinc-500 tabular-nums w-8 text-right shrink-0">
+                  {a.total}
+                </span>
+                <span class="text-xs tabular-nums text-zinc-600 w-24 text-right shrink-0 hidden sm:block">
+                  {a.precio_promedio ? formatearPrecio(Math.round(a.precio_promedio)) : '—'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+    </div>
+
+    <!-- Columna lateral: distribución de precios -->
+    <div class="space-y-5">
+      <section class="bg-zinc-900 rounded-xl border border-zinc-800/60 overflow-hidden">
+        <div class="px-5 py-4 border-b border-zinc-800/60">
+          <h2 class="text-sm font-bold text-zinc-200">Distribución de precios</h2>
+          <p class="text-xs text-zinc-600 mt-0.5">Avisos por rango</p>
+        </div>
+        <div class="p-5 space-y-4">
+          {datos.distribucion.map(d => (
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs font-medium text-zinc-400">{d.etiqueta}</span>
+                <span class="text-xs tabular-nums text-zinc-500">
+                  {d.total.toLocaleString('es-CL')}
+                </span>
+              </div>
+              <div class="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-amber-400/60 rounded-full"
+                  style={`width: ${d.total > 0 ? (d.total / maxDist * 100).toFixed(1) : 0}%`}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <!-- Links a otras marcas del mercado -->
+      <div class="bg-zinc-900/50 rounded-xl border border-zinc-800/40 p-5">
+        <p class="text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-3">Explorar</p>
+        <div class="flex flex-col gap-2">
+          <a
+            href={`/?marca=${encodeURIComponent(marcaDecoded)}`}
+            class="flex items-center justify-between text-sm text-zinc-400 hover:text-amber-400 transition-colors py-1"
+          >
+            <span>Todos los {marcaDecoded}</span>
+            <span class="text-zinc-700">→</span>
+          </a>
+          <a
+            href="/mercado"
+            class="flex items-center justify-between text-sm text-zinc-400 hover:text-amber-400 transition-colors py-1"
+          >
+            <span>Todas las marcas</span>
+            <span class="text-zinc-700">→</span>
+          </a>
+          <a
+            href="/deals"
+            class="flex items-center justify-between text-sm text-zinc-400 hover:text-green-400 transition-colors py-1"
+          >
+            <span>Deals activos</span>
+            <span class="text-zinc-700">→</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Últimos avisos -->
+  {resultado.items.length > 0 && (
+    <section>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-sm font-bold text-zinc-200">
+          Últimos avisos de {marcaDecoded}
+        </h2>
+        <a
+          href={`/?marca=${encodeURIComponent(marcaDecoded)}`}
+          class="text-xs text-amber-400 hover:text-amber-300 transition-colors"
+        >
+          Ver todos →
+        </a>
+      </div>
+      <div
+        id="avisos-grid"
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+      >
+        {resultado.items.slice(0, 8).map((aviso) => (
+          <CardAviso aviso={aviso} />
+        ))}
+      </div>
+    </section>
+  )}
+
+</Base>
+
+<script>
+  import { animate, inView, stagger } from 'motion';
+
+  const grid = document.getElementById('avisos-grid');
+  if (grid) {
+    const cards = grid.querySelectorAll('article');
+    animate(cards, { opacity: 0, y: 12 }, { duration: 0 });
+    inView(
+      grid,
+      () => {
+        animate(cards, { opacity: 1, y: 0 }, {
+          duration: 0.36,
+          delay: stagger(0.04),
+          easing: [0.2, 0, 0, 1],
+        });
+      },
+      { amount: 0.05 }
+    );
+  }
+</script>
