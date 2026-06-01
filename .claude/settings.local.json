@@ -9,7 +9,8 @@
       "WebFetch(domain:higgsfield.ai)",
       "WebFetch(domain:mcp.higgsfield.ai)",
       "WebSearch",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(gh issue *)"
     ]
   }
 }

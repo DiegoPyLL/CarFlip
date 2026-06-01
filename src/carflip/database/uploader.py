@@ -91,5 +91,5 @@ async def upsert_avisos(
     resultado = await session.execute(stmt)
     await session.commit()
     n = resultado.rowcount
-    logger.debug(f"[uploader] {n} filas upserted en {tabla.name}")
+    logger.debug(f"[uploader Supabase] {n} filas upserted en {tabla.name}")
     return n

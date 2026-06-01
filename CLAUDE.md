@@ -17,8 +17,8 @@ Estas decisiones se tomaron el 2026-05-11 y rigen todo el desarrollo futuro:
 | Tema               | Decisión                                                                                                                   |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
 | Naming del código | Todo en español:`AvisoAuto`, `ScraperBase`, `ejecutar()`, `espera_aleatoria()`                                     |
-| Arquitectura       | EC2 + TMUX + APScheduler: N scrapers paralelos en sesiones TMUX independientes                                              |
-| Almacenamiento raw | Scraper escribe en `data/raw/` local (EC2, efímero) → S3 (fotos raw + AVIF + JSONL) → Cloudflare R2 (CDN fotos AVIF validadas); PostgreSQL recibe metadata validada vía upsert |
+| Arquitectura       | GitHub Actions (free tier): workflow diario vía schedule cron. Playwright corre en ubuntu-latest (Chrome preinstalado). EC2 + APScheduler deprecado.                          |
+| Almacenamiento raw | Scraper escribe en `data/raw/` local (runner efímero) → Cloudflare R2 (fotos AVIF + JSONL); PostgreSQL recibe metadata validada vía upsert. S3 eliminado.                     |
 | Base de datos      | PostgreSQL async (SQLAlchemy 2.0 + asyncpg + Alembic)                                                                       |
 | Scraping HTTP      | httpx + BeautifulSoup4 + lxml para los sitios con HTML estático                                                             |
 | Scraping headless  | Playwright + stealth: activo en `yapoCloud.py`; reserva para otros sitios con JS dinámico                                   |
@@ -186,6 +186,44 @@ Todo scraper mapea sus datos a `AvisoAuto`, sin importar si la fuente es HTML o 
 
 ---
 
+## Arquitectura free-tier (activa desde v0.2.0)
+
+| Componente    | Servicio                  | Límite free tier                              |
+| ------------- | ------------------------- | --------------------------------------------- |
+| Scheduler     | GitHub Actions (schedule) | 2 000 min/mes — ~60 min/día × 30 = 1 800 min |
+| Base de datos | Supabase PostgreSQL       | 500 MB almacenamiento                         |
+| Imágenes CDN  | Cloudflare R2             | 10 GB storage, sin cobro por egress           |
+
+### GitHub Actions — patrón de ejecución
+
+Workflow `.github/workflows/scraper.yml` con `schedule: cron('0 9 * * *')` (06:00 hora Chile, UTC-3).
+El runner `ubuntu-latest` tiene Chrome preinstalado — Playwright usa Chromium sin instalación extra.
+
+Flujo del job:
+1. `actions/checkout`
+2. `astral-sh/setup-uv` + `uv sync`
+3. `playwright install chromium`
+4. `carflip run` — ejecuta scrapers, sube a R2 + Supabase
+5. Disco del runner (efímero) desaparece al finalizar — sin costo ni limpieza manual
+
+GitHub Secrets requeridos (Settings → Secrets → Actions):
+`DATABASE_URL`, `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
+`CDN_BASE_URL`, `MERCADOLIBRE_APP_ID`, `MERCADOLIBRE_CLIENT_SECRET`
+
+### Supabase — conexión asyncpg
+
+Usar el **transaction pooler** (puerto 6543), no el direct connection (puerto 5432). El parámetro `prepared_statement_cache_size=0` ya está configurado en `session.py` — requerido por PgBouncer en modo transaction.
+
+### Cloudflare R2 — cliente
+
+`s3_cdn.py` apunta a `https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com`. API compatible con S3 — solo cambia el `endpoint_url` en aioboto3. Patrón ya implementado en `src/carflip/storage/migrar_s3_a_r2.py`. `url_cdn_desde_clave_s3()` retorna `{CDN_BASE_URL}/{clave}` (R2 public URL).
+
+### Patrón de disco efímero
+
+Los scrapers escriben en `data/raw/` y `data/processed/` en el disco del runner. Tras subir a R2 y hacer upsert en Supabase, el job termina y el disco desaparece. No se necesita limpieza explícita — el diseño Cloud ya contempla esto.
+
+---
+
 ## Fuentes de datos
 
 ### 1. MercadoLibre — `api.mercadolibre.com`
@@ -292,26 +330,24 @@ Particularidad: incluye particulares además de automotoras, lo que aporta varie
 ## Configuración (.env)
 
 ```env
-# Base de datos
-DATABASE_URL=postgresql+asyncpg://usuario:password@localhost:5432/carflip
+# Base de datos (Supabase — transaction pooler, puerto 6543)
+DATABASE_URL=postgresql+asyncpg://postgres.[ref]:[password]@aws-0-us-east-1.pooler.supabase.com:6543/postgres
 
 # MercadoLibre API
 MERCADOLIBRE_APP_ID=tu_app_id
 MERCADOLIBRE_CLIENT_SECRET=tu_client_secret
 
-# S3 (intermediario antes de R2)
-S3_ACCESS_KEY_ID=tu_access_key
-S3_SECRET_ACCESS_KEY=tu_secret_key
-S3_REGION=us-east-1
-S3_BUCKET=carflip-raw
-S3_PREFIX=raw/
+# Cloudflare R2 (reemplaza S3+CloudFront)
+R2_ACCOUNT_ID=tu_account_id
+R2_BUCKET=carflip-images
+R2_ACCESS_KEY_ID=tu_r2_access_key
+R2_SECRET_ACCESS_KEY=tu_r2_secret_key
+R2_PREFIX=fotos/
+CDN_BASE_URL=https://pub-xxxx.r2.dev   # o dominio personalizado R2
 
 # Delays entre requests (rate limiting)
 MIN_DELAY_SECONDS=2.0
 MAX_DELAY_SECONDS=6.0
-
-# Scheduler
-SCRAPE_INTERVAL_HOURS=6
 
 # Detección de deals
 DEAL_THRESHOLD_PCT=15.0
@@ -322,9 +358,9 @@ LOG_FILE=logs/carflip.log
 ```
 
 Notas:
-- Credenciales sensibles (MERCADOLIBRE_CLIENT_SECRET, S3_SECRET_ACCESS_KEY) solo en `.env`
+- Credenciales sensibles (MERCADOLIBRE_CLIENT_SECRET, R2_SECRET_ACCESS_KEY) solo en `.env`
 - `.env` nunca se commitea
-- Simplificación respecto a v0.1.0: se eliminan `use_secrets_manager`, `aws_region`, `secrets_manager_prefix` y toda referencia a keyring/Fernet
+- Scheduler movido a GitHub Actions cron — `SCRAPE_INTERVAL_HOURS` eliminado
 
 ---
 
@@ -794,6 +830,25 @@ No agregar excepciones al `.gitignore` sin justificación explícita.
 - [ ] Cobertura de tests > 80%
 - [ ] CI/CD pipeline
 
+### Fase 5 — Automatización Cloud (free tier)
+
+- [ ] Crear `.github/workflows/scraper.yml` con `schedule: cron('0 9 * * *')` (06:00 Chile)
+- [ ] Instalar dependencias: `astral-sh/setup-uv` + `uv sync`
+- [ ] Instalar Chromium: `playwright install chromium`
+- [ ] Pasar todos los GitHub Secrets como env vars al step `carflip run`
+- [ ] Crear bucket R2 en Cloudflare dashboard
+- [ ] Actualizar `src/carflip/storage/s3_cdn.py`: pasar `endpoint_url` a aioboto3 (ver patrón en `migrar_s3_a_r2.py`)
+- [ ] Actualizar `url_cdn_desde_clave_s3()`: usar `CDN_BASE_URL` (R2 public URL) en vez de CloudFront
+- [ ] Correr `alembic upgrade head` contra Supabase (connection string pooler puerto 6543)
+- [ ] Verificar upsert funcionando en Supabase con datos reales
+- [ ] Configurar GitHub Secrets en el repositorio
+- [ ] Implementar `MercadoLibreScraper` (tabla `mercadolibre_listings` ya existe en `models.py`)
+- [ ] Implementar `AutosusadosCloud` (httpx+BS4) + modelo `AutosusadosListing` + migración Alembic
+- [ ] Implementar `CheckeadosCloud` (httpx+BS4) + modelo `CheckeadosListing` + migración Alembic
+- [ ] Implementar `EconomicosCloud` (httpx+BS4) + modelo `EconomicosListing` + migración Alembic
+- [ ] Registrar nuevos scrapers en `runner.py`
+- [ ] Crear `CHANGELOG.md` con entrada v0.2.0
+
 ---
 
 ## Referencias
@@ -805,4 +860,4 @@ No agregar excepciones al `.gitignore` sin justificación explícita.
 
 ---
 
-*Última actualización: 2026-05-23 — v0.2.0-dev (patrón Cloud: pipeline integrado en scrape())*
+*Última actualización: 2026-06-01 — v0.2.0-dev (arquitectura free-tier: GitHub Actions + Supabase + Cloudflare R2)*
