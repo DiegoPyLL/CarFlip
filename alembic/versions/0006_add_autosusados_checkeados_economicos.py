@@ -1,7 +1,7 @@
 """Agregar tablas autosusados_listings, checkeados_listings y economicos_listings
 
-Revision ID: 0005
-Revises: 0004
+Revision ID: 0006
+Revises: 0005
 Create Date: 2026-07-12
 
 Completa las fuentes HTML del roadmap Fase 5: los scrapers AutosusadosCloud,
@@ -15,8 +15,8 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0005"
-down_revision: Union[str, None] = "0004"
+revision: str = "0006"
+down_revision: Union[str, None] = "0005"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
