@@ -2,43 +2,62 @@
 import Base from '@layouts/Base.astro';
 import CardDeal from '@components/deals/CardDeal.astro';
 import { obtenerDeals } from '@lib/db';
-import { parsearFiltrosUrl } from '@lib/filtros';
+import type { CategoriaDeal, FuenteDeal } from '@lib/tipos';
 
-const params  = Astro.url.searchParams;
-const filtros = parsearFiltrosUrl(params);
+const params = Astro.url.searchParams;
 
-// Solo usamos el filtro de fuente en esta página
-const fuente = filtros.fuente;
-const deals  = await obtenerDeals(fuente, 48);
+// Filtros propios de esta página (la tabla deals incluye mercadolibre,
+// a diferencia de FiltrosAviso del listado general).
+const fuentesValidas: FuenteDeal[] = ['autocosmos', 'yapo', 'mercadolibre'];
+const categoriasValidas: CategoriaDeal[] = ['oportunidad_clara', 'buen_precio', 'revisar'];
+
+const fuenteParam = params.get('fuente') ?? '';
+const fuente = fuentesValidas.includes(fuenteParam as FuenteDeal)
+  ? (fuenteParam as FuenteDeal)
+  : undefined;
+
+const categoriaParam = params.get('categoria') ?? '';
+const categoria = categoriasValidas.includes(categoriaParam as CategoriaDeal)
+  ? (categoriaParam as CategoriaDeal)
+  : undefined;
+
+const deals = await obtenerDeals(fuente, categoria, 48);
 
 // Stats para el header
 const totalDeals = deals.length;
-const promedioPct = totalDeals > 0
-  ? deals.reduce((acc, d) => acc + Math.abs(d.delta_pct ?? 0), 0) / totalDeals
-  : 0;
-const mayorBajada = totalDeals > 0
-  ? Math.abs(Math.min(...deals.map(d => d.delta_pct ?? 0)))
-  : 0;
+const totalOportunidades = deals.filter(d => d.categoria === 'oportunidad_clara').length;
+const conPuntaje = deals.filter(d => d.puntaje !== null);
+const puntajePromedio = conPuntaje.length > 0
+  ? conPuntaje.reduce((acc, d) => acc + (d.puntaje ?? 0), 0) / conPuntaje.length
+  : null;
 
 const fuentes = [
   { value: '', label: 'Todas' },
   { value: 'autocosmos', label: 'Autocosmos' },
   { value: 'yapo', label: 'Yapo' },
+  { value: 'mercadolibre', label: 'MercadoLibre' },
+];
+
+const categorias = [
+  { value: '', label: 'Todas' },
+  { value: 'oportunidad_clara', label: 'Oportunidad' },
+  { value: 'buen_precio', label: 'Buen precio' },
+  { value: 'revisar', label: 'Revisar' },
 ];
 ---
 
 <Base
-  titulo="Deals — Autos con bajada de precio"
-  descripcion="Autos en Chile que bajaron de precio recientemente. Ordenados por mayor bajada porcentual."
+  titulo="Deals — Oportunidades de compra detectadas con IA"
+  descripcion="Autos en Chile con precio bajo su valor de mercado, evaluados por IA: categoría, puntaje y riesgos detectados en el aviso."
 >
 
   <!-- Header de sección -->
   <div class="mb-8">
-    <p class="text-xs font-semibold text-green-500 uppercase tracking-widest mb-2">Bajadas de precio</p>
+    <p class="text-xs font-semibold text-green-500 uppercase tracking-widest mb-2">Oportunidades de compra</p>
     <h1 class="text-3xl font-black text-zinc-100 mb-3">Deals</h1>
     <p class="text-sm text-zinc-500 max-w-xl">
-      Autos que bajaron de precio desde la última vez que los vimos. Ordenados por mayor bajada.
-      Se actualiza cada 6 horas.
+      Autos publicados bajo su precio de mercado (comparados contra avisos similares de la misma
+      marca, modelo y año). Cada deal es evaluado por IA, que lee el aviso para detectar riesgos.
     </p>
   </div>
 
@@ -51,22 +70,26 @@ const fuentes = [
       </span>
       <span class="text-zinc-800 hidden sm:block">·</span>
       <span class="flex items-baseline gap-2">
-        <span class="text-lg font-bold text-green-500 tabular-nums">▼ {promedioPct.toFixed(1)}%</span>
-        <span class="text-sm text-zinc-600">bajada promedio</span>
+        <span class="text-lg font-bold text-green-500 tabular-nums">{totalOportunidades}</span>
+        <span class="text-sm text-zinc-600">oportunidades claras</span>
       </span>
-      <span class="text-zinc-800 hidden sm:block">·</span>
-      <span class="flex items-baseline gap-2">
-        <span class="text-lg font-bold text-green-500 tabular-nums">▼ {mayorBajada.toFixed(1)}%</span>
-        <span class="text-sm text-zinc-600">mayor bajada</span>
-      </span>
+      {puntajePromedio !== null && (
+        <>
+          <span class="text-zinc-800 hidden sm:block">·</span>
+          <span class="flex items-baseline gap-2">
+            <span class="text-lg font-bold text-amber-400 tabular-nums">{puntajePromedio.toFixed(0)}/100</span>
+            <span class="text-sm text-zinc-600">puntaje promedio</span>
+          </span>
+        </>
+      )}
     </div>
   )}
 
-  <!-- Filtro de fuente -->
-  <form method="GET" action="/deals" class="mb-6">
+  <!-- Filtros -->
+  <form method="GET" action="/deals" class="mb-6 space-y-3">
     <div class="flex items-center gap-2">
-      <span class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0">Fuente</span>
-      <div class="flex gap-1">
+      <span class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Fuente</span>
+      <div class="flex flex-wrap gap-1">
         {fuentes.map(({ value, label }) => (
           <label class="cursor-pointer select-none">
             <input
@@ -84,6 +107,26 @@ const fuentes = [
         ))}
       </div>
     </div>
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Categoría</span>
+      <div class="flex flex-wrap gap-1">
+        {categorias.map(({ value, label }) => (
+          <label class="cursor-pointer select-none">
+            <input
+              type="radio"
+              name="categoria"
+              value={value}
+              class="sr-only peer"
+              checked={categoria === value || (!categoria && value === '')}
+              onchange="this.form.submit()"
+            />
+            <span class="inline-block px-3 py-1.5 text-xs font-semibold rounded-lg border border-zinc-700 text-zinc-500 peer-checked:bg-green-500 peer-checked:text-zinc-950 peer-checked:border-green-500 hover:border-zinc-500 hover:text-zinc-300 transition-all">
+              {label}
+            </span>
+          </label>
+        ))}
+      </div>
+    </div>
   </form>
 
   <!-- Grid de deals -->
@@ -92,16 +135,16 @@ const fuentes = [
       id="deals-grid"
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
     >
-      {deals.map((aviso) => (
-        <CardDeal aviso={aviso} />
+      {deals.map((deal) => (
+        <CardDeal deal={deal} />
       ))}
     </div>
   ) : (
     <div class="text-center py-24 border border-zinc-800/60 rounded-xl">
       <p class="text-zinc-500 font-medium">Sin deals disponibles ahora</p>
       <p class="text-sm text-zinc-700 mt-2 max-w-xs mx-auto">
-        Los deals aparecen cuando detectamos una bajada de precio en un aviso existente.
-        Vuelve a revisar en las próximas horas.
+        Los deals aparecen cuando detectamos un aviso publicado bajo el precio de mercado
+        de vehículos comparables. Vuelve a revisar después de la próxima actualización.
       </p>
       <a href="/" class="mt-5 inline-block text-sm text-amber-400 hover:text-amber-300 transition-colors">
         Ver todos los avisos

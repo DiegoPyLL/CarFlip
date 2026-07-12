@@ -21,6 +21,37 @@ export interface Aviso {
   ultima_vez_visto: Date | null;
 }
 
+export type CategoriaDeal = 'oportunidad_clara' | 'buen_precio' | 'revisar' | 'descartar';
+
+export type FuenteDeal = 'autocosmos' | 'yapo' | 'mercadolibre';
+
+/** Fila de la tabla `deals`: snapshot del aviso + contexto de mercado + evaluación IA. */
+export interface Deal {
+  id: number;
+  fuente: FuenteDeal;
+  id_externo: string;
+  url: string;
+  titulo: string;
+  marca: string | null;
+  modelo: string | null;
+  anio: number | null;
+  km: number | null;
+  ubicacion: string | null;
+  precio: number;
+  moneda: string;
+  url_imagen: string | null;
+  precio_mercado: number | null;
+  pct_vs_mercado: number | null;
+  delta_pct: number | null;
+  comparables: number | null;
+  categoria: CategoriaDeal | null;
+  puntaje: number | null;
+  riesgos: string[];
+  resumen: string | null;
+  categorizado_en: Date | null;
+  actualizado_en: Date | null;
+}
+
 export interface FiltrosAviso {
   fuente?: 'autocosmos' | 'yapo';
   marca?: string;
