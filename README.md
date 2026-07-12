@@ -40,8 +40,8 @@ Cada scraper implementa el pipeline completo dentro de `scrape()`:
 
 ## Fuentes implementadas
 
-| Fuente     | Técnica                | Tabla PostgreSQL      |
-| ---------- | ---------------------- | --------------------- |
+| Fuente     | Técnica               | Tabla PostgreSQL        |
+| ---------- | ---------------------- | ----------------------- |
 | Autocosmos | httpx + BeautifulSoup4 | `autocosmos_listings` |
 | Yapo       | Playwright + stealth   | `yapo_listings`       |
 
@@ -53,7 +53,8 @@ Cada scraper implementa el pipeline completo dentro de `scrape()`:
 
 ### Requisitos previos
 
-- Instancia EC2 (Amazon Linux 2023, `t3.small` recomendado)
+- Instancia EC2 (Amazon Linux 2023, `t3.small` recomendado — `t3.micro` puede quedarse corto de RAM para correr Chromium vía Playwright)
+- VPC con subred pública (la VPC default existente alcanza; no hace falta crear una subred nueva)
 - PostgreSQL externo con base de datos `carflip` creada (p. ej. Supabase)
 - Bucket S3 + distribución CloudFront
 - (Opcional) Bucket Cloudflare R2 — solo si se usa el script de migración `S3 → R2`
@@ -81,12 +82,27 @@ uv python install 3.12
 
 ### 4 — Clonar el repositorio e instalar dependencias
 
+Si el repositorio es privado, `git clone` pedirá usuario y contraseña — usar un [token de acceso personal](https://github.com/settings/tokens) (scope `repo`) como contraseña; la contraseña real de la cuenta de GitHub ya no funciona para git desde 2021.
+
 ```bash
-git clone https://github.com/DiegoPyLL/CarFlip
+git clone https://github.com/VolutusDevGroup/CarFlip
 cd CarFlip
 uv sync
 uv run playwright install chromium
 ```
+
+> **Amazon Linux 2023 no está oficialmente soportado por Playwright** (usa el fallback de Ubuntu 24.04) y `--with-deps` falla porque intenta usar `apt-get`, inexistente en AL2023 (`sh: apt-get: command not found`). Instalar las dependencias del sistema a mano con `dnf` — ojo que los paquetes `libX*` van con mayúscula:
+>
+> ```bash
+> sudo dnf install -y nss atk at-spi2-atk cups-libs libdrm libxkbcommon \
+>   libXcomposite libXdamage libXrandr mesa-libgbm pango alsa-lib
+> ```
+>
+> Verificar que Chromium arranca antes de seguir:
+>
+> ```bash
+> uv run python -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); b = p.chromium.launch(); print('OK'); b.close(); p.stop()"
+> ```
 
 ### 5 — Crear `.env`
 
@@ -163,12 +179,12 @@ Reconectar: `tmux attach -t carflip`
 
 ## Comandos disponibles
 
-| Comando                                    | Descripción                          |
-| ------------------------------------------ | ------------------------------------ |
-| `carflip run`                              | Ejecuta todos los scrapers una vez   |
-| `carflip run --scraper autocosmos`         | Ejecuta un scraper específico        |
-| `carflip start`                            | Inicia el scheduler automático       |
-| `carflip market <marca> <modelo> <año>`    | Estadísticas de mercado              |
+| Comando                                    | Descripción                       |
+| ------------------------------------------ | ---------------------------------- |
+| `carflip run`                            | Ejecuta todos los scrapers una vez |
+| `carflip run --scraper autocosmos`       | Ejecuta un scraper específico     |
+| `carflip start`                          | Inicia el scheduler automático    |
+| `carflip market <marca> <modelo> <año>` | Estadísticas de mercado           |
 
 Los scrapers corren de forma **secuencial** (uno a la vez), con una pausa configurable entre cada uno. Scrapers registrados actualmente: `autocosmos`, `yapo`.
 
@@ -262,6 +278,14 @@ Aumentar delays en `.env`:
 MIN_DELAY_SECONDS=3.0
 MAX_DELAY_SECONDS=8.0
 ```
+
+**IP pública cambia al reiniciar la instancia**
+
+Sin una Elastic IP asociada, cada `Stop` + `Start` asigna una IP pública nueva — revisarla en la consola de EC2 antes de reconectar por SSH.
+
+**Cambiar el tipo de instancia (ej. `t3.small` → `t2.medium` → `t3.micro`)**
+
+AWS exige detener la instancia primero para cambiar el tipo. Al detenerla se pierden los procesos en memoria — la sesión tmux y `carflip start` mueren — pero el disco EBS persiste (repo, `.env` y dependencias instaladas siguen ahí). Tras cambiar el tipo e iniciar de nuevo: reconectar por SSH con la IP nueva, `cd CarFlip`, y volver a levantar `tmux new -s carflip` + `carflip start`. Las migraciones ya aplicadas y los datos en Supabase no se ven afectados por este ciclo.
 
 ---
 
