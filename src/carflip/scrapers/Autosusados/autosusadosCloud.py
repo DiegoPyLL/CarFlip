@@ -18,6 +18,7 @@ initialPosts={"error": {...}}): los reintentos usan backoff largo.
 import asyncio
 import json
 import math
+import random
 import re
 import sys
 from dataclasses import asdict, dataclass, field
@@ -388,8 +389,15 @@ class ScraperAutosusadosCloud(ScraperBase):
             t_ingesta = datetime.now()
             async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as cliente:
 
-                async def _obtener_posts(pagina: int) -> list[dict] | None:
-                    """GET de una página de listado con reintentos y backoff ante rate limit."""
+                async def _obtener_posts(pagina: int) -> tuple[list[dict] | None, bool]:
+                    """GET de una página de listado con reintentos y backoff ante rate limit.
+
+                    Retorna (posts, tuvo_rate_limit). tuvo_rate_limit es True si algún
+                    intento fue rechazado por rate limiting, incluso si finalmente se
+                    obtuvo una respuesta válida — la llamante lo usa para no confiar en
+                    un "sin avisos nuevos" que puede ser una respuesta obsoleta.
+                    """
+                    tuvo_rate_limit = False
                     for intento in range(1, _MAX_REINTENTOS_GET + 1):
                         log_ingesta.debug(
                             f"[autosusados] GET {URL_LISTADO} params={{pagina: {pagina}}}"
@@ -403,18 +411,20 @@ class ScraperAutosusadosCloud(ScraperBase):
                             response.raise_for_status()
                             posts = _extraer_posts(response.text)
                             if isinstance(posts, list):
-                                return posts
+                                return posts, tuvo_rate_limit
                             # El sitio embebe el error de rate limit en el JSON
                             motivo = posts.get("error") if isinstance(posts, dict) else "sin __NEXT_DATA__"
                             raise RuntimeError(f"respuesta sin posts: {motivo}")
                         except Exception as e:
                             es_rate_limit = "429" in str(e) or "límite" in str(e).lower()
-                            espera = _BACKOFF_RATE_LIMIT if es_rate_limit else 2.0
+                            if es_rate_limit:
+                                tuvo_rate_limit = True
+                            espera = _BACKOFF_RATE_LIMIT + random.uniform(0, 5) if es_rate_limit else 2.0
                             if intento < _MAX_REINTENTOS_GET:
                                 log_ingesta.warning(
                                     f"[autosusados] Error en página {pagina}"
                                     f" intento {intento}/{_MAX_REINTENTOS_GET}: {e}"
-                                    f" — reintentando en {espera:.0f}s"
+                                    f" — reintentando en {espera:.1f}s"
                                 )
                                 await asyncio.sleep(espera)
                             else:
@@ -422,7 +432,7 @@ class ScraperAutosusadosCloud(ScraperBase):
                                     f"[autosusados] Página {pagina}: agotados {_MAX_REINTENTOS_GET}"
                                     f" reintentos, continuando con siguiente página"
                                 )
-                    return None
+                    return None, tuvo_rate_limit
 
                 async def _tarea_pagina(pagina: int) -> tuple[list[AvisoAuto], int, int]:
                     """Procesa una página completa. Retorna (avisos, imgs_ok, imgs_total)."""
@@ -430,7 +440,7 @@ class ScraperAutosusadosCloud(ScraperBase):
                     if fin_paginacion.is_set():
                         return [], 0, 0
 
-                    posts = await _obtener_posts(pagina)
+                    posts, tuvo_rate_limit = await _obtener_posts(pagina)
                     if posts is None:
                         return [], 0, 0
 
@@ -449,10 +459,22 @@ class ScraperAutosusadosCloud(ScraperBase):
                                 vistos_car_id.add(car_id)
                                 nuevos.append(post)
 
-                    # El sitio puede devolver posts no vacíos pero todos ya vistos
-                    # (duplicados de páginas previas) — sin esto, la paginación
-                    # nunca corta y sigue pidiendo páginas hasta el rate limit.
+                    # El sitio puede devolver posts no vacíos pero todos ya vistos.
+                    # Si ocurrió durante/tras un rate limit, es probable una respuesta
+                    # cacheada/obsoleta — se omite sin cortar paginación. Si se obtuvo
+                    # limpiamente sin rate limit, entonces es señal genuina de fin.
                     if not nuevos:
+                        if tuvo_rate_limit:
+                            log_ingesta.warning(
+                                f"[autosusados] Página {pagina}: sin avisos nuevos tras rate limit"
+                                f" — probable respuesta obsoleta, se omite sin cortar paginación"
+                            )
+                            fail_logs.append(FailLog(
+                                etapa="rate_limit_paginacion",
+                                motivo="Página retornó solo duplicados tras backoff de rate limit; se omite",
+                                id_externo=f"pagina_{pagina}",
+                            ))
+                            return [], 0, 0
                         log_ingesta.info(
                             f"[autosusados] Página {pagina}: sin avisos nuevos, fin paginación"
                         )
@@ -569,6 +591,12 @@ class ScraperAutosusadosCloud(ScraperBase):
                     log_ingesta.debug(f"[autosusados] Página {pagina}: {len(avisos_pagina)} avisos obtenidos")
                     return avisos_pagina, imgs_ok_pag, imgs_total_pag
 
+                # ── Tarea con stagger — evita ráfaga simultánea de requests del mismo lote ──
+                async def _tarea_con_stagger(p: int, idx: int) -> tuple[list[AvisoAuto], int, int]:
+                    if idx > 0:
+                        await asyncio.sleep(idx * random.uniform(0.8, 2.0))
+                    return await _tarea_pagina(p)
+
                 # ── Procesamiento por lotes: _CONCURRENCIA_PAGINAS páginas en paralelo ──
                 pagina = 1
                 while not fin_paginacion.is_set() and (self.max_paginas is None or pagina <= self.max_paginas):
@@ -585,7 +613,7 @@ class ScraperAutosusadosCloud(ScraperBase):
                     nums_lote = list(range(pagina, fin_lote))
 
                     resultados_lote = await asyncio.gather(
-                        *[_tarea_pagina(p) for p in nums_lote],
+                        *[_tarea_con_stagger(p, i) for i, p in enumerate(nums_lote)],
                         return_exceptions=True,
                     )
 

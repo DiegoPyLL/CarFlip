@@ -19,7 +19,15 @@ const delta      = signosDelta(aviso.delta_pct);
 const urlImagen  = resolverUrlImagen(aviso.url_imagen);
 const titulo     = [aviso.marca, aviso.modelo, aviso.anio].filter(Boolean).join(' ') || aviso.titulo;
 const descripcionPage = `${titulo} — ${aviso.precio ? formatearPrecio(aviso.precio, aviso.moneda) : 'Precio a consultar'}. ${aviso.km ? formatearKm(aviso.km) : ''} ${aviso.ubicacion ?? ''}`.trim();
-const fuenteLabel = aviso.fuente === 'autocosmos' ? 'Autocosmos.cl' : 'Yapo.cl';
+
+const fuenteLabels: Record<string, string> = {
+  autocosmos: 'Autocosmos.cl',
+  yapo: 'Yapo.cl',
+  autosusados: 'Autosusados.cl',
+  checkeados: 'Checkeados.cl',
+  economicos: 'Económicos.cl',
+};
+const fuenteLabel = fuenteLabels[aviso.fuente] || aviso.fuente.toUpperCase();
 
 const ficha = [
   { label: 'Marca',       valor: aviso.marca },

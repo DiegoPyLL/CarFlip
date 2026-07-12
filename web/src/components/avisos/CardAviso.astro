@@ -11,7 +11,14 @@ const { aviso } = Astro.props;
 const urlImagen = resolverUrlImagen(aviso.url_imagen);
 const delta = signosDelta(aviso.delta_pct);
 
-const fuenteLabel = aviso.fuente === 'autocosmos' ? 'Autocosmos' : 'Yapo';
+const fuenteLabels: Record<string, string> = {
+  autocosmos: 'Autocosmos',
+  yapo: 'Yapo',
+  autosusados: 'Autosusados',
+  checkeados: 'Checkeados',
+  economicos: 'Económicos',
+};
+const fuenteLabel = fuenteLabels[aviso.fuente] || aviso.fuente.toUpperCase();
 
 const metaItems = [
   aviso.anio ? String(aviso.anio) : null,
