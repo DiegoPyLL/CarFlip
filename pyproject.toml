@@ -1,6 +1,6 @@
 [project]
 name = "carflip"
-version = "0.1.0"
+version = "0.3.0"
 description = "Scraper automático de portales de venta de autos en Chile"
 requires-python = ">=3.12"
 dependencies = [
@@ -46,4 +46,5 @@ dev = [
     "pytest>=8.2",
     "pytest-asyncio>=0.23",
     "pytest-mock>=3.14",
+    "respx>=0.21",
 ]
