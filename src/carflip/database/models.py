@@ -103,6 +103,16 @@ class Deal(Base):
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true", index=True)
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+class AutosusadosListing(ListingMixin, Base):
+    __tablename__ = "autosusados_listings"
+
+
+class CheckeadosListing(ListingMixin, Base):
+    __tablename__ = "checkeados_listings"
+
+
+class EconomicosListing(ListingMixin, Base):
+    __tablename__ = "economicos_listings"
 
 
 class ScrapedRun(Base):

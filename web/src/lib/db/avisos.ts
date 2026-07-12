@@ -23,7 +23,17 @@ type RawAviso = {
   ultima_vez_visto: string | null;
 };
 
-function mapearAviso(row: RawAviso, fuente: 'autocosmos' | 'yapo'): Aviso {
+const TABLA_POR_FUENTE: Record<Aviso['fuente'], string> = {
+  autocosmos: 'autocosmos_listings',
+  yapo: 'yapo_listings',
+  autosusados: 'autosusados_listings',
+  checkeados: 'checkeados_listings',
+  economicos: 'economicos_listings',
+};
+
+const FUENTES = Object.keys(TABLA_POR_FUENTE) as Aviso['fuente'][];
+
+function mapearAviso(row: RawAviso, fuente: Aviso['fuente']): Aviso {
   return {
     ...row,
     fuente,
@@ -76,88 +86,76 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
   const pagina = filtros.pagina ?? 1;
   const offset = (pagina - 1) * POR_PAGINA;
 
-  if (filtros.fuente === 'autocosmos') {
-    let q = supabase.from('autocosmos_listings').select('*', { count: 'exact' });
+  if (filtros.fuente) {
+    const fuente = filtros.fuente;
+    let q = supabase.from(TABLA_POR_FUENTE[fuente]).select('*', { count: 'exact' });
     q = aplicarFiltros(q, filtros);
     q = aplicarOrden(q, filtros.orden);
     q = q.range(offset, offset + POR_PAGINA - 1);
     const { data, count, error } = await q;
     if (error) throw error;
-    const items = (data ?? []).map(r => mapearAviso(r as RawAviso, 'autocosmos'));
+    const items = (data ?? []).map((r) => mapearAviso(r as RawAviso, fuente));
     const total = count ?? 0;
     return { items, total, pagina, total_paginas: Math.ceil(total / POR_PAGINA), por_pagina: POR_PAGINA };
   }
 
-  if (filtros.fuente === 'yapo') {
-    let q = supabase.from('yapo_listings').select('*', { count: 'exact' });
-    q = aplicarFiltros(q, filtros);
-    q = aplicarOrden(q, filtros.orden);
-    q = q.range(offset, offset + POR_PAGINA - 1);
-    const { data, count, error } = await q;
+  // Todas las fuentes: una query por tabla en paralelo, mezcladas y ordenadas en memoria
+  const resultados = await Promise.all(
+    FUENTES.map((fuente) => {
+      let q = supabase.from(TABLA_POR_FUENTE[fuente]).select('*');
+      q = aplicarFiltros(q, filtros);
+      q = aplicarOrden(q, filtros.orden);
+      return q;
+    })
+  );
+
+  const combined: Aviso[] = [];
+  resultados.forEach(({ data, error }, i) => {
     if (error) throw error;
-    const items = (data ?? []).map(r => mapearAviso(r as RawAviso, 'yapo'));
-    const total = count ?? 0;
-    return { items, total, pagina, total_paginas: Math.ceil(total / POR_PAGINA), por_pagina: POR_PAGINA };
-  }
+    combined.push(...(data ?? []).map((r) => mapearAviso(r as RawAviso, FUENTES[i])));
+  });
 
-  // Todas las fuentes
-  let qAC = supabase.from('autocosmos_listings').select('*');
-  let qYP = supabase.from('yapo_listings').select('*');
-  qAC = aplicarFiltros(qAC, filtros);
-  qYP = aplicarFiltros(qYP, filtros);
-  qAC = aplicarOrden(qAC, filtros.orden);
-  qYP = aplicarOrden(qYP, filtros.orden);
-
-  const [{ data: dataAC, error: errAC }, { data: dataYP, error: errYP }] = await Promise.all([qAC, qYP]);
-  if (errAC) throw errAC;
-  if (errYP) throw errYP;
-
-  const combined = ordenarCombinado([
-    ...(dataAC ?? []).map(r => mapearAviso(r as RawAviso, 'autocosmos')),
-    ...(dataYP ?? []).map(r => mapearAviso(r as RawAviso, 'yapo')),
-  ], filtros.orden);
-
-  const total = combined.length;
-  const items = combined.slice(offset, offset + POR_PAGINA);
+  const ordenado = ordenarCombinado(combined, filtros.orden);
+  const total = ordenado.length;
+  const items = ordenado.slice(offset, offset + POR_PAGINA);
   return { items, total, pagina, total_paginas: Math.ceil(total / POR_PAGINA), por_pagina: POR_PAGINA };
 }
 
 export async function obtenerAviso(id: number): Promise<Aviso | null> {
-  const { data: acRow } = await supabase.from('autocosmos_listings').select('*').eq('id', id).maybeSingle();
-  if (acRow) return mapearAviso(acRow as RawAviso, 'autocosmos');
-
-  const { data: yapoRow } = await supabase.from('yapo_listings').select('*').eq('id', id).maybeSingle();
-  return yapoRow ? mapearAviso(yapoRow as RawAviso, 'yapo') : null;
+  for (const fuente of FUENTES) {
+    const { data } = await supabase.from(TABLA_POR_FUENTE[fuente]).select('*').eq('id', id).maybeSingle();
+    if (data) return mapearAviso(data as RawAviso, fuente);
+  }
+  return null;
 }
 
 export async function obtenerFiltrosDisponibles(): Promise<FiltrosDisponibles> {
-  const [
-    { data: marcasAC }, { data: marcasYP },
-    { data: aniosAC },  { data: aniosYP },
-    { data: combsAC },  { data: combsYP },
-  ] = await Promise.all([
-    supabase.from('autocosmos_listings').select('marca').not('marca', 'is', null),
-    supabase.from('yapo_listings').select('marca').not('marca', 'is', null),
-    supabase.from('autocosmos_listings').select('anio').not('anio', 'is', null),
-    supabase.from('yapo_listings').select('anio').not('anio', 'is', null),
-    supabase.from('autocosmos_listings').select('combustible').not('combustible', 'is', null),
-    supabase.from('yapo_listings').select('combustible').not('combustible', 'is', null),
+  const [resMarca, resAnio, resCombustible] = await Promise.all([
+    Promise.all(
+      FUENTES.map((fuente) => supabase.from(TABLA_POR_FUENTE[fuente]).select('marca').not('marca', 'is', null))
+    ),
+    Promise.all(
+      FUENTES.map((fuente) => supabase.from(TABLA_POR_FUENTE[fuente]).select('anio').not('anio', 'is', null))
+    ),
+    Promise.all(
+      FUENTES.map((fuente) =>
+        supabase.from(TABLA_POR_FUENTE[fuente]).select('combustible').not('combustible', 'is', null)
+      )
+    ),
   ]);
 
-  const marcas = [...new Set([
-    ...(marcasAC ?? []).map((r: any) => r.marca as string),
-    ...(marcasYP ?? []).map((r: any) => r.marca as string),
-  ])].sort();
+  const marcas = new Set<string>();
+  resMarca.forEach(({ data }) => (data ?? []).forEach((r: any) => marcas.add(r.marca)));
 
-  const anios = [...new Set([
-    ...(aniosAC ?? []).map((r: any) => r.anio as number),
-    ...(aniosYP ?? []).map((r: any) => r.anio as number),
-  ])].sort((a, b) => b - a);
+  const anios = new Set<number>();
+  resAnio.forEach(({ data }) => (data ?? []).forEach((r: any) => anios.add(r.anio)));
 
-  const combustibles = [...new Set([
-    ...(combsAC ?? []).map((r: any) => r.combustible as string),
-    ...(combsYP ?? []).map((r: any) => r.combustible as string),
-  ])].sort();
+  const combustibles = new Set<string>();
+  resCombustible.forEach(({ data }) => (data ?? []).forEach((r: any) => combustibles.add(r.combustible)));
 
-  return { marcas, anios, combustibles };
+  return {
+    marcas: [...marcas].sort(),
+    anios: [...anios].sort((a, b) => b - a),
+    combustibles: [...combustibles].sort(),
+  };
 }

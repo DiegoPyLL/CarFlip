@@ -1,4 +1,16 @@
 import { supabase } from './client';
+import type { Aviso } from '../tipos';
+
+const TABLA_POR_FUENTE: Record<Aviso['fuente'], string> = {
+  autocosmos: 'autocosmos_listings',
+  yapo: 'yapo_listings',
+  autosusados: 'autosusados_listings',
+  checkeados: 'checkeados_listings',
+  economicos: 'economicos_listings',
+};
+
+const FUENTES = Object.keys(TABLA_POR_FUENTE) as Aviso['fuente'][];
+const TABLAS = FUENTES.map((f) => TABLA_POR_FUENTE[f]);
 
 export interface EstadisticaMarca {
   marca: string;
@@ -22,7 +34,7 @@ export interface DatosMercado {
   total: number;
 }
 
-export async function obtenerDatosMercado(fuente?: 'autocosmos' | 'yapo'): Promise<DatosMercado> {
+export async function obtenerDatosMercado(fuente?: Aviso['fuente']): Promise<DatosMercado> {
   type Fila = { marca: string | null; modelo: string | null; precio: string | null };
 
   async function fetchTabla(tabla: string): Promise<Fila[]> {
@@ -35,16 +47,11 @@ export async function obtenerDatosMercado(fuente?: 'autocosmos' | 'yapo'): Promi
   }
 
   let rows: Fila[];
-  if (fuente === 'autocosmos') {
-    rows = await fetchTabla('autocosmos_listings');
-  } else if (fuente === 'yapo') {
-    rows = await fetchTabla('yapo_listings');
+  if (fuente) {
+    rows = await fetchTabla(TABLA_POR_FUENTE[fuente]);
   } else {
-    const [ac, yp] = await Promise.all([
-      fetchTabla('autocosmos_listings'),
-      fetchTabla('yapo_listings'),
-    ]);
-    rows = [...ac, ...yp];
+    const resultados = await Promise.all(TABLAS.map((tabla) => fetchTabla(tabla)));
+    rows = resultados.flat();
   }
 
   // ── Marcas ──────────────────────────────────────────────────────────
@@ -129,11 +136,8 @@ export async function obtenerDatosMarca(marca: string): Promise<{
     return (data ?? []) as Fila[];
   }
 
-  const [ac, yp] = await Promise.all([
-    fetchTabla('autocosmos_listings'),
-    fetchTabla('yapo_listings'),
-  ]);
-  const rows = [...ac, ...yp];
+  const resultados = await Promise.all(TABLAS.map((tabla) => fetchTabla(tabla)));
+  const rows = resultados.flat();
 
   // Modelos
   const modeloMap = new Map<string, { total: number; precios: number[] }>();

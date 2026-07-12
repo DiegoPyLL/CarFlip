@@ -73,6 +73,33 @@ const ordenOptions = [
       </span>
     </span>
 
+    <span class="text-zinc-800 hidden sm:block">·</span>
+
+    <span class="text-sm text-zinc-500">
+      AutosUsados
+      <span class="text-zinc-300 font-semibold ml-1">
+        {estadisticas.total_autosusados.toLocaleString('es-CL')}
+      </span>
+    </span>
+
+    <span class="text-zinc-800 hidden sm:block">·</span>
+
+    <span class="text-sm text-zinc-500">
+      Checkeados
+      <span class="text-zinc-300 font-semibold ml-1">
+        {estadisticas.total_checkeados.toLocaleString('es-CL')}
+      </span>
+    </span>
+
+    <span class="text-zinc-800 hidden sm:block">·</span>
+
+    <span class="text-sm text-zinc-500">
+      Económicos
+      <span class="text-zinc-300 font-semibold ml-1">
+        {estadisticas.total_economicos.toLocaleString('es-CL')}
+      </span>
+    </span>
+
     {estadisticas.ultima_actualizacion && (
       <>
         <span class="text-zinc-800 hidden sm:block">·</span>

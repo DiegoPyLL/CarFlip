@@ -5,7 +5,13 @@ export function parsearFiltrosUrl(params: URLSearchParams): FiltrosAviso {
   const anioActual = new Date().getFullYear();
 
   const fuente = params.get('fuente');
-  if (fuente === 'autocosmos' || fuente === 'yapo') {
+  if (
+    fuente === 'autocosmos' ||
+    fuente === 'yapo' ||
+    fuente === 'autosusados' ||
+    fuente === 'checkeados' ||
+    fuente === 'economicos'
+  ) {
     filtros.fuente = fuente;
   }
 
