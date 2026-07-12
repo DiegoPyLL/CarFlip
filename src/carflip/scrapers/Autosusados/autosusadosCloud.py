@@ -433,12 +433,8 @@ class ScraperAutosusadosCloud(ScraperBase):
                     posts = await _obtener_posts(pagina)
                     if posts is None:
                         return [], 0, 0
-                    if not posts:
-                        log_ingesta.info(f"[autosusados] Página {pagina}: sin resultados, fin paginación")
-                        fin_paginacion.set()
-                        return [], 0, 0
 
-                    if paginas_sitio is None and isinstance(posts[0].get("total"), int):
+                    if paginas_sitio is None and posts and isinstance(posts[0].get("total"), int):
                         paginas_sitio = math.ceil(posts[0]["total"] / _AVISOS_POR_PAGINA)
                         log_ingesta.info(
                             f"[autosusados] Sitio reporta {posts[0]['total']} avisos"
@@ -452,6 +448,16 @@ class ScraperAutosusadosCloud(ScraperBase):
                             if car_id and car_id not in vistos_car_id:
                                 vistos_car_id.add(car_id)
                                 nuevos.append(post)
+
+                    # El sitio puede devolver posts no vacíos pero todos ya vistos
+                    # (duplicados de páginas previas) — sin esto, la paginación
+                    # nunca corta y sigue pidiendo páginas hasta el rate limit.
+                    if not nuevos:
+                        log_ingesta.info(
+                            f"[autosusados] Página {pagina}: sin avisos nuevos, fin paginación"
+                        )
+                        fin_paginacion.set()
+                        return [], 0, 0
 
                     avisos_pagina: list[AvisoAuto] = []
                     for post in nuevos:
