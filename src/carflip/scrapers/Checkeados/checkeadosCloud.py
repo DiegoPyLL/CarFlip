@@ -1,31 +1,33 @@
 """
 Pipeline cloud completo para Checkeados Chile.
 
-El sitio es Next.js: el listado /comprar se renderiza client-side contra una
-API con auth, pero (a) el sitemap oficial /api/sitemap_catalog.xml lista todos
-los avisos publicados, y (b) cada página de detalle viene server-side con el
-JSON completo del vehículo embebido en <script id="__NEXT_DATA__">
-(props.pageProps.vehicle). El scraper recorre el sitemap y lee ese JSON.
+El listado /comprar es un export estático de Next.js (HTML idéntico sin
+importar query params) que carga el catálogo client-side contra
+GET /api/vehicles?status=...&limit=20&offset=N — confirmado inspeccionando
+las llamadas de red reales del sitio público (sin cookies ni login). El
+sitemap oficial y las páginas por marca existen pero ambos topan en 20
+resultados, muy por debajo del inventario real (~125 avisos); por eso el
+scraper pagina directamente ese endpoint, que es el mismo que usa cualquier
+visitante anónimo de /comprar. Cada item ya viene con los mismos campos que
+antes se leían del <script id="__NEXT_DATA__"> de la página de detalle, así
+que no hace falta visitar cada aviso individualmente.
 
 Etapas cubiertas en scrape():
-  1. INGESTA      — sitemap del catálogo → detalle por aviso → JSON embebido,
-                    descarga de fotos
+  1. INGESTA      — paginación de /api/vehicles por offset, descarga de fotos
   2. LIMPIEZA     — deduplicación por id_externo
   3. VALIDACIÓN   — validación estructural y semántica; avisos inválidos van a FAIL LOG
   4. CARGA        — delegada a ScraperBase.ejecutar() vía uploader.upsert_avisos()
-
-Volumen bajo (~20 avisos, automotora única) — un run completo toma segundos.
 """
 
 import asyncio
 import json
-import random
 import re
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
+from urllib.parse import quote
 
 if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).parents[4]))
@@ -43,25 +45,28 @@ from carflip.storage.s3_cdn import cargar_a_s3_con_retry, url_cdn_desde_clave_s3
 CODIGO_FUENTE = 104  # identificador único de checkeados (ver ScraperBase.codigo_fuente)
 
 BASE_URL = "https://www.checkeados.cl"
-URL_SITEMAP_CATALOGO = f"{BASE_URL}/api/sitemap_catalog.xml"
+URL_API_VEHICULOS = f"{BASE_URL}/api/vehicles"
+URL_API_CONTEO = f"{BASE_URL}/api/vehicles/count"
 
-_PATRON_NEXT_DATA = re.compile(
-    r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', re.DOTALL
+# Mismos estados que el frontend público de /comprar pide para su listado
+# (capturado inspeccionando las llamadas de red reales de la página; excluye
+# "Comprado/Consignado - No publicado", que el sitio no muestra como inventario).
+_ESTADOS_INVENTARIO = (
+    "Publicado,Comprado - En preparación,Consignado - En preparación,"
+    "En preparación - Listo,Control de Calidad - Aprobado"
 )
-_PATRON_LOC = re.compile(r"<loc>([^<]+)</loc>")
+
 _PATRON_FECHA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 _AÑO_MINIMO = 1970
 _PRECIO_MINIMO = 500_000
 _PRECIO_MAXIMO = 250_000_000
 
-_MAX_REINTENTOS_GET = 10  # reintentos por request antes de saltar al siguiente aviso
+_MAX_REINTENTOS_GET = 10  # reintentos por request antes de saltar a la siguiente página
 
-_CONCURRENCIA_DETALLES = 5  # páginas de detalle procesadas en paralelo
+_LIMIT_PAGINA = 20          # tope máximo que acepta el endpoint (valores mayores se ignoran)
+_CONCURRENCIA_PAGINAS = 3   # páginas procesadas en paralelo por lote
 _SEM_IMGS = 20              # descargas de imagen concurrentes
-
-_THROTTLE_MIN = 0.5  # segundos entre detalles (dentro del semáforo)
-_THROTTLE_MAX = 1.5
 
 
 # ─── FAIL LOG ────────────────────────────────────────────────────────────────
@@ -224,23 +229,17 @@ async def _descargar_imagen(
 # ─── PARSEO ──────────────────────────────────────────────────────────────────
 
 
-def _urls_desde_sitemap(xml: str) -> list[str]:
-    """Extrae las URLs de detalle del sitemap del catálogo (descarta la home)."""
-    urls = _PATRON_LOC.findall(xml)
-    return [u.strip() for u in urls if "/comprar/" in u]
+def _url_detalle(vehicle: dict) -> str:
+    """Construye la URL pública /comprar/{marca}~{modelo}~{año}~{id[:4]}.
 
-
-def _extraer_vehicle(html: str) -> dict | None:
-    """Extrae props.pageProps.vehicle del <script id="__NEXT_DATA__"> de un detalle."""
-    match = _PATRON_NEXT_DATA.search(html)
-    if not match:
-        return None
-    try:
-        data = json.loads(match.group(1))
-        vehicle = data["props"]["pageProps"]["vehicle"]
-        return vehicle if isinstance(vehicle, dict) else None
-    except (json.JSONDecodeError, KeyError, TypeError):
-        return None
+    Patrón confirmado comparando los href reales del listado con el id de
+    cada vehículo: el último segmento son los primeros 4 caracteres del id.
+    """
+    marca = quote(str(vehicle.get("brand") or "").lower(), safe="")
+    modelo = quote(str(vehicle.get("model") or "").lower(), safe="")
+    anio = vehicle.get("year") or ""
+    codigo = str(vehicle.get("id") or "")[:4]
+    return f"{BASE_URL}/comprar/{marca}~{modelo}~{anio}~{codigo}"
 
 
 def _parsear_vehicle(vehicle: dict, url: str) -> AvisoAuto | None:
@@ -319,8 +318,7 @@ class ScraperCheckeadosCloud(ScraperBase):
     Scraper de Checkeados con pipeline cloud completo:
     ingesta → limpieza → validación → retorno para carga.
 
-    `max_paginas` limita la cantidad de avisos (páginas de detalle) procesados;
-    el sitio no tiene paginación de listado.
+    `max_paginas` limita la cantidad de avisos procesados (no páginas de la API).
     """
 
     fuente = "checkeados"
@@ -365,8 +363,8 @@ class ScraperCheckeadosCloud(ScraperBase):
         carpeta_fotos_processed = carpeta / "processed" / "fotos" if carpeta else None
 
         lock_jsonl = asyncio.Lock()
-        sem_detalles = asyncio.Semaphore(_CONCURRENCIA_DETALLES)
         sem_imgs = asyncio.Semaphore(_SEM_IMGS)
+        paginas_procesadas = 0
 
         try:
             # ── INGESTA ──────────────────────────────────────────────────────
@@ -374,91 +372,101 @@ class ScraperCheckeadosCloud(ScraperBase):
             t_ingesta = datetime.now()
             async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as cliente:
 
-                # 1. Sitemap del catálogo → URLs de detalle
-                urls_detalle: list[str] = []
+                # 1. Total de avisos en inventario público (define cuántas páginas pedir)
+                total = 0
                 for intento in range(1, _MAX_REINTENTOS_GET + 1):
                     try:
                         resp = await cliente.get(
-                            URL_SITEMAP_CATALOGO, headers={"User-Agent": self._ua.random}
+                            URL_API_CONTEO,
+                            params={"status": _ESTADOS_INVENTARIO},
+                            headers={"User-Agent": self._ua.random},
                         )
                         resp.raise_for_status()
-                        urls_detalle = _urls_desde_sitemap(resp.text)
+                        total = int(resp.json())
                         break
                     except Exception as e:
                         if intento < _MAX_REINTENTOS_GET:
                             log_ingesta.warning(
-                                f"[checkeados] Error obteniendo sitemap"
+                                f"[checkeados] Error obteniendo conteo de inventario"
                                 f" intento {intento}/{_MAX_REINTENTOS_GET}: {e} — reintentando en 2s"
                             )
                             await asyncio.sleep(2)
                         else:
                             log_ingesta.error(
-                                f"[checkeados] Sitemap del catálogo: agotados"
+                                f"[checkeados] Conteo de inventario: agotados"
                                 f" {_MAX_REINTENTOS_GET} reintentos, abortando ingesta"
                             )
 
                 if self.max_paginas is not None:
-                    urls_detalle = urls_detalle[: self.max_paginas]
+                    total = min(total, self.max_paginas)
 
-                log_ingesta.info(f"[checkeados] {len(urls_detalle)} avisos en el sitemap del catálogo")
+                log_ingesta.info(f"[checkeados] {total} avisos en inventario público (API)")
 
-                # 2. Detalle por aviso → JSON vehicle → AvisoAuto
-                async def _tarea_detalle(url_det: str, idx: int) -> AvisoAuto | None:
-                    async with sem_detalles:
-                        await asyncio.sleep(random.uniform(_THROTTLE_MIN, _THROTTLE_MAX))
-                        html: str | None = None
-                        for intento in range(1, _MAX_REINTENTOS_GET + 1):
-                            try:
-                                resp_det = await cliente.get(
-                                    url_det, headers={"User-Agent": self._ua.random}, timeout=25.0
+                # 2. Páginas de /api/vehicles por offset → AvisoAuto
+                async def _tarea_pagina(offset: int) -> list[AvisoAuto]:
+                    vehiculos: list | None = None
+                    for intento in range(1, _MAX_REINTENTOS_GET + 1):
+                        try:
+                            resp_p = await cliente.get(
+                                URL_API_VEHICULOS,
+                                params={
+                                    "status": _ESTADOS_INVENTARIO,
+                                    "limit": _LIMIT_PAGINA,
+                                    "offset": offset,
+                                },
+                                headers={"User-Agent": self._ua.random},
+                                timeout=25.0,
+                            )
+                            resp_p.raise_for_status()
+                            data = resp_p.json()
+                            vehiculos = data if isinstance(data, list) else None
+                            break
+                        except Exception as e:
+                            if intento < _MAX_REINTENTOS_GET:
+                                log_ingesta.warning(
+                                    f"[checkeados] Error en offset {offset}"
+                                    f" intento {intento}/{_MAX_REINTENTOS_GET}: {e} — reintentando en 2s"
                                 )
-                                resp_det.raise_for_status()
-                                html = resp_det.text
-                                break
-                            except Exception as e:
-                                if intento < _MAX_REINTENTOS_GET:
-                                    log_ingesta.warning(
-                                        f"[checkeados] Error en detalle {idx}"
-                                        f" intento {intento}/{_MAX_REINTENTOS_GET}: {e} — reintentando en 2s"
-                                    )
-                                    await asyncio.sleep(2)
-                                else:
-                                    log_ingesta.error(
-                                        f"[checkeados] Detalle {url_det}: agotados"
-                                        f" {_MAX_REINTENTOS_GET} reintentos, saltando aviso"
-                                    )
-                        if html is None:
-                            fail_logs.append(FailLog(
-                                etapa="ingesta_detalle",
-                                motivo="GET de detalle agotó reintentos",
-                                id_externo=construir_id_externo(url_det),
-                            ))
-                            return None
+                                await asyncio.sleep(2)
+                            else:
+                                log_ingesta.error(
+                                    f"[checkeados] Offset {offset}: agotados"
+                                    f" {_MAX_REINTENTOS_GET} reintentos, saltando página"
+                                )
+                    if vehiculos is None:
+                        fail_logs.append(FailLog(
+                            etapa="ingesta_pagina",
+                            motivo="GET de /api/vehicles agotó reintentos o respuesta inválida",
+                            id_externo=f"offset={offset}",
+                        ))
+                        return []
 
-                        vehicle = _extraer_vehicle(html)
-                        if vehicle is None:
-                            log_ingesta.warning(f"[checkeados] Detalle sin JSON vehicle: {url_det}")
-                            fail_logs.append(FailLog(
-                                etapa="ingesta_detalle",
-                                motivo="Página de detalle sin props.pageProps.vehicle",
-                                id_externo=construir_id_externo(url_det),
-                            ))
-                            return None
-
+                    avisos_pagina: list[AvisoAuto] = []
+                    for vehicle in vehiculos:
+                        if not isinstance(vehicle, dict) or not vehicle.get("id"):
+                            continue
+                        url_det = _url_detalle(vehicle)
                         aviso = _parsear_vehicle(vehicle, url_det)
                         if aviso:
                             log_ingesta.debug(f"[checkeados] Parseando aviso id={aviso.id_externo}")
-                        return aviso
+                            avisos_pagina.append(aviso)
+                    return avisos_pagina
 
-                resultados_det = await asyncio.gather(
-                    *[_tarea_detalle(u, i) for i, u in enumerate(urls_detalle, 1)],
-                    return_exceptions=True,
-                )
-                for resultado in resultados_det:
-                    if isinstance(resultado, BaseException):
-                        log_ingesta.error(f"[checkeados] Error inesperado en tarea de detalle: {resultado}")
-                    elif resultado is not None:
-                        avisos_raw.append(resultado)
+                offsets = list(range(0, total, _LIMIT_PAGINA)) if total > 0 else []
+                for i in range(0, len(offsets), _CONCURRENCIA_PAGINAS):
+                    lote = offsets[i : i + _CONCURRENCIA_PAGINAS]
+                    resultados_lote = await asyncio.gather(
+                        *[_tarea_pagina(off) for off in lote],
+                        return_exceptions=True,
+                    )
+                    for resultado in resultados_lote:
+                        if isinstance(resultado, BaseException):
+                            log_ingesta.error(f"[checkeados] Error inesperado en tarea de página: {resultado}")
+                            continue
+                        avisos_raw.extend(resultado)
+                        paginas_procesadas += 1
+                    if i + _CONCURRENCIA_PAGINAS < len(offsets):
+                        await self.espera_aleatoria()
 
                 # 3. Descargar fotos con concurrencia controlada por sem_imgs
                 fotos_run: dict[str, str] = {}
@@ -558,6 +566,7 @@ class ScraperCheckeadosCloud(ScraperBase):
             duracion_ingesta = (datetime.now() - t_ingesta).total_seconds()
             log_resumen_fase("checkeados", "INGESTA", {
                 "avisos": len(avisos_raw),
+                "páginas": paginas_procesadas,
                 "fotos": f"{fotos_ok_total}/{fotos_total}" if fotos_total else "n/a",
                 "duración": f"{duracion_ingesta:.0f}s",
             })
@@ -571,7 +580,7 @@ class ScraperCheckeadosCloud(ScraperBase):
                     log_limpieza.warning(f"[checkeados] Duplicado detectado id={aviso.id_externo}, descartando")
                     fail_logs.append(FailLog(
                         etapa="dedup_json",
-                        motivo="id_externo duplicado en el sitemap",
+                        motivo="id_externo duplicado entre páginas de /api/vehicles",
                         id_externo=aviso.id_externo,
                     ))
                 else:
@@ -663,6 +672,7 @@ class ScraperCheckeadosCloud(ScraperBase):
                     "fuente": "checkeados",
                     "timestamp": inicio.isoformat(),
                     "duracion_segundos": round(duracion, 1),
+                    "paginas_procesadas": paginas_procesadas,
                     "avisos_encontrados": len(avisos_raw),
                     "avisos_unicos": len(avisos_unicos),
                     "avisos_validos": len(avisos_validos),
