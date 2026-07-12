@@ -39,6 +39,7 @@ alembic revision --autogenerate -m "descripcion"   # generar nueva migración
 carflip run                                         # ejecutar todos los scrapers una vez
 carflip start                                       # iniciar scheduler automático (cada 6h)
 carflip market <brand> <model> <year>              # estadísticas de mercado
+carflip deals                                       # detectar y categorizar deals (SQL + Groq)
 pytest                                             # correr tests
 pytest -x -v tests/test_price_tracker.py          # test específico con detalle
 ```
@@ -208,7 +209,7 @@ Flujo del job:
 
 GitHub Secrets requeridos (Settings → Secrets → Actions):
 `DATABASE_URL`, `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
-`CDN_BASE_URL`, `MERCADOLIBRE_APP_ID`, `MERCADOLIBRE_CLIENT_SECRET`
+`CDN_BASE_URL`, `MERCADOLIBRE_APP_ID`, `MERCADOLIBRE_CLIENT_SECRET`, `GROQ_API_KEY`
 
 ### Supabase — conexión asyncpg
 
@@ -351,6 +352,10 @@ MAX_DELAY_SECONDS=6.0
 
 # Detección de deals
 DEAL_THRESHOLD_PCT=15.0
+
+# Groq — categorización IA de deals (key en https://console.groq.com/keys)
+GROQ_API_KEY=tu_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
 
 # Logging
 LOG_LEVEL=INFO
@@ -628,7 +633,7 @@ from carflip.scrapers.base import AvisoAuto, ResultadoScraping
 
 - Credenciales: exclusivamente en `.env` — eliminados keyring, Fernet, AWS Secrets Manager
 - `.env` contiene: `DATABASE_URL`, `MERCADOLIBRE_*`, `S3_*`, delays, thresholds
-- Claves sensibles aceptadas en `.env`: `MERCADOLIBRE_CLIENT_SECRET`, `S3_SECRET_ACCESS_KEY`
+- Claves sensibles aceptadas en `.env`: `MERCADOLIBRE_CLIENT_SECRET`, `S3_SECRET_ACCESS_KEY`, `GROQ_API_KEY`
 - Nunca en logs ni en output del CLI: passwords, tokens, conexión a BD, claves de S3
 
 ### Errores — nunca exponer internos
@@ -780,7 +785,7 @@ No agregar excepciones al `.gitignore` sin justificación explícita.
 ## Prohibiciones
 
 - No `print()` en ningún módulo de `src/` — usar `logger`.
-- No passwords ni claves en `.env` excepto `MERCADOLIBRE_CLIENT_SECRET` + `S3_SECRET_ACCESS_KEY` (requeridos por APIs).
+- No passwords ni claves en `.env` excepto `MERCADOLIBRE_CLIENT_SECRET` + `S3_SECRET_ACCESS_KEY` + `GROQ_API_KEY` (requeridos por APIs).
 - No queries SQL con concatenación de strings — siempre parámetros vinculados.
 - No `asyncio.run()` dentro de coroutines.
 - No Playwright donde alcanza httpx.
