@@ -21,7 +21,17 @@ class Settings(BaseSettings):
     delay_entre_scrapers_segundos: int = 30
     min_delay_seconds: float = 2.0
     max_delay_seconds: float = 6.0
-    deal_threshold_pct: float = 15.0
+
+    # Detección de deals
+    deal_threshold_pct: float = 15.0        # % bajo la mediana del grupo para ser candidato
+    deal_min_comparables: int = 5           # mínimo de avisos por grupo marca/modelo/año
+    deal_max_candidatos: int = 200          # tope de candidatos por corrida
+    deal_lote_ia: int = 10                  # candidatos por request a Groq
+    deal_recategorizar_dias: int = 7        # re-categorizar aunque no cambie el precio tras N días
+
+    # Groq (categorización IA de deals)
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.3-70b-versatile"
 
     log_level: str = "INFO"
     log_file: str = "logs/carflip.log"

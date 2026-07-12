@@ -58,6 +58,16 @@ async def run_scrapers(scraper_name: str = "all") -> None:
                 )
                 await asyncio.sleep(settings.delay_entre_scrapers_segundos)
 
+        # Post-procesamiento: detección de deals. Un fallo aquí (Groq caído,
+        # cuota agotada) no debe abortar el ciclo de scraping.
+        try:
+            from carflip.deals.detector import detectar_deals
+
+            activos = await detectar_deals(session)
+            logger.info(f"[orquestrador] Detección de deals terminada — {activos} activos")
+        except Exception:
+            logger.exception("[orquestrador] Falló la detección de deals")
+
     duracion_ciclo = (datetime.now() - inicio_ciclo).total_seconds()
     logger.info(
         f"[orquestrador] Ciclo terminado — {avisos_totales} avisos totales "

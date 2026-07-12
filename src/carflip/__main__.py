@@ -5,6 +5,7 @@ Comandos:
   carflip start   — inicia el scheduler automático (cada 12h)
   carflip run     — ejecuta todos los scrapers una vez
   carflip market  — muestra precio promedio/min/max para marca/modelo/año
+  carflip deals   — detecta y categoriza oportunidades de compra (SQL + Groq)
 """
 
 import asyncio
@@ -59,6 +60,20 @@ def run_once(scraper: str | None) -> None:
             return
 
     asyncio.run(run_scrapers(scraper))
+
+
+@cli.command()
+def deals() -> None:
+    """Detecta y categoriza oportunidades de compra (SQL + Groq)."""
+    from carflip.database.session import AsyncSessionLocal
+    from carflip.deals.detector import detectar_deals
+
+    async def _run():
+        async with AsyncSessionLocal() as session:
+            return await detectar_deals(session)
+
+    activos = asyncio.run(_run())
+    click.echo(f"Deals activos: {activos}")
 
 
 @cli.command()
