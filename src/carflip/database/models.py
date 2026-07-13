@@ -6,6 +6,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     Float,
+    ForeignKey,
     Integer,
     Numeric,
     String,
@@ -112,7 +113,16 @@ class CheckeadosListing(ListingMixin, Base):
 
 
 class ScrapedRun(Base):
+    """Bitácora de corridas de scraping, alimentada desde los run_report.json.
+
+    Una fila por corrida por fuente. La clave natural es (source, started_at):
+    la carga desde S3 es idempotente vía upsert sobre esa clave.
+    """
+
     __tablename__ = "scrape_runs"
+    __table_args__ = (
+        UniqueConstraint("source", "started_at", name="uq_scrape_runs_source_started_at"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     source: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -120,3 +130,34 @@ class ScrapedRun(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     items_found: Mapped[int] = mapped_column(default=0)
     errors: Mapped[int] = mapped_column(default=0)
+
+    # Métricas del run_report.json (pipeline Cloud)
+    duracion_segundos: Mapped[float | None] = mapped_column(Float, nullable=True)
+    paginas_procesadas: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    avisos_encontrados: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    avisos_unicos: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    avisos_validos: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    avisos_rechazados: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class RunFailLog(Base):
+    """FAIL LOG individual de una corrida: un aviso rechazado o una operación fallida.
+
+    Espeja las entradas fail_logs del run_report.json. Se reemplazan completas
+    al recargar una corrida (delete por run_id + insert).
+    """
+
+    __tablename__ = "run_fail_logs"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    run_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("scrape_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    fuente: Mapped[str] = mapped_column(String(50), nullable=False)
+    etapa: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    motivo: Mapped[str] = mapped_column(Text, nullable=False)
+    id_externo: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    timestamp: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

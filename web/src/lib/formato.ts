@@ -13,6 +13,25 @@ export function formatearFecha(fecha: Date | null): string {
   return new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short', year: 'numeric' }).format(fecha);
 }
 
+export function formatearDuracion(segundos: number | null): string {
+  if (segundos === null) return '—';
+  const s = Math.round(segundos);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${s % 60}s`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+
+export function formatearFechaHora(fecha: Date | null): string {
+  if (!fecha) return '—';
+  return new Intl.DateTimeFormat('es-CL', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(fecha);
+}
+
 export function signosDelta(delta: number | null): { texto: string; clases: string } | null {
   if (delta === null || delta === 0) return null;
   if (delta < 0) {
