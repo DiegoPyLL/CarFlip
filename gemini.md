@@ -156,7 +156,7 @@ Variantes implementadas:
 
 ### Scrapers HTTP vs. Playwright
 
-- **httpx + BeautifulSoup4**: sitios con HTML estático o APIs REST (MercadoLibre, Autocosmos, Autosusados, Checkeados, Económicos).
+- **httpx + BeautifulSoup4**: sitios con HTML estático o APIs REST (MercadoLibre, Autocosmos, Autosusados, Checkeados).
 - **Playwright** (headless Chromium + playwright-stealth): activo en `yapoCloud.py` para sitios que requieren JavaScript. No usar donde alcanza httpx — es más lento y consume más recursos.
 
 ### Dataclass normalizado
@@ -287,18 +287,11 @@ Es el único sitio donde no se escribe un scraper HTML sino un cliente HTTP cont
 | Volumen      | Bajo (automotora única)       |
 | Anti-bot     | Protección nula               |
 
-### 5. Económicos — `economicos.cl`
+### 5. Económicos — `economicos.cl` (ELIMINADO)
 
-| Propiedad    | Valor                                |
-| ------------ | ------------------------------------ |
-| Tipo         | HTML server-side (grupo El Mercurio) |
-| Formato      | DOM estándar                        |
-| Auth         | Ninguna                              |
-| Herramientas | `httpx` + `BeautifulSoup4`       |
-| Volumen      | Medio                                |
-| Anti-bot     | Sin Cloudflare                       |
-
-Particularidad: incluye particulares además de automotoras, lo que aporta variedad al dataset.
+Fuente descartada: el sitio bloquea el scraping (anti-bot). Se eliminaron el
+scraper `EconomicosCloud`, su modelo `EconomicosListing`, la tabla
+`economicos_listings` (migración Alembic 0007) y su integración en la web.
 
 ---
 
@@ -373,7 +366,6 @@ Cada scraper tiene su propia tabla en PostgreSQL. No existe una tabla `listings`
 - `mercadolibre_listings`
 - `autosusados_listings`
 - `checkeados_listings`
-- `economicos_listings`
 
 Para agregar un nuevo scraper: crear `NuevoSitioListing(ListingMixin, Base)` + migración Alembic + declarar `model_class` en el scraper. Ver checklist completo en la sección **Checklist: agregar un nuevo scraper**.
 
@@ -521,7 +513,7 @@ Lo mismo aplica a cualquier operación CPU-intensiva (parseo de HTML grande, com
 
 **Regla 2 — Scrapers HTTP: lotes de páginas en paralelo**
 
-Para scrapers httpx (Autocosmos, Autosusados, Checkeados, Económicos), extraer la lógica de cada página en una coroutine `_tarea_pagina()` y procesar en lotes con `asyncio.gather`. Nunca un loop secuencial puro.
+Para scrapers httpx (Autocosmos, Autosusados, Checkeados), extraer la lógica de cada página en una coroutine `_tarea_pagina()` y procesar en lotes con `asyncio.gather`. Nunca un loop secuencial puro.
 
 Constantes estándar:
 ```python

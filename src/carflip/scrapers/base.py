@@ -75,7 +75,7 @@ class ResultadoScraping:
 class ScraperBase(ABC):
     fuente: str = ""
     # Identificador único numérico por scraper, prefijo de id_externo.
-    # 100=autocosmos, 101=yapo, 102=mercadolibre, 103=autosusados, 104=checkeados, 105=economicos
+    # 100=autocosmos, 101=yapo, 102=mercadolibre, 103=autosusados, 104=checkeados
     codigo_fuente: int = 0
     model_class: type | None = None  # tabla PostgreSQL destino, declarada en cada scraper
 

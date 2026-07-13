@@ -6,7 +6,6 @@ const TABLA_POR_FUENTE: Record<Aviso['fuente'], string> = {
   yapo: 'yapo_listings',
   autosusados: 'autosusados_listings',
   checkeados: 'checkeados_listings',
-  economicos: 'economicos_listings',
 };
 
 const FUENTES = Object.keys(TABLA_POR_FUENTE) as Aviso['fuente'][];
@@ -43,7 +42,6 @@ export async function obtenerEstadisticas(): Promise<Estadisticas> {
     total_yapo: totalesPorFuente.yapo,
     total_autosusados: totalesPorFuente.autosusados,
     total_checkeados: totalesPorFuente.checkeados,
-    total_economicos: totalesPorFuente.economicos,
     precio_promedio,
     precio_minimo,
     precio_maximo,

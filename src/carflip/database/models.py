@@ -111,10 +111,6 @@ class CheckeadosListing(ListingMixin, Base):
     __tablename__ = "checkeados_listings"
 
 
-class EconomicosListing(ListingMixin, Base):
-    __tablename__ = "economicos_listings"
-
-
 class ScrapedRun(Base):
     __tablename__ = "scrape_runs"
 

@@ -1,6 +1,6 @@
 export interface Aviso {
   id: number;
-  fuente: 'autocosmos' | 'yapo' | 'autosusados' | 'checkeados' | 'economicos';
+  fuente: 'autocosmos' | 'yapo' | 'autosusados' | 'checkeados';
   id_externo: string;
   url: string;
   titulo: string;
@@ -53,7 +53,7 @@ export interface Deal {
 }
 
 export interface FiltrosAviso {
-  fuente?: 'autocosmos' | 'yapo' | 'autosusados' | 'checkeados' | 'economicos';
+  fuente?: 'autocosmos' | 'yapo' | 'autosusados' | 'checkeados';
   marca?: string;
   modelo?: string;
   anio?: number;
@@ -85,7 +85,6 @@ export interface Estadisticas {
   total_yapo: number;
   total_autosusados: number;
   total_checkeados: number;
-  total_economicos: number;
   precio_promedio: number | null;
   precio_minimo: number | null;
   precio_maximo: number | null;

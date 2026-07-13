@@ -28,7 +28,6 @@ const TABLA_POR_FUENTE: Record<Aviso['fuente'], string> = {
   yapo: 'yapo_listings',
   autosusados: 'autosusados_listings',
   checkeados: 'checkeados_listings',
-  economicos: 'economicos_listings',
 };
 
 const FUENTES = Object.keys(TABLA_POR_FUENTE) as Aviso['fuente'][];

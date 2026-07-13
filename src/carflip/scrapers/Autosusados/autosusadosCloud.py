@@ -66,6 +66,12 @@ _BACKOFF_RATE_LIMIT = 20.0  # segundos de espera al recibir un error de rate lim
 _CONCURRENCIA_PAGINAS = 3   # páginas procesadas en paralelo por lote
 _SEM_IMGS = 20              # descargas de imagen concurrentes
 
+# Tope de seguridad absoluto: el catálogo real ronda ~97 páginas (~1.940 avisos).
+# Protege contra el bug de paginación descrito arriba (rate limit transitorio
+# tras el fin del catálogo enmascarando la señal de fin) y cualquier otra causa
+# de paginación descontrolada, sin depender de `paginas_sitio` ni de `max_paginas`.
+_MAX_PAGINAS_ABSOLUTO = 120
+
 # categoryID → segmento de categoría en la URL de detalle
 # (/{categoria}/{MARCA}/{MODELO}/{table}/{carID}); mapeo verificado contra
 # los sitemaps oficiales del sitio.
@@ -467,8 +473,16 @@ class ScraperAutosusadosCloud(ScraperBase):
                     # Si ocurrió durante/tras un rate limit, es probable una respuesta
                     # cacheada/obsoleta — se omite sin cortar paginación. Si se obtuvo
                     # limpiamente sin rate limit, entonces es señal genuina de fin.
+                    # Una lista `posts` VACÍA es distinta: el servidor no devolvió
+                    # avisos porque no hay más catálogo, señal inequívoca de fin
+                    # aunque haya habido rate limit en algún reintento previo de esta
+                    # misma página. Tratarla como "posible respuesta obsoleta" (rama
+                    # de abajo) hacía que la paginación nunca cortara ante 429s
+                    # transitorios pasado el fin real del catálogo — el scraper
+                    # seguía pidiendo páginas indefinidamente (se observó llegar a
+                    # la página 130 con un catálogo real de ~97 páginas).
                     if not nuevos:
-                        if tuvo_rate_limit:
+                        if tuvo_rate_limit and posts:
                             log_ingesta.warning(
                                 f"[autosusados] Página {pagina}: sin avisos nuevos tras rate limit"
                                 f" — probable respuesta obsoleta, se omite sin cortar paginación"
@@ -604,12 +618,19 @@ class ScraperAutosusadosCloud(ScraperBase):
                 # ── Procesamiento por lotes: _CONCURRENCIA_PAGINAS páginas en paralelo ──
                 pagina = 1
                 while not fin_paginacion.is_set() and (self.max_paginas is None or pagina <= self.max_paginas):
+                    if pagina > _MAX_PAGINAS_ABSOLUTO:
+                        log_ingesta.warning(
+                            f"[autosusados] Alcanzado el tope de seguridad de"
+                            f" {_MAX_PAGINAS_ABSOLUTO} páginas, fin paginación"
+                        )
+                        break
                     if paginas_sitio is not None and pagina > paginas_sitio:
                         log_ingesta.info(
                             f"[autosusados] Página {pagina} supera las ~{paginas_sitio} del sitio, fin"
                         )
                         break
                     fin_lote = pagina + _CONCURRENCIA_PAGINAS
+                    fin_lote = min(fin_lote, _MAX_PAGINAS_ABSOLUTO + 1)
                     if self.max_paginas is not None:
                         fin_lote = min(fin_lote, self.max_paginas + 1)
                     if paginas_sitio is not None:

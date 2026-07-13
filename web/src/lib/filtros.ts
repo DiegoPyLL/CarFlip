@@ -9,8 +9,7 @@ export function parsearFiltrosUrl(params: URLSearchParams): FiltrosAviso {
     fuente === 'autocosmos' ||
     fuente === 'yapo' ||
     fuente === 'autosusados' ||
-    fuente === 'checkeados' ||
-    fuente === 'economicos'
+    fuente === 'checkeados'
   ) {
     filtros.fuente = fuente;
   }

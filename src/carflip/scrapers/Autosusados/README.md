@@ -14,10 +14,21 @@ ese JSON directamente, lo que lo hace mucho más robusto ante cambios de diseño
 |---|---|
 | URL listado | `https://autosusados.cl/autos-usados?page=N` |
 | Avisos por página | 20 |
-| Volumen | ~7.900 avisos (campo `total` del JSON) |
+| Volumen | Variable (campo `total` del JSON); tope de seguridad de `_MAX_PAGINAS_ABSOLUTO = 120` páginas |
 | Anti-bot | **Rate limiting**: el sitio responde `initialPosts={"error": {code: 429}}` si se le pega muy rápido. Los reintentos usan backoff de 20 s + jitter |
 | Herramientas | httpx (sin BS4 — el dato viene en JSON) |
 | Detalle | No se visita: el listado ya trae precio, km, año, combustible, foto y región |
+
+### Tope de seguridad de 120 páginas
+
+El catálogo real ronda las ~97 páginas, pero el volumen fluctúa. Un 429
+transitorio en una página posterior al fin real del catálogo podía enmascarar
+la señal de "sin avisos nuevos" (la respuesta vacía se trataba como posible
+caché obsoleta y no cortaba la paginación), haciendo que el scraper siguiera
+pidiendo páginas indefinidamente — se observó llegar a la página 130. Se
+corrigió esa condición (una lista `posts` vacía siempre corta la paginación,
+haya habido rate limit o no) y además se agregó `_MAX_PAGINAS_ABSOLUTO = 120`
+como tope duro independiente de `max_paginas` y de `paginas_sitio`.
 
 ### El parámetro de paginación es `page`, no `pagina`
 
@@ -55,7 +66,7 @@ en `__NEXT_DATA__` y no requiere autenticación.
 # Limitado a N páginas (recomendado para pruebas)
 .venv\Scripts\python src/carflip/scrapers/Autosusados/autosusadosCloud.py 3
 
-# Sin límite (recorre las ~394 páginas del sitio)
+# Sin límite explícito (recorre el catálogo hasta el tope de seguridad de 120 páginas)
 .venv\Scripts\python src/carflip/scrapers/Autosusados/autosusadosCloud.py
 ```
 

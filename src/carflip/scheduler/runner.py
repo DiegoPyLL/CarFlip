@@ -9,7 +9,6 @@ from carflip.database.session import AsyncSessionLocal
 from carflip.scrapers.AutoCosmos.autocosmosCloud import ScraperAutocosmosCloud
 from carflip.scrapers.Autosusados.autosusadosCloud import ScraperAutosusadosCloud
 from carflip.scrapers.Checkeados.checkeadosCloud import ScraperCheckeadosCloud
-from carflip.scrapers.Economicos.economicosCloud import ScraperEconomicosCloud
 from carflip.scrapers.Yapo.yapoCloud import ScraperYapoCloud
 
 # Orden de ejecución — un scraper a la vez para mantener recursos bajos.
@@ -19,7 +18,6 @@ _SCRAPERS_ORDENADOS: list[tuple[str, type]] = [
     ("yapo", ScraperYapoCloud),
     ("autosusados", ScraperAutosusadosCloud),
     ("checkeados", ScraperCheckeadosCloud),
-    ("economicos", ScraperEconomicosCloud),
 ]
 
 # Dict para lookups por nombre (usado por carflip run --scraper <nombre>)

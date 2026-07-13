@@ -29,6 +29,14 @@ WITH avisos AS (
     SELECT 'mercadolibre', id_externo, url, titulo, marca, modelo, anio, km,
            precio, moneda, ubicacion, descripcion, url_imagen, delta_pct, disponible
     FROM mercadolibre_listings
+    UNION ALL
+    SELECT 'autosusados', id_externo, url, titulo, marca, modelo, anio, km,
+           precio, moneda, ubicacion, descripcion, url_imagen, delta_pct, disponible
+    FROM autosusados_listings
+    UNION ALL
+    SELECT 'checkeados', id_externo, url, titulo, marca, modelo, anio, km,
+           precio, moneda, ubicacion, descripcion, url_imagen, delta_pct, disponible
+    FROM checkeados_listings
 ),
 validos AS (
     SELECT a.*,
