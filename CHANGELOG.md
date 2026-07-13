@@ -5,6 +5,15 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [0.4.0] - 2026-07-13
+
+### Added
+
+- Página web `/dashboard`: KPIs operacionales del pipeline (éxito de extracción vs meta >95%, fotos fallidas por aviso, duración del ciclo, avisos válidos), última corrida por fuente con ritmo (avisos/min), historial de corridas, fallas por etapa, métricas de vehículos (activos por fuente, nuevos 24 h, bajadas de precio 7 d) y deals activos por categoría
+- Telemetría de corridas en Supabase: `scrape_runs` ampliada con las métricas del `run_report.json` (duración, páginas procesadas, embudo encontrados→únicos→válidos→rechazados) y nueva tabla `run_fail_logs` con cada FAIL LOG individual (etapa, motivo, id_externo) — migración Alembic 0008
+- Herramienta `cargar_reports_s3.py`: carga idempotente de los `run_report.json` desde S3 (o archivos locales con `--local`) hacia `scrape_runs`/`run_fail_logs`, con clave natural (source, started_at)
+- Link "Dashboard" en la navegación de la web
+
 ## [0.3.0] - 2026-07-11
 
 ### Added

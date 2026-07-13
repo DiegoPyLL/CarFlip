@@ -79,6 +79,46 @@ export interface FiltrosDisponibles {
   combustibles: string[];
 }
 
+/** Fila de scrape_runs: una corrida de un scraper, cargada desde run_report.json. */
+export interface CorridaScrape {
+  id: number;
+  source: string;
+  started_at: Date;
+  finished_at: Date | null;
+  duracion_segundos: number | null;
+  paginas_procesadas: number | null;
+  avisos_encontrados: number | null;
+  avisos_unicos: number | null;
+  avisos_validos: number | null;
+  avisos_rechazados: number | null;
+  errors: number;
+}
+
+export interface FallaEtapa {
+  etapa: string;
+  total: number;
+}
+
+export interface MetricasOperacion {
+  /** Última corrida de cada fuente (las que definen los KPIs actuales). */
+  ultimas: CorridaScrape[];
+  /** Corridas recientes, más nuevas primero. */
+  historial: CorridaScrape[];
+  /** Fallas agrupadas por etapa sobre el historial cargado. */
+  fallasPorEtapa: FallaEtapa[];
+  /** Fallas de descarga de foto dentro de las últimas corridas por fuente. */
+  fotosFallidasUltimoCiclo: number;
+}
+
+export interface MetricasVehiculos {
+  totalAvisos: number;
+  porFuente: { fuente: Aviso['fuente']; total: number }[];
+  nuevos24h: number;
+  bajadas7d: number;
+  dealsActivos: number;
+  dealsPorCategoria: { categoria: CategoriaDeal; total: number }[];
+}
+
 export interface Estadisticas {
   total_avisos: number;
   total_autocosmos: number;

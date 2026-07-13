@@ -6,3 +6,4 @@ export { obtenerDeals } from './deals';
 export { obtenerDatosMercado, obtenerDatosMarca } from './mercado';
 export type { EstadisticaMarca, EstadisticaModelo, DatosMercado } from './mercado';
 export { obtenerEstadisticas } from './estadisticas';
+export { obtenerMetricasOperacion, obtenerMetricasVehiculos } from './metricas';

@@ -4,3 +4,4 @@ export * from './db/avisos';
 export * from './db/deals';
 export * from './db/mercado';
 export * from './db/estadisticas';
+export * from './db/metricas';
