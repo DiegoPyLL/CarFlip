@@ -4,9 +4,9 @@
 
 # CarFlip
 
-Plataforma que agrega avisos de autos en venta desde portales chilenos, normaliza los datos, los almacena en PostgreSQL y detecta oportunidades de compra mediante análisis de historial de precios.
+Plataforma que agrega avisos de autos en venta desde portales chilenos, normaliza los datos, los almacena en PostgreSQL y detecta oportunidades de compra (deals) comparando cada aviso contra su mercado y evaluándolo con IA.
 
-**Stack actual:** Python 3.12 + httpx/Playwright · PostgreSQL (Supabase) · S3 + CloudFront · Astro 5 + Vercel
+**Stack actual:** Python 3.12 + httpx/Playwright · PostgreSQL (Supabase) · S3 + CloudFront · Groq (evaluación IA de deals) · Astro 5 + Vercel
 
 ---
 
@@ -14,13 +14,17 @@ Plataforma que agrega avisos de autos en venta desde portales chilenos, normaliz
 
 ```
 EC2 + TMUX  (ingesta)
-  └─ Scrapers (Autocosmos, Yapo)
+  └─ Scrapers (Autosusados, Checkeados, Autocosmos, Yapo)
        ├─ Fotos raw/AVIF  →  S3  →  CloudFront (CDN)
        └─ Metadata validada  →  PostgreSQL
+  └─ Detección de deals (al final de cada ciclo)
+       ├─ SQL: outliers de precio vs mediana del grupo comparable
+       └─ Groq: categorización IA  →  tabla `deals`
 
 Vercel  (web)
   └─ Astro 5 SSR
        ├─ Consulta PostgreSQL vía Supabase JS client
+       ├─ Página /deals con evaluación IA
        └─ Imágenes desde CloudFront
 ```
 
@@ -34,18 +38,24 @@ Cada scraper implementa el pipeline completo dentro de `scrape()`:
 6. Deduplicación → validación → `data/processed/avisos.jsonl`
 7. Upload de metadata y `run_report.json` a S3
 
-`ScraperBase.ejecutar()` recibe el resultado y hace upsert en PostgreSQL. Las imágenes AVIF se sirven a la web desde CloudFront (`CDN_BASE_URL`).
+`ScraperBase.ejecutar()` recibe el resultado y hace upsert en PostgreSQL (por lotes, para no exceder el límite de parámetros de asyncpg). Las imágenes AVIF se sirven a la web desde CloudFront (`CDN_BASE_URL`).
+
+Al final de cada ciclo corre la **detección de deals** (`src/carflip/deals/`): una query SQL selecciona candidatos cuyo precio es outlier contra la mediana de su grupo comparable (marca/modelo/año ±1, con guard de kilometraje) y Groq los categoriza leyendo la descripción — categoría (`oportunidad_clara` / `buen_precio` / `revisar` / `descartar`), puntaje 0-100, riesgos y resumen. Un filtro anti-re-tokenización evita volver a llamar al LLM si el precio no cambió y la evaluación es reciente. Un fallo en esta etapa (Groq caído, cuota agotada) no aborta el ciclo de scraping.
 
 ---
 
 ## Fuentes implementadas
 
-| Fuente     | Técnica               | Tabla PostgreSQL        |
-| ---------- | ---------------------- | ----------------------- |
-| Autocosmos | httpx + BeautifulSoup4 | `autocosmos_listings` |
-| Yapo       | Playwright + stealth   | `yapo_listings`       |
+| Fuente      | Técnica               | Tabla PostgreSQL        |
+| ----------- | ---------------------- | ----------------------- |
+| Autosusados | httpx + BeautifulSoup4 | `autosusados_listings` |
+| Checkeados  | httpx + BeautifulSoup4 | `checkeados_listings`  |
+| Autocosmos  | httpx + BeautifulSoup4 | `autocosmos_listings` |
+| Yapo        | Playwright + stealth   | `yapo_listings`       |
 
 > Existe la tabla `mercadolibre_listings` reservada para un scraper futuro vía la API oficial, pero aún no está implementado ni registrado.
+>
+> Económicos (`economicos.cl`) fue descartado: el sitio bloquea el scraping (anti-bot). Su scraper, modelo y tabla fueron eliminados (migración Alembic 0007).
 
 ---
 
@@ -57,7 +67,6 @@ Cada scraper implementa el pipeline completo dentro de `scrape()`:
 - VPC con subred pública (la VPC default existente alcanza; no hace falta crear una subred nueva)
 - PostgreSQL externo con base de datos `carflip` creada (p. ej. Supabase)
 - Bucket S3 + distribución CloudFront
-- (Opcional) Bucket Cloudflare R2 — solo si se usa el script de migración `S3 → R2`
 
 ### 1 — Conectarse al servidor
 
@@ -129,12 +138,6 @@ S3_PREFIX=autocosmos/
 # CloudFront — CDN que sirve las imágenes a la web
 CDN_BASE_URL=https://xxxxxxxxxx.cloudfront.net
 
-# Cloudflare R2 — opcional, solo para el script de migración S3 → R2
-R2_ACCOUNT_ID=tu_account_id
-R2_BUCKET=carflip-fotos
-R2_ACCESS_KEY_ID=tu_r2_access_key
-R2_SECRET_ACCESS_KEY=tu_r2_secret_key
-
 # Rate limiting
 MIN_DELAY_SECONDS=2.0
 MAX_DELAY_SECONDS=6.0
@@ -144,6 +147,10 @@ SCRAPE_INTERVAL_HOURS=24
 
 # Deals
 DEAL_THRESHOLD_PCT=15.0
+
+# Groq — categorización IA de deals (key en https://console.groq.com/keys)
+GROQ_API_KEY=tu_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
 
 # Logs
 LOG_LEVEL=INFO
@@ -179,20 +186,23 @@ Reconectar: `tmux attach -t carflip`
 
 ## Comandos disponibles
 
-| Comando                                    | Descripción                       |
-| ------------------------------------------ | ---------------------------------- |
-| `carflip run`                            | Ejecuta todos los scrapers una vez |
-| `carflip run --scraper autocosmos`       | Ejecuta un scraper específico     |
-| `carflip start`                          | Inicia el scheduler automático    |
-| `carflip market <marca> <modelo> <año>` | Estadísticas de mercado           |
+| Comando                                    | Descripción                                          |
+| ------------------------------------------ | ----------------------------------------------------- |
+| `carflip run`                            | Ejecuta todos los scrapers una vez                    |
+| `carflip run --scraper autocosmos`       | Ejecuta un scraper específico                        |
+| `carflip start`                          | Inicia el scheduler automático                       |
+| `carflip market <marca> <modelo> <año>` | Estadísticas de mercado                              |
+| `carflip deals`                          | Detecta y categoriza deals (SQL + Groq)               |
 
-Los scrapers corren de forma **secuencial** (uno a la vez), con una pausa configurable entre cada uno. Scrapers registrados actualmente: `autocosmos`, `yapo`.
+Los scrapers corren de forma **secuencial** (uno a la vez), con una pausa configurable entre cada uno. Scrapers registrados actualmente: `autosusados`, `checkeados`, `autocosmos`, `yapo`. La detección de deals también corre automáticamente al final de cada ciclo de `carflip run` / `carflip start`.
 
 ---
 
 ## Web (Vercel + Astro)
 
 La web está en `web/` y se despliega en Vercel. Es un proyecto **Astro 5 SSR** (con React + Tailwind) que consulta PostgreSQL vía el cliente JS de Supabase y sirve las imágenes desde CloudFront.
+
+Páginas principales: listado con filtros por fuente (`/`), detalle de aviso (`/auto/...`), estadísticas de mercado (`/mercado`), y `/deals` — oportunidades de compra con la evaluación IA (badge de categoría, puntaje, riesgos, precio vs mercado y resumen), filtrables por fuente y categoría.
 
 ### Levantar en local
 
