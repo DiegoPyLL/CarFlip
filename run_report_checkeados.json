@@ -1,0 +1,11 @@
+{
+  "fuente": "checkeados",
+  "timestamp": "2026-07-12T19:23:57.735247-04:00",
+  "duracion_segundos": 233.5,
+  "paginas_procesadas": 7,
+  "avisos_encontrados": 124,
+  "avisos_unicos": 124,
+  "avisos_validos": 124,
+  "avisos_rechazados": 0,
+  "fail_logs": []
+}

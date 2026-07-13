@@ -1,0 +1,46 @@
+{
+  "fuente": "yapo",
+  "timestamp": "2026-07-11T17:20:45.141012-04:00",
+  "duracion_segundos": 2055.2,
+  "avisos_encontrados": 238,
+  "avisos_unicos": 238,
+  "avisos_validos": 235,
+  "avisos_rechazados": 3,
+  "fail_logs": [
+    {
+      "etapa": "ingesta",
+      "motivo": "Page.goto: Timeout 25000ms exceeded.\nCall log:\n  - navigating to \"https://www.yapo.cl/autos-usados/maxus-t60-4x4-gl-ano-2022/32399085\", waiting until \"domcontentloaded\"\n",
+      "id_externo": "2f842b1d296537d119db7dc902767b13ac1b394a07f7a937bfed759f6be35a77",
+      "fuente": "yapo",
+      "timestamp": "2026-07-11T21:24:27.805579+00:00"
+    },
+    {
+      "etapa": "ingesta",
+      "motivo": "Page.goto: Timeout 25000ms exceeded.\nCall log:\n  - navigating to \"https://www.yapo.cl/autos-usados/maxus-t60-dx-2020/32337078\", waiting until \"domcontentloaded\"\n",
+      "id_externo": "07963eb86fc59d4fd589f982d62cee5df52195ead740f8921ab43cce74502196",
+      "fuente": "yapo",
+      "timestamp": "2026-07-11T21:26:31.111612+00:00"
+    },
+    {
+      "etapa": "validacion_json",
+      "motivo": "precio 123 fuera de rango [500,000, 250,000,000] CLP",
+      "id_externo": "e817b736a453b2bef739a6f9b4c702375837efcdb0afca18b3bcacd29d05f800",
+      "fuente": "yapo",
+      "timestamp": "2026-07-11T21:47:07.176856+00:00"
+    },
+    {
+      "etapa": "validacion_json",
+      "motivo": "precio 1 fuera de rango [500,000, 250,000,000] CLP",
+      "id_externo": "206034c0bb444c1e11970cf3aebebda1faf9a3191fe20e9d63f79db208ecf24a",
+      "fuente": "yapo",
+      "timestamp": "2026-07-11T21:47:07.177555+00:00"
+    },
+    {
+      "etapa": "validacion_json",
+      "motivo": "precio 1 fuera de rango [500,000, 250,000,000] CLP",
+      "id_externo": "abdee98cb6339b2054eb85cd5a0b68a8af11f45aa0f14eca50b34f943eec4625",
+      "fuente": "yapo",
+      "timestamp": "2026-07-11T21:47:07.177927+00:00"
+    }
+  ]
+}
