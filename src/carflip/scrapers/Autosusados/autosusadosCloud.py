@@ -6,7 +6,7 @@ estructurado en <script id="__NEXT_DATA__"> (props.pageProps.initialPosts),
 por lo que no se parsea HTML de cards — se lee el JSON directamente.
 
 Etapas cubiertas en scrape():
-  1. INGESTA      — paginación ?pagina=N, parseo del JSON embebido, descarga de fotos
+  1. INGESTA      — paginación ?page=N, parseo del JSON embebido, descarga de fotos
   2. LIMPIEZA     — deduplicación por id_externo
   3. VALIDACIÓN   — validación estructural y semántica; avisos inválidos van a FAIL LOG
   4. CARGA        — delegada a ScraperBase.ejecutar() vía uploader.upsert_avisos()
@@ -55,6 +55,10 @@ _PRECIO_MINIMO = 500_000
 _PRECIO_MAXIMO = 250_000_000
 
 _AVISOS_POR_PAGINA = 20  # tamaño de página fijo del sitio
+
+# El sitio pagina con ?page=N. Un `?pagina=N` (nombre viejo) es ignorado por el
+# servidor y devuelve siempre la página 1 — silenciosamente, sin error.
+_PARAM_PAGINA = "page"
 
 _MAX_REINTENTOS_GET = 10   # reintentos por página antes de saltar a la siguiente
 _BACKOFF_RATE_LIMIT = 20.0  # segundos de espera al recibir un error de rate limit
@@ -400,13 +404,13 @@ class ScraperAutosusadosCloud(ScraperBase):
                     tuvo_rate_limit = False
                     for intento in range(1, _MAX_REINTENTOS_GET + 1):
                         log_ingesta.debug(
-                            f"[autosusados] GET {URL_LISTADO} params={{pagina: {pagina}}}"
+                            f"[autosusados] GET {URL_LISTADO} params={{{_PARAM_PAGINA}: {pagina}}}"
                             + (f" — intento {intento}/{_MAX_REINTENTOS_GET}" if intento > 1 else "")
                         )
                         try:
                             headers = {"User-Agent": self._ua.random}
                             response = await cliente.get(
-                                URL_LISTADO, params={"pagina": pagina}, headers=headers
+                                URL_LISTADO, params={_PARAM_PAGINA: pagina}, headers=headers
                             )
                             response.raise_for_status()
                             posts = _extraer_posts(response.text)

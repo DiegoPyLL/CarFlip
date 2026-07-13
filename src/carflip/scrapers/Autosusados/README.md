@@ -12,12 +12,26 @@ ese JSON directamente, lo que lo hace mucho más robusto ante cambios de diseño
 
 | Propiedad | Valor |
 |---|---|
-| URL listado | `https://autosusados.cl/autos-usados?pagina=N` |
+| URL listado | `https://autosusados.cl/autos-usados?page=N` |
 | Avisos por página | 20 |
 | Volumen | ~7.900 avisos (campo `total` del JSON) |
-| Anti-bot | **Rate limiting**: el sitio responde `initialPosts={"error": {code: 429}}` si se le pega muy rápido. Los reintentos usan backoff de 20 s |
+| Anti-bot | **Rate limiting**: el sitio responde `initialPosts={"error": {code: 429}}` si se le pega muy rápido. Los reintentos usan backoff de 20 s + jitter |
 | Herramientas | httpx (sin BS4 — el dato viene en JSON) |
 | Detalle | No se visita: el listado ya trae precio, km, año, combustible, foto y región |
+
+### El parámetro de paginación es `page`, no `pagina`
+
+El servidor **ignora silenciosamente** cualquier nombre de parámetro que no sea
+`page`: devuelve la página 1 con status 200, sin error. Como todos sus avisos ya
+fueron vistos, la guardia de "sin avisos nuevos" interpreta eso como fin de
+catálogo y corta la paginación en el primer lote — el scraper termina con 20
+avisos en vez de ~7.900, sin que nada falle visiblemente.
+
+En el navegador el listado carga por scroll infinito, que llama a
+`{NEXT_PUBLIC_API_URL}/v2/cars?catId=N&actualPage=N`. Esa API exige un token
+Firebase AppCheck generado en el cliente (responde `401 Invalid Token` sin él),
+así que **no se usa**: el SSR con `?page=N` entrega exactamente los mismos avisos
+en `__NEXT_DATA__` y no requiere autenticación.
 
 ## Mapeo de campos
 

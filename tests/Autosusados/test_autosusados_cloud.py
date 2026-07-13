@@ -171,7 +171,7 @@ class TestScraperAutosusadosCloudIntegracion:
         async def _mock_get(url, params=None, headers=None):
             resp = MagicMock()
             resp.raise_for_status = MagicMock()
-            pagina = params.get("pagina", 1) if params else 1
+            pagina = params.get("page", 1) if params else 1
             if pagina == 1:
                 resp.text = _html_next_data(pagina_1)
             else:
@@ -196,3 +196,41 @@ class TestScraperAutosusadosCloudIntegracion:
         ids = [a.id_externo for a in avisos]
         assert len(ids) == len(set(ids))
         assert all(a.precio is not None and a.precio >= Decimal("500000") for a in avisos)
+
+    async def test_pagina_avanza_y_acumula_avisos_de_varias_paginas(self, monkeypatch, tmp_path):
+        """El sitio pagina con ?page=N: un nombre de parámetro equivocado hace que
+        el servidor devuelva siempre la página 1, y la paginación corta al primer
+        lote por 'sin avisos nuevos'. Este test falla si se vuelve a usar ?pagina=N."""
+        monkeypatch.chdir(tmp_path)
+
+        paginas = {
+            1: [_post_valido(carID=1), _post_valido(carID=2)],
+            2: [_post_valido(carID=3), _post_valido(carID=4)],
+            3: [_post_valido(carID=5), _post_valido(carID=6)],
+        }
+        params_vistos: list[dict] = []
+
+        async def _mock_get(url, params=None, headers=None):
+            resp = MagicMock()
+            resp.raise_for_status = MagicMock()
+            params_vistos.append(dict(params or {}))
+            # El servidor solo entiende `page`; cualquier otro nombre → página 1
+            pagina = (params or {}).get("page", 1)
+            resp.text = _html_next_data(paginas.get(pagina, []))
+            return resp
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(side_effect=_mock_get)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch(
+            "carflip.scrapers.Autosusados.autosusadosCloud.httpx.AsyncClient",
+            return_value=mock_client,
+        ):
+            scraper = ScraperAutosusadosCloud(max_paginas=3, guardar_raw=False)
+            avisos = await scraper.scrape()
+
+        assert all("page" in p for p in params_vistos), f"params usados: {params_vistos}"
+        assert {p["page"] for p in params_vistos} >= {1, 2, 3}
+        assert len(avisos) == 6
