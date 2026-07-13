@@ -14,10 +14,10 @@ from carflip.scrapers.Yapo.yapoCloud import ScraperYapoCloud
 # Orden de ejecución — un scraper a la vez para mantener recursos bajos.
 # Para agregar un scraper nuevo: añadir una tupla (nombre, Clase) al final.
 _SCRAPERS_ORDENADOS: list[tuple[str, type]] = [
-    ("autocosmos", ScraperAutocosmosCloud),
-    ("yapo", ScraperYapoCloud),
     ("autosusados", ScraperAutosusadosCloud),
     ("checkeados", ScraperCheckeadosCloud),
+    ("autocosmos", ScraperAutocosmosCloud),
+    ("yapo", ScraperYapoCloud),
 ]
 
 # Dict para lookups por nombre (usado por carflip run --scraper <nombre>)
