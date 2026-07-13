@@ -10,11 +10,29 @@ const TABLA_POR_FUENTE: Record<Aviso['fuente'], string> = {
 
 const FUENTES = Object.keys(TABLA_POR_FUENTE) as Aviso['fuente'][];
 
+const TAMANO_LOTE = 1000;
+
+// Supabase/PostgREST limita cada select a TAMANO_LOTE filas por defecto,
+// así que hay que paginar con .range() para traer tablas más grandes.
+async function obtenerTodasLasFilas(tabla: string, columnas: string): Promise<any[]> {
+  const todas: any[] = [];
+  let desde = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from(tabla)
+      .select(columnas)
+      .range(desde, desde + TAMANO_LOTE - 1);
+    if (error) throw error;
+    todas.push(...(data ?? []));
+    if (!data || data.length < TAMANO_LOTE) break;
+    desde += TAMANO_LOTE;
+  }
+  return todas;
+}
+
 export async function obtenerEstadisticas(): Promise<Estadisticas> {
   const resultados = await Promise.all(
-    FUENTES.map((fuente) =>
-      supabase.from(TABLA_POR_FUENTE[fuente]).select('precio, ultima_vez_visto')
-    )
+    FUENTES.map((fuente) => obtenerTodasLasFilas(TABLA_POR_FUENTE[fuente], 'precio, ultima_vez_visto'))
   );
 
   const totalesPorFuente: Record<string, number> = {};
@@ -22,7 +40,7 @@ export async function obtenerEstadisticas(): Promise<Estadisticas> {
   const todasFechas: Date[] = [];
 
   FUENTES.forEach((fuente, i) => {
-    const stats = resultados[i].data ?? [];
+    const stats = resultados[i];
     totalesPorFuente[fuente] = stats.length;
     for (const r of stats as any[]) {
       if (r.precio) todosPrecios.push(parseFloat(r.precio));
