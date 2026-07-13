@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CarFlip · Diagrama Entidad-Relación</title>
+<style>
+  :root {
+    --bg: #f7f8f8;
+    --surface: #ffffff;
+    --surface-2: #eef1f1;
+    --border: #d8dedf;
+    --border-strong: #b9c2c4;
+    --text: #1d2426;
+    --text-2: #566065;
+    --text-3: #7d888c;
+    --accent: #0e7c86;
+    --accent-soft: #e0eff0;
+    --pk: #a87b2d;
+    --pk-soft: #f4ead7;
+    --wire: #8fa5a8;
+    --shadow: 0 1px 2px rgba(29,36,38,.05), 0 4px 14px rgba(29,36,38,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111517;
+      --surface: #191f22;
+      --surface-2: #212a2d;
+      --border: #2c3639;
+      --border-strong: #3d4a4e;
+      --text: #e4e9ea;
+      --text-2: #9fabaf;
+      --text-3: #6f7c80;
+      --accent: #4ec1cb;
+      --accent-soft: #16333a;
+      --pk: #d9ab5c;
+      --pk-soft: #33301c;
+      --wire: #4d5f63;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f7f8f8; --surface: #ffffff; --surface-2: #eef1f1;
+    --border: #d8dedf; --border-strong: #b9c2c4;
+    --text: #1d2426; --text-2: #566065; --text-3: #7d888c;
+    --accent: #0e7c86; --accent-soft: #e0eff0;
+    --pk: #a87b2d; --pk-soft: #f4ead7; --wire: #8fa5a8;
+    --shadow: 0 1px 2px rgba(29,36,38,.05), 0 4px 14px rgba(29,36,38,.06);
+  }
+  :root[data-theme="dark"] {
+    --bg: #111517; --surface: #191f22; --surface-2: #212a2d;
+    --border: #2c3639; --border-strong: #3d4a4e;
+    --text: #e4e9ea; --text-2: #9fabaf; --text-3: #6f7c80;
+    --accent: #4ec1cb; --accent-soft: #16333a;
+    --pk: #d9ab5c; --pk-soft: #33301c; --wire: #4d5f63;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.55 "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  .mono { font-family: ui-monospace, "Cascadia Code", Consolas, Menlo, monospace; }
+
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 40px 28px 72px; }
+
+  header { margin-bottom: 8px; }
+  .eyebrow {
+    font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600; margin: 0 0 6px;
+  }
+  h1 {
+    margin: 0 0 8px; font-size: 27px; font-weight: 650; letter-spacing: -.015em;
+    text-wrap: balance;
+  }
+  .lede { max-width: 68ch; color: var(--text-2); margin: 0 0 10px; }
+  .lede strong { color: var(--text); font-weight: 600; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center;
+    margin: 18px 0 30px; padding: 12px 16px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    font-size: 12.5px; color: var(--text-2);
+  }
+  .legend .item { display: inline-flex; align-items: center; gap: 7px; }
+  .wire-sample { width: 34px; height: 0; border-top: 2px dashed var(--wire); }
+
+  /* ── diagram canvas ── */
+  .diagram { position: relative; }
+  #wires {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; overflow: visible; z-index: 0;
+  }
+  #wires path { fill: none; stroke: var(--wire); stroke-width: 1.75; stroke-dasharray: 6 5; }
+  #wires text {
+    font: 600 10.5px ui-monospace, "Cascadia Code", Consolas, monospace;
+    fill: var(--text-2);
+  }
+  #wires .card-label { font-weight: 700; fill: var(--accent); }
+  #wires rect.tag {
+    fill: var(--bg); stroke: var(--border); rx: 4;
+  }
+
+  .grid {
+    position: relative; z-index: 1;
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 34px;
+    align-items: start;
+  }
+  @media (max-width: 1080px) { .grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 720px)  { .grid { grid-template-columns: 1fr; } }
+
+  /* ── entity card ── */
+  .entity {
+    background: var(--surface); border: 1px solid var(--border-strong);
+    border-radius: 10px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .entity > .head {
+    padding: 12px 16px 11px; border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .entity .name {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 15.5px; font-weight: 700; color: var(--text);
+  }
+  .entity .meta { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 14px 4px; }
+  .chip {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 11px; padding: 3px 9px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+
+  .cols { list-style: none; margin: 0; padding: 6px 0 10px; }
+  .cols li {
+    display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: baseline;
+    gap: 4px 12px; padding: 4px 16px;
+  }
+  .cols li:nth-child(even) { background: color-mix(in srgb, var(--surface-2) 55%, transparent); }
+  .col-name {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 12.5px; font-variant-numeric: tabular-nums;
+    display: inline-flex; align-items: center; gap: 6px; min-width: 0;
+  }
+  .col-type {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 11.5px; color: var(--text-3); text-align: right; white-space: nowrap;
+  }
+  .note { grid-column: 1 / -1; font-size: 11px; color: var(--text-3); font-style: italic; padding-left: 2px; }
+
+  .badge {
+    font-size: 9px; font-weight: 700; letter-spacing: .06em;
+    padding: 1px 5px; border-radius: 4px; line-height: 1.5; flex: none;
+  }
+  .b-pk { background: var(--pk-soft); color: var(--pk); border: 1px solid color-mix(in srgb, var(--pk) 45%, transparent); }
+  .b-uk { background: var(--accent-soft); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+  .b-ix { background: transparent; color: var(--text-3); border: 1px solid var(--border-strong); }
+  .b-nn { background: transparent; color: var(--text-3); border: 1px dotted var(--border-strong); }
+
+  .group {
+    padding: 9px 16px 3px; font-size: 10.5px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--accent);
+    border-top: 1px solid var(--border); margin-top: 5px;
+  }
+  .cols .group:first-child { border-top: 0; margin-top: 0; }
+
+  .aside {
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .notecard {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 15px 18px; font-size: 13px; color: var(--text-2);
+  }
+  .notecard h2 {
+    margin: 0 0 8px; font-size: 12px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text); font-weight: 700;
+  }
+  .notecard p { margin: 0 0 9px; }
+  .notecard p:last-child { margin-bottom: 0; }
+  .notecard code {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 12px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px;
+  }
+
+  footer { margin-top: 34px; font-size: 12px; color: var(--text-3); }
+  footer code { font-family: ui-monospace, Consolas, monospace; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">CarFlip · PostgreSQL (Supabase)</p>
+    <h1>Diagrama Entidad-Relación</h1>
+    <p class="lede">
+      Siete tablas: <strong>cinco tablas de avisos</strong> con esquema idéntico heredado de
+      <code class="mono">ListingMixin</code> (diseño «tabla por scraper», sin tabla unificada),
+      la tabla <strong>deals</strong> con snapshots de oportunidades detectadas, y la bitácora
+      <strong>scrape_runs</strong>. No existen foreign keys físicas — las relaciones punteadas
+      son lógicas, resueltas por <code class="mono">fuente + id_externo</code> en la aplicación.
+    </p>
+  </header>
+
+  <div class="legend">
+    <span class="item"><span class="badge b-pk">PK</span> clave primaria</span>
+    <span class="item"><span class="badge b-uk">UK</span> restricción única</span>
+    <span class="item"><span class="badge b-ix">IX</span> columna indexada</span>
+    <span class="item"><span class="badge b-nn">NN</span> not&nbsp;null</span>
+    <span class="item"><span class="wire-sample"></span> relación lógica (sin FK en la BD) · 1&nbsp;—&nbsp;0..N</span>
+  </div>
+
+  <div class="diagram">
+    <svg id="wires" aria-hidden="true"></svg>
+    <div class="grid">
+
+      <!-- ───────── listings ×5 ───────── -->
+      <section class="entity" id="ent-listings" aria-label="Tablas de avisos">
+        <div class="head">
+          <div class="name">*_listings <span style="color:var(--text-3);font-weight:500">×5</span></div>
+          <div class="meta">Esquema compartido — ListingMixin</div>
+        </div>
+        <div class="chips">
+          <span class="chip">autocosmos_listings</span>
+          <span class="chip">mercadolibre_listings</span>
+          <span class="chip">yapo_listings</span>
+          <span class="chip">autosusados_listings</span>
+          <span class="chip">checkeados_listings</span>
+        </div>
+        <ul class="cols">
+          <li><span class="col-name">id <span class="badge b-pk">PK</span></span><span class="col-type">bigint · autoincr</span></li>
+          <li><span class="col-name">id_externo <span class="badge b-uk">UK</span></span><span class="col-type">varchar(200)</span>
+              <span class="note">clave de upsert por tabla</span></li>
+          <li><span class="col-name">url <span class="badge b-nn">NN</span></span><span class="col-type">text</span></li>
+          <li><span class="col-name">titulo <span class="badge b-nn">NN</span></span><span class="col-type">text</span></li>
+          <li><span class="col-name">precio <span class="badge b-ix">IX</span></span><span class="col-type">numeric(14,2)</span></li>
+          <li><span class="col-name">moneda <span class="badge b-nn">NN</span></span><span class="col-type">varchar(10) = 'CLP'</span></li>
+          <li><span class="col-name">marca <span class="badge b-ix">IX</span></span><span class="col-type">varchar(100)</span></li>
+          <li><span class="col-name">modelo <span class="badge b-ix">IX</span></span><span class="col-type">varchar(100)</span></li>
+          <li><span class="col-name">anio <span class="badge b-ix">IX</span></span><span class="col-type">integer</span></li>
+          <li><span class="col-name">km</span><span class="col-type">integer</span></li>
+          <li><span class="col-name">ubicacion</span><span class="col-type">varchar(200)</span></li>
+          <li><span class="col-name">combustible</span><span class="col-type">varchar(50)</span></li>
+          <li><span class="col-name">descripcion</span><span class="col-type">text</span></li>
+          <li><span class="col-name">url_imagen</span><span class="col-type">text</span></li>
+          <li><span class="col-name">disponible</span><span class="col-type">boolean</span></li>
+          <li><span class="col-name">fecha_publicacion</span><span class="col-type">varchar(50)</span></li>
+          <li><span class="col-name">precio_anterior</span><span class="col-type">numeric(14,2)</span></li>
+          <li><span class="col-name">delta_pct</span><span class="col-type">float</span>
+              <span class="note">% cambio de precio — negativo = bajó</span></li>
+          <li><span class="col-name">primera_vez_visto <span class="badge b-nn">NN</span></span><span class="col-type">timestamptz = now()</span></li>
+          <li><span class="col-name">ultima_vez_visto <span class="badge b-nn">NN</span></span><span class="col-type">timestamptz = now()</span></li>
+        </ul>
+      </section>
+
+      <!-- ───────── deals ───────── -->
+      <section class="entity" id="ent-deals" aria-label="Tabla deals">
+        <div class="head">
+          <div class="name">deals</div>
+          <div class="meta">Oportunidades detectadas por candidatos.sql + IA (Groq)</div>
+        </div>
+        <ul class="cols">
+          <li><span class="col-name">id <span class="badge b-pk">PK</span></span><span class="col-type">bigint · autoincr</span></li>
+          <li class="group" style="border-top:0;margin-top:0">Snapshot del aviso</li>
+          <li><span class="col-name">fuente <span class="badge b-uk">UK</span></span><span class="col-type">varchar(50)</span>
+              <span class="note">uq_deals_fuente_id_externo (compuesta)</span></li>
+          <li><span class="col-name">id_externo <span class="badge b-uk">UK</span></span><span class="col-type">varchar(200)</span></li>
+          <li><span class="col-name">url <span class="badge b-nn">NN</span></span><span class="col-type">text</span></li>
+          <li><span class="col-name">titulo <span class="badge b-nn">NN</span></span><span class="col-type">text</span></li>
+          <li><span class="col-name">marca</span><span class="col-type">varchar(100)</span></li>
+          <li><span class="col-name">modelo</span><span class="col-type">varchar(100)</span></li>
+          <li><span class="col-name">anio</span><span class="col-type">integer</span></li>
+          <li><span class="col-name">km</span><span class="col-type">integer</span></li>
+          <li><span class="col-name">ubicacion</span><span class="col-type">varchar(200)</span></li>
+          <li><span class="col-name">precio <span class="badge b-nn">NN</span></span><span class="col-type">numeric(14,2)</span></li>
+          <li><span class="col-name">moneda <span class="badge b-nn">NN</span></span><span class="col-type">varchar(10) = 'CLP'</span></li>
+          <li><span class="col-name">url_imagen</span><span class="col-type">text</span></li>
+          <li class="group">Contexto de mercado</li>
+          <li><span class="col-name">precio_mercado</span><span class="col-type">numeric(14,2)</span>
+              <span class="note">mediana del grupo marca/modelo/año</span></li>
+          <li><span class="col-name">pct_vs_mercado</span><span class="col-type">float</span>
+              <span class="note">negativo = más barato que el mercado</span></li>
+          <li><span class="col-name">delta_pct</span><span class="col-type">float</span></li>
+          <li><span class="col-name">comparables</span><span class="col-type">integer</span></li>
+          <li class="group">Evaluación IA</li>
+          <li><span class="col-name">categoria <span class="badge b-ix">IX</span></span><span class="col-type">varchar(30)</span></li>
+          <li><span class="col-name">puntaje <span class="badge b-ix">IX</span></span><span class="col-type">integer</span></li>
+          <li><span class="col-name">riesgos</span><span class="col-type">jsonb</span></li>
+          <li><span class="col-name">resumen</span><span class="col-type">text</span></li>
+          <li><span class="col-name">modelo_ia</span><span class="col-type">varchar(100)</span></li>
+          <li><span class="col-name">categorizado_en</span><span class="col-type">timestamptz</span></li>
+          <li><span class="col-name">precio_al_categorizar</span><span class="col-type">numeric(14,2)</span></li>
+          <li class="group">Estado</li>
+          <li><span class="col-name">activo <span class="badge b-ix">IX</span> <span class="badge b-nn">NN</span></span><span class="col-type">boolean = true</span></li>
+          <li><span class="col-name">creado_en <span class="badge b-nn">NN</span></span><span class="col-type">timestamptz = now()</span></li>
+          <li><span class="col-name">actualizado_en <span class="badge b-nn">NN</span></span><span class="col-type">timestamptz = now()</span></li>
+        </ul>
+      </section>
+
+      <!-- ───────── columna derecha ───────── -->
+      <div class="aside">
+        <section class="entity" id="ent-runs" aria-label="Tabla scrape_runs">
+          <div class="head">
+            <div class="name">scrape_runs</div>
+            <div class="meta">Bitácora de ejecuciones de scrapers</div>
+          </div>
+          <ul class="cols">
+            <li><span class="col-name">id <span class="badge b-pk">PK</span></span><span class="col-type">bigint · autoincr</span></li>
+            <li><span class="col-name">source <span class="badge b-nn">NN</span></span><span class="col-type">varchar(50)</span>
+                <span class="note">coincide con «fuente» del scraper</span></li>
+            <li><span class="col-name">started_at <span class="badge b-nn">NN</span></span><span class="col-type">timestamptz = now()</span></li>
+            <li><span class="col-name">finished_at</span><span class="col-type">timestamptz</span></li>
+            <li><span class="col-name">items_found <span class="badge b-nn">NN</span></span><span class="col-type">integer = 0</span></li>
+            <li><span class="col-name">errors <span class="badge b-nn">NN</span></span><span class="col-type">integer = 0</span></li>
+          </ul>
+        </section>
+
+        <div class="notecard">
+          <h2>Cómo se relacionan</h2>
+          <p><strong>listings → deals</strong> · un aviso puede originar un deal; <code>deals</code>
+             guarda un <em>snapshot</em> (no una referencia viva) identificado por el par único
+             <code>(fuente, id_externo)</code>.</p>
+          <p><strong>listings → scrape_runs</strong> · cada corrida registra su fuente en
+             <code>source</code>; una fuente acumula 0..N corridas.</p>
+          <p><strong>listings entre sí</strong> · sin relación en la BD; la web las consulta con
+             <code>UNION ALL</code> en <code>db.ts</code>.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>
+    Generado desde <code>src/carflip/database/models.py</code> · SQLAlchemy 2.0 · migraciones Alembic · 2026-07-12
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var svg = document.getElementById('wires');
+    var NS = 'http://www.w3.org/2000/svg';
+    var rels = [
+      { from: 'ent-listings', to: 'ent-deals', label: 'fuente + id_externo · snapshot' },
+      { from: 'ent-listings', to: 'ent-runs',  label: 'source = fuente' }
+    ];
+
+    function anchor(el, side, frac) {
+      var base = svg.getBoundingClientRect();
+      var r = el.getBoundingClientRect();
+      var y = r.top - base.top + r.height * frac;
+      var x = (side === 'right') ? r.right - base.left : r.left - base.left;
+      if (side === 'top')    { x = r.left - base.left + r.width * frac; y = r.top - base.top; }
+      if (side === 'bottom') { x = r.left - base.left + r.width * frac; y = r.bottom - base.top; }
+      return { x: x, y: y };
+    }
+
+    function el(name, attrs) {
+      var n = document.createElementNS(NS, name);
+      for (var k in attrs) n.setAttribute(k, attrs[k]);
+      return n;
+    }
+
+    function draw() {
+      svg.textContent = '';
+      var vertical = window.matchMedia('(max-width: 720px)').matches;
+      var twoCol = window.matchMedia('(max-width: 1080px)').matches && !vertical;
+
+      rels.forEach(function (rel, i) {
+        var a = document.getElementById(rel.from);
+        var b = document.getElementById(rel.to);
+        if (!a || !b) return;
+        var p1, p2, d;
+
+        if (vertical || (twoCol && rel.to === 'ent-runs')) {
+          // apilado: conectar borde inferior/superior por la izquierda
+          p1 = anchor(a, 'bottom', 0.12);
+          p2 = anchor(b, 'top', 0.12);
+          if (p2.y < p1.y) { p1 = anchor(b, 'bottom', 0.12); p2 = anchor(a, 'top', 0.12); }
+          d = 'M' + p1.x + ',' + p1.y + ' C' + p1.x + ',' + (p1.y + 24) + ' ' +
+              p2.x + ',' + (p2.y - 24) + ' ' + p2.x + ',' + p2.y;
+        } else {
+          var frac = (rel.to === 'ent-runs') ? 0.10 : 0.28 + i * 0.06;
+          p1 = anchor(a, 'right', frac);
+          p2 = anchor(b, 'left', (rel.to === 'ent-runs') ? 0.5 : frac);
+          var mx = (p1.x + p2.x) / 2;
+          d = 'M' + p1.x + ',' + p1.y + ' C' + mx + ',' + p1.y + ' ' +
+              mx + ',' + p2.y + ' ' + p2.x + ',' + p2.y;
+        }
+
+        svg.appendChild(el('path', { d: d }));
+
+        // cardinalidades
+        var t1 = el('text', { x: p1.x + (vertical ? 8 : 5), y: p1.y - 6 });
+        t1.textContent = '1';
+        var t2 = el('text', { x: p2.x - (vertical ? -8 : 30), y: p2.y - 6 });
+        t2.textContent = '0..N';
+        svg.appendChild(t1); svg.appendChild(t2);
+
+        // etiqueta centrada con fondo
+        var lx = (p1.x + p2.x) / 2, ly = (p1.y + p2.y) / 2;
+        var label = el('text', { x: lx, y: ly + 3, 'text-anchor': 'middle', class: 'card-label' });
+        label.textContent = rel.label;
+        svg.appendChild(label);
+        var bb = label.getBBox();
+        var bg = el('rect', {
+          x: bb.x - 6, y: bb.y - 3, width: bb.width + 12, height: bb.height + 6, class: 'tag'
+        });
+        svg.insertBefore(bg, label);
+      });
+    }
+
+    var raf;
+    function schedule() { cancelAnimationFrame(raf); raf = requestAnimationFrame(draw); }
+    window.addEventListener('resize', schedule);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(schedule);
+    draw();
+  })();
+</script>
