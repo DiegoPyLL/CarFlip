@@ -1,11 +1,16 @@
 from decimal import Decimal
 
 from loguru import logger
-from sqlalchemy import case, func
+from sqlalchemy import Table, case, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from carflip.scrapers.base import AvisoAuto
+
+# asyncpg rechaza statements con más de 32767 parámetros bindeados (límite
+# del protocolo de Postgres). Con 15 columnas por fila, una sola corrida
+# grande (~2200+ avisos) puede superarlo si se manda todo en un solo INSERT.
+_MAX_PARAMETROS_POSTGRES = 32767
 
 
 def _aviso_a_fila(aviso: AvisoAuto) -> dict:
@@ -51,6 +56,20 @@ async def upsert_avisos(
     avisos = unicos
     filas = [_aviso_a_fila(a) for a in avisos]
 
+    n_columnas = len(filas[0])
+    tamano_lote = max(1, _MAX_PARAMETROS_POSTGRES // n_columnas)
+
+    n = 0
+    for inicio in range(0, len(filas), tamano_lote):
+        lote = filas[inicio : inicio + tamano_lote]
+        n += await _upsert_lote(session, tabla, lote)
+
+    await session.commit()
+    logger.debug(f"[uploader Supabase] {n} filas upserted en {tabla.name}")
+    return n
+
+
+async def _upsert_lote(session: AsyncSession, tabla: Table, filas: list[dict]) -> int:
     stmt = insert(tabla).values(filas)
 
     precio_cambio = tabla.c.precio != stmt.excluded.precio
@@ -89,7 +108,4 @@ async def upsert_avisos(
     )
 
     resultado = await session.execute(stmt)
-    await session.commit()
-    n = resultado.rowcount
-    logger.debug(f"[uploader Supabase] {n} filas upserted en {tabla.name}")
-    return n
+    return resultado.rowcount
