@@ -200,7 +200,9 @@ Los scrapers corren de forma **secuencial** (uno a la vez), con una pausa config
 
 ## Web (Vercel + Astro)
 
-La web está en `web/` y se despliega en Vercel. Es un proyecto **Astro 5 SSR** (con React + Tailwind) que consulta PostgreSQL vía el cliente JS de Supabase y sirve las imágenes desde CloudFront.
+La web está en `web/` y se despliega en Vercel bajo el dominio **[carflip.cl](https://carflip.cl)**. Es un proyecto **Astro 5 SSR** (con React + Tailwind) que consulta PostgreSQL vía el cliente JS de Supabase y sirve las imágenes desde CloudFront.
+
+El dominio canónico se declara en `web/astro.config.mjs` (`site`). De ahí lo toman el sitemap, el `<link rel="canonical">` y los metadatos Open Graph del layout `Base.astro`, de modo que los deploys de preview (`*.vercel.app`) no compitan en SEO con el dominio productivo.
 
 Páginas principales: listado con filtros por fuente (`/`), detalle de aviso (`/auto/...`), estadísticas de mercado (`/mercado`), y `/deals` — oportunidades de compra con la evaluación IA (badge de categoría, puntaje, riesgos, precio vs mercado y resumen), filtrables por fuente y categoría.
 

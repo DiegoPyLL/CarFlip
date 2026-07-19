@@ -16,6 +16,15 @@ const {
 } = Astro.props;
 
 const tituloCompleto = titulo.endsWith('CarFlip') ? titulo : `${titulo} — CarFlip`;
+
+// El origen canónico sale de `site` en astro.config.mjs (carflip.cl), no del host
+// de la request: así los deploys de preview (*.vercel.app) siguen apuntando al
+// dominio productivo en canonical y Open Graph.
+const origenCanonico = Astro.site?.origin ?? Astro.url.origin;
+const rutaCanonica = new URL(urlCanonica, Astro.url.origin);
+const urlCanonicaAbs = new URL(rutaCanonica.pathname + rutaCanonica.search, origenCanonico).href;
+// Las imágenes del CDN ya vienen absolutas; solo se resuelven las rutas locales.
+const urlImagenAbs = new URL(urlImagen, origenCanonico).href;
 ---
 
 <!doctype html>
@@ -27,13 +36,14 @@ const tituloCompleto = titulo.endsWith('CarFlip') ? titulo : `${titulo} — CarF
 
     <title>{tituloCompleto}</title>
     <meta name="description" content={descripcion} />
-    <link rel="canonical" href={urlCanonica} />
+    <link rel="canonical" href={urlCanonicaAbs} />
 
     <!-- Open Graph -->
     <meta property="og:type" content={tipo} />
+    <meta property="og:url" content={urlCanonicaAbs} />
     <meta property="og:title" content={tituloCompleto} />
     <meta property="og:description" content={descripcion} />
-    <meta property="og:image" content={urlImagen} />
+    <meta property="og:image" content={urlImagenAbs} />
     <meta property="og:locale" content="es_CL" />
     <meta property="og:site_name" content="CarFlip" />
 
@@ -41,7 +51,7 @@ const tituloCompleto = titulo.endsWith('CarFlip') ? titulo : `${titulo} — CarF
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={tituloCompleto} />
     <meta name="twitter:description" content={descripcion} />
-    <meta name="twitter:image" content={urlImagen} />
+    <meta name="twitter:image" content={urlImagenAbs} />
 
     <slot name="head" />
   </head>

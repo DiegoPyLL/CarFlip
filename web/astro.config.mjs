@@ -13,5 +13,5 @@ export default defineConfig({
     sitemap(),
     react(),
   ],
-  site: 'https://carflip.vercel.app',
+  site: 'https://carflip.cl',
 });
