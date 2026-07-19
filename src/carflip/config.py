@@ -41,19 +41,13 @@ class Settings(BaseSettings):
     output_dir: str = "data/raw"
     processed_dir: str = "data/processed"
 
+    # Cloudflare R2 — almacenamiento de las fotos
     r2_account_id: str = ""
     r2_bucket: str = ""
     r2_access_key_id: str = ""
     r2_secret_access_key: str = ""
-    r2_prefix: str = "autocosmos/fotos/"
 
-    s3_bucket: str = ""
-    s3_access_key_id: str = ""
-    s3_secret_access_key: str = ""
-    s3_region: str = "us-east-1"
-    s3_prefix: str = "autocosmos/"
-
-    # CloudFront (sin dominio propio: https://dxxxx.cloudfront.net)
+    # Dominio público desde el que se sirven las fotos de R2
     cdn_base_url: str = ""
 
 

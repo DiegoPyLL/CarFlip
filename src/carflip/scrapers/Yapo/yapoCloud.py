@@ -33,7 +33,7 @@ from carflip.scrapers.base import (
     normalizar_url,
 )
 from carflip.scrapers.image_utils import convertir_a_avif
-from carflip.storage.s3_cdn import cargar_a_s3_con_retry, cliente_s3, url_cdn_desde_clave_s3
+from carflip.storage.r2 import cliente_objetos_opcional, subir_objeto_con_retry, url_publica
 
 CODIGO_FUENTE = 101  # identificador único de yapo (ver ScraperBase.codigo_fuente)
 
@@ -313,7 +313,6 @@ class ScraperYapoCloud(ScraperBase):
         logger.info(f"[yapo] Iniciando scrape cloud — {inicio.strftime('%H:%M:%S %d/%m/%Y')}")
 
         fecha_str = inicio.strftime("%H-%M-%S_%d-%m-%Y")
-        fecha_dia = inicio.strftime("%Y/%m/%d")
         carpeta = (Path("yapo") / fecha_str) if self.guardar_raw else None
         if carpeta:
             (carpeta / "raw" / "fotos").mkdir(parents=True, exist_ok=True)
@@ -423,7 +422,10 @@ class ScraperYapoCloud(ScraperBase):
                 lock_jsonl = asyncio.Lock()
                 total_avisos = len(avisos_info)
 
-                async with httpx.AsyncClient() as cliente_http, cliente_s3() as s3:
+                # El cliente de R2 solo se abre si vamos a subir fotos.
+                async with httpx.AsyncClient() as cliente_http, cliente_objetos_opcional(
+                    self.guardar_raw
+                ) as s3:
                     async def _tarea_detalle(info: dict, idx: int) -> AvisoAuto | None:
                         nonlocal fotos_ok_total, fotos_total
                         url_det = info["url"]
@@ -513,43 +515,21 @@ class ScraperYapoCloud(ScraperBase):
                                         fotos_ok_total += 1
                                         fotos_run[aviso_id] = ruta_orig.name
                                         log_fotos.info(f"[yapo] [{idx}/{total_avisos}] Foto descargada id={aviso_id}")
-                                        clave_raw = f"yapo/raw/fotos/{ruta_orig.name}"
-                                        tareas_s3: list[tuple] = [
-                                            (
-                                                cargar_a_s3_con_retry(
-                                                    ruta_orig, clave_raw, etiqueta_log="yapo",
-                                                    skip_si_existe=True, cliente=s3,
-                                                ),
-                                                "upload_foto_raw",
-                                                None,
-                                            )
-                                        ]
-                                        clave_avif: str | None = None
                                         if ruta_avif is not None:
-                                            clave_avif = (
-                                                f"yapo/processed/fotos/{ruta_avif.name}"
+                                            # Clave estable por aviso: re-scrapearlo no vuelve a subir la foto.
+                                            clave_avif = f"fotos/yapo/{av_auto.id_externo}.avif"
+                                            subida_ok = await subir_objeto_con_retry(
+                                                ruta_avif, clave_avif, etiqueta_log="yapo",
+                                                skip_si_existe=True, cliente=s3,
                                             )
-                                            tareas_s3.append(
-                                                (
-                                                    cargar_a_s3_con_retry(
-                                                        ruta_avif, clave_avif, etiqueta_log="yapo",
-                                                        skip_si_existe=True, cliente=s3,
-                                                    ),
-                                                    "upload_foto_processed",
-                                                    clave_avif,
-                                                )
-                                            )
-                                        s3_res = await asyncio.gather(*[t[0] for t in tareas_s3])
-                                        for (_, etapa, clave), s3_ok in zip(tareas_s3, s3_res):
-                                            if not s3_ok:
+                                            if not subida_ok:
                                                 fail_logs.append(FailLog(
-                                                    etapa=etapa,
-                                                    motivo="S3 upload de imagen agotó reintentos",
+                                                    etapa="upload_foto_processed",
+                                                    motivo="R2 upload de imagen agotó reintentos",
                                                     id_externo=aviso_id,
                                                 ))
-                                            elif etapa == "upload_foto_processed" and clave:
-                                                if url_cdn := url_cdn_desde_clave_s3(clave):
-                                                    av_auto.url_imagen = url_cdn
+                                            elif url_cdn := url_publica(clave_avif):
+                                                av_auto.url_imagen = url_cdn
                                     else:
                                         log_fotos.warning(f"[yapo] [{idx}/{total_avisos}] Foto fallida id={aviso_id}")
                                         fail_logs.append(FailLog(etapa="descarga_foto", motivo="Descarga de imagen fallida", id_externo=aviso_id))
@@ -667,74 +647,36 @@ class ScraperYapoCloud(ScraperBase):
                 else:
                     log_meta.error(f"[yapo] Error al escribir avisos procesados en {ruta_procesados}")
 
-            # ── Metadata JSONL raw → S3 ───────────────────────────────────────
-            if self.guardar_raw and ruta_jsonl and ruta_jsonl.exists():
-                metadata_ok = await cargar_a_s3_con_retry(
-                    ruta_jsonl,
-                    f"yapo/{fecha_dia}/raw/avisos.jsonl",
-                    etiqueta_log="yapo",
-                )
-                if not metadata_ok:
-                    fail_logs.append(FailLog(
-                        etapa="upload_metadata",
-                        motivo="S3 upload de raw/avisos.jsonl agotó reintentos",
-                        id_externo="avisos.jsonl",
-                    ))
-
-            # ── Processed JSONL → S3 ─────────────────────────────────────────
-            if self.guardar_raw and avisos_validos and carpeta:
-                ruta_procesados_jsonl = carpeta / "processed" / "avisos.jsonl"
-                if ruta_procesados_jsonl.exists():
-                    processed_ok = await cargar_a_s3_con_retry(
-                        ruta_procesados_jsonl,
-                        f"yapo/{fecha_dia}/processed/avisos.jsonl",
-                        etiqueta_log="yapo",
-                    )
-                    if not processed_ok:
-                        fail_logs.append(FailLog(
-                            etapa="upload_processed",
-                            motivo="S3 upload de processed/avisos.jsonl agotó reintentos",
-                            id_externo="avisos.jsonl",
-                        ))
-
             duracion = (datetime.now(utc_4) - inicio).total_seconds()
             logger.info(
                 f"[yapo] Scrape finalizado — {len(avisos_validos)} avisos válidos"
                 f" listos para carga ({duracion:.1f}s)"
             )
 
-            # ── Reporte de ejecución → S3 (siempre, con o sin fallos) ────────
+            # ── Reporte de ejecución (siempre, con o sin fallos) ─────────────
+            # ejecutar() lo persiste en scrape_runs; la copia local queda para depurar.
+            self.ultimo_reporte = {
+                "fuente": "yapo",
+                "timestamp": inicio.isoformat(),
+                "duracion_segundos": round(duracion, 1),
+                "avisos_encontrados": len(avisos_raw),
+                "avisos_unicos": len(vistos_dedup_id),
+                "avisos_validos": len(avisos_validos),
+                "avisos_rechazados": rechazados_total,
+                "fail_logs": [asdict(fl) for fl in fail_logs],
+            }
+            log_meta.info(
+                f"[yapo] Reporte generado — {len(fail_logs)} FAIL LOGs, {duracion:.1f}s"
+            )
             if self.guardar_raw and carpeta:
                 ruta_reporte = carpeta / "processed" / "run_report.json"
-                reporte = {
-                    "fuente": "yapo",
-                    "timestamp": inicio.isoformat(),
-                    "duracion_segundos": round(duracion, 1),
-                    "avisos_encontrados": len(avisos_raw),
-                    "avisos_unicos": len(vistos_dedup_id),
-                    "avisos_validos": len(avisos_validos),
-                    "avisos_rechazados": rechazados_total,
-                    "fail_logs": [asdict(fl) for fl in fail_logs],
-                }
                 try:
                     ruta_reporte.write_text(
-                        json.dumps(reporte, ensure_ascii=False, indent=2),
+                        json.dumps(self.ultimo_reporte, ensure_ascii=False, indent=2),
                         encoding="utf-8",
-                    )
-                    log_meta.info(
-                        f"[yapo] Reporte escrito — {len(fail_logs)} FAIL LOGs, {duracion:.1f}s"
-                    )
-                    await cargar_a_s3_con_retry(
-                        ruta_reporte,
-                        f"yapo/{fecha_dia}/logs/run_report.json",
-                        etiqueta_log="yapo",
                     )
                 except Exception as e:
                     log_meta.error(f"[yapo] No se pudo escribir run_report.json: {e}")
-            elif fail_logs:
-                logger.info(
-                    f"[yapo] {len(fail_logs)} FAIL LOGs generados (guardar_raw=False, no persistidos)"
-                )
 
             return avisos_validos
 

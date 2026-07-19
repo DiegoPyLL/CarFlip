@@ -38,7 +38,7 @@ from carflip.config import settings
 from carflip.database.models import AutosusadosListing
 from carflip.scrapers.base import AvisoAuto, ScraperBase, construir_id_externo
 from carflip.scrapers.image_utils import convertir_a_avif
-from carflip.storage.s3_cdn import cargar_a_s3_con_retry, url_cdn_desde_clave_s3
+from carflip.storage.r2 import subir_objeto_con_retry, url_publica
 
 CODIGO_FUENTE = 103  # identificador único de autosusados (ver ScraperBase.codigo_fuente)
 
@@ -382,7 +382,6 @@ class ScraperAutosusadosCloud(ScraperBase):
         paginas_sitio: int | None = None  # calculado desde el campo `total` del JSON
 
         fecha_str = inicio.strftime("%H-%M-%S_%d-%m-%Y")
-        fecha_dia = inicio.strftime("%Y/%m/%d")
         carpeta = _carpeta_run(Path("autosusados"), fecha_str) if self.guardar_raw else None
         ruta_jsonl = carpeta / "raw" / "avisos.jsonl" if carpeta else None
         carpeta_fotos_raw = carpeta / "raw" / "fotos" if carpeta else None
@@ -538,18 +537,6 @@ class ScraperAutosusadosCloud(ScraperBase):
                                 ruta_orig, ruta_avif = resultado
                                 if ruta_orig is not None:
                                     fotos_pagina[aviso.id_externo] = ruta_orig.name
-                                    clave_raw = f"autosusados/{fecha_dia}/raw/fotos/{ruta_orig.name}"
-                                    tareas_s3_info.append(
-                                        (
-                                            cargar_a_s3_con_retry(
-                                                ruta_orig, clave_raw, etiqueta_log="autosusados",
-                                                skip_si_existe=True,
-                                            ),
-                                            aviso,
-                                            "upload_foto_raw",
-                                            clave_raw,
-                                        )
-                                    )
                                 else:
                                     fail_logs.append(FailLog(
                                         etapa="descarga_foto",
@@ -557,10 +544,11 @@ class ScraperAutosusadosCloud(ScraperBase):
                                         id_externo=aviso.id_externo,
                                     ))
                                 if ruta_avif is not None:
-                                    clave_proc = f"autosusados/{fecha_dia}/processed/fotos/{ruta_avif.name}"
+                                    # Clave estable por aviso: re-scrapearlo no vuelve a subir la foto.
+                                    clave_proc = f"fotos/autosusados/{aviso.id_externo}.avif"
                                     tareas_s3_info.append(
                                         (
-                                            cargar_a_s3_con_retry(
+                                            subir_objeto_con_retry(
                                                 ruta_avif, clave_proc, etiqueta_log="autosusados",
                                                 skip_si_existe=True,
                                             ),
@@ -583,11 +571,11 @@ class ScraperAutosusadosCloud(ScraperBase):
                                     if not s3_ok:
                                         fail_logs.append(FailLog(
                                             etapa=etapa,
-                                            motivo="S3 upload agotó reintentos",
+                                            motivo="R2 upload agotó reintentos",
                                             id_externo=aviso.id_externo,
                                         ))
                                     elif etapa == "upload_foto_processed":
-                                        if url_cdn := url_cdn_desde_clave_s3(clave):
+                                        if url_cdn := url_publica(clave):
                                             aviso.url_imagen = url_cdn
 
                     # Append JSONL con lock para evitar escrituras concurrentes
@@ -723,75 +711,37 @@ class ScraperAutosusadosCloud(ScraperBase):
                 else:
                     log_meta.error(f"[autosusados] Error al escribir avisos procesados en {ruta_procesados}")
 
-            # ── Metadata JSONL raw → S3 ───────────────────────────────────────
-            if self.guardar_raw and ruta_jsonl and ruta_jsonl.exists():
-                metadata_ok = await cargar_a_s3_con_retry(
-                    ruta_jsonl,
-                    f"autosusados/{fecha_dia}/raw/avisos.jsonl",
-                    etiqueta_log="autosusados",
-                )
-                if not metadata_ok:
-                    fail_logs.append(FailLog(
-                        etapa="upload_metadata",
-                        motivo="S3 upload de raw/avisos.jsonl agotó reintentos",
-                        id_externo="avisos.jsonl",
-                    ))
-
-            # ── Processed JSONL → S3 ─────────────────────────────────────────
-            if self.guardar_raw and avisos_validos and carpeta:
-                ruta_procesados_jsonl = carpeta / "processed" / "avisos.jsonl"
-                if ruta_procesados_jsonl.exists():
-                    processed_ok = await cargar_a_s3_con_retry(
-                        ruta_procesados_jsonl,
-                        f"autosusados/{fecha_dia}/processed/avisos.jsonl",
-                        etiqueta_log="autosusados",
-                    )
-                    if not processed_ok:
-                        fail_logs.append(FailLog(
-                            etapa="upload_processed",
-                            motivo="S3 upload de processed/avisos.jsonl agotó reintentos",
-                            id_externo="avisos.jsonl",
-                        ))
-
             duracion = (datetime.now(utc_4) - inicio).total_seconds()
             logger.info(
                 f"[autosusados] Scrape finalizado — {len(avisos_validos)} avisos válidos"
                 f" listos para carga ({duracion:.1f}s)"
             )
 
-            # ── Reporte de ejecución → S3 (siempre, con o sin fallos) ────────
+            # ── Reporte de ejecución (siempre, con o sin fallos) ─────────────
+            # ejecutar() lo persiste en scrape_runs; la copia local queda para depurar.
+            self.ultimo_reporte = {
+                "fuente": "autosusados",
+                "timestamp": inicio.isoformat(),
+                "duracion_segundos": round(duracion, 1),
+                "paginas_procesadas": paginas_procesadas,
+                "avisos_encontrados": len(avisos_raw),
+                "avisos_unicos": len(avisos_unicos),
+                "avisos_validos": len(avisos_validos),
+                "avisos_rechazados": len(avisos_unicos) - len(avisos_validos),
+                "fail_logs": [asdict(fl) for fl in fail_logs],
+            }
+            log_meta.info(
+                f"[autosusados] Reporte generado — {len(fail_logs)} FAIL LOGs, {duracion:.1f}s"
+            )
             if self.guardar_raw and carpeta:
                 ruta_reporte = carpeta / "processed" / "run_report.json"
-                reporte = {
-                    "fuente": "autosusados",
-                    "timestamp": inicio.isoformat(),
-                    "duracion_segundos": round(duracion, 1),
-                    "paginas_procesadas": paginas_procesadas,
-                    "avisos_encontrados": len(avisos_raw),
-                    "avisos_unicos": len(avisos_unicos),
-                    "avisos_validos": len(avisos_validos),
-                    "avisos_rechazados": len(avisos_unicos) - len(avisos_validos),
-                    "fail_logs": [asdict(fl) for fl in fail_logs],
-                }
                 try:
                     ruta_reporte.write_text(
-                        json.dumps(reporte, ensure_ascii=False, indent=2),
+                        json.dumps(self.ultimo_reporte, ensure_ascii=False, indent=2),
                         encoding="utf-8",
-                    )
-                    log_meta.info(
-                        f"[autosusados] Reporte escrito — {len(fail_logs)} FAIL LOGs, {duracion:.1f}s"
-                    )
-                    await cargar_a_s3_con_retry(
-                        ruta_reporte,
-                        f"autosusados/{fecha_dia}/logs/run_report.json",
-                        etiqueta_log="autosusados",
                     )
                 except Exception as e:
                     log_meta.error(f"[autosusados] No se pudo escribir run_report.json: {e}")
-            elif fail_logs:
-                logger.info(
-                    f"[autosusados] {len(fail_logs)} FAIL LOGs generados (guardar_raw=False, no persistidos)"
-                )
 
             return avisos_validos
 

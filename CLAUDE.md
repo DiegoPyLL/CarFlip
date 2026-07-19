@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Desarrollar una landing page para **CarFlip**, una empresa tecnológica, priorizando rendimiento, calidad técnica, diseño y posicionamiento en buscadores.
+Desarrollar una página web para **CarFlip**, este es un recopilador de publiaciones web para varias automotoras chilenas. Debes priorizar: rendimiento, calidad técnica, diseño y posicionamiento en buscadores.
 
 Toda decisión de desarrollo debe justificarse en función de estos principios.
 

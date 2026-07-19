@@ -1,0 +1,62 @@
+name: Scrape
+
+on:
+  schedule:
+    # 08:00 UTC = 04:00–05:00 en Chile (según horario de verano/invierno)
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+# Un ciclo a la vez: si una corrida se demora, la siguiente espera en cola
+# (replica la garantía del BlockingScheduler que corría en EC2).
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Construir imagen
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: carflip:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Las variables se inyectan primero al entorno del step (GitHub las
+      # enmascara en logs) y de ahí al .env que consume el contenedor,
+      # igual que docker-compose.yml en local.
+      - name: Generar .env desde secrets
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CDN_BASE_URL: ${{ secrets.CDN_BASE_URL }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          printf '%s\n' \
+            "DATABASE_URL=$DATABASE_URL" \
+            "USE_SSL=true" \
+            "R2_ACCOUNT_ID=$R2_ACCOUNT_ID" \
+            "R2_BUCKET=$R2_BUCKET" \
+            "R2_ACCESS_KEY_ID=$R2_ACCESS_KEY_ID" \
+            "R2_SECRET_ACCESS_KEY=$R2_SECRET_ACCESS_KEY" \
+            "CDN_BASE_URL=$CDN_BASE_URL" \
+            "GROQ_API_KEY=$GROQ_API_KEY" \
+            > .env
+
+      - name: Aplicar migraciones
+        run: docker run --rm --env-file .env --entrypoint uv carflip:ci run alembic upgrade head
+
+      # --scraper all evita el prompt interactivo de `carflip run` (no hay TTY en CI)
+      - name: Ejecutar scrapers
+        run: docker run --rm --env-file .env carflip:ci run --scraper all

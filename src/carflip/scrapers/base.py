@@ -78,6 +78,8 @@ class ScraperBase(ABC):
     # 100=autocosmos, 101=yapo, 102=mercadolibre, 103=autosusados, 104=checkeados
     codigo_fuente: int = 0
     model_class: type | None = None  # tabla PostgreSQL destino, declarada en cada scraper
+    # Métricas de la última corrida — lo llena scrape() y lo persiste ejecutar().
+    ultimo_reporte: dict | None = None
 
     async def ejecutar(self, sesion: AsyncSession) -> ResultadoScraping:
         from carflip.database.uploader import upsert_avisos
@@ -101,6 +103,16 @@ class ScraperBase(ABC):
         except Exception as exc:
             resultado.errores += 1
             logger.error(f"[{self.fuente}] Error fatal: {exc}")
+
+        # Un fallo guardando métricas no debe invalidar los avisos ya cargados.
+        if self.ultimo_reporte is not None:
+            from carflip.database.metricas import guardar_run_report
+
+            try:
+                await guardar_run_report(sesion, self.ultimo_reporte)
+            except Exception:
+                logger.exception(f"[{self.fuente}] No se pudieron guardar las métricas de la corrida")
+
         resultado.finalizado_en = datetime.now()
         return resultado
 

@@ -295,7 +295,6 @@ Todas las dependencias se instalan automáticamente con `uv sync` desde la raíz
 src/carflip/scrapers/AutoCosmos/
 ├── autocosmosCloud.py   ← Pipeline completo (ingesta, limpieza, validación, carga)
 ├── __init__.py          ← Expone ScraperAutocosmosCloud
-├── requirements.txt     ← Dependencias para uso standalone
 └── README.md            ← Este archivo
 ```
 

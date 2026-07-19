@@ -6,17 +6,18 @@
 
 Plataforma que agrega avisos de autos en venta desde portales chilenos, normaliza los datos, los almacena en PostgreSQL y detecta oportunidades de compra (deals) comparando cada aviso contra su mercado y evaluándolo con IA.
 
-**Stack actual:** Python 3.12 + httpx/Playwright · PostgreSQL (Supabase) · S3 + CloudFront · Groq (evaluación IA de deals) · Astro 5 + Vercel
+**Stack actual:** Python 3.12 + httpx/Playwright · PostgreSQL (Supabase) · Cloudflare R2 · Groq (evaluación IA de deals) · Astro 5 + Vercel
 
 ---
 
 ## Arquitectura
 
 ```
-EC2 + TMUX  (ingesta)
+GitHub Actions  (ingesta — cron diario)
   └─ Scrapers (Autosusados, Checkeados, Autocosmos, Yapo)
-       ├─ Fotos raw/AVIF  →  S3  →  CloudFront (CDN)
-       └─ Metadata validada  →  PostgreSQL
+       ├─ Fotos AVIF  →  Cloudflare R2 (CDN)
+       ├─ Metadata validada  →  PostgreSQL
+       └─ Métricas de la corrida  →  `scrape_runs` / `run_fail_logs`
   └─ Detección de deals (al final de cada ciclo)
        ├─ SQL: outliers de precio vs mediana del grupo comparable
        └─ Groq: categorización IA  →  tabla `deals`
@@ -25,7 +26,7 @@ Vercel  (web)
   └─ Astro 5 SSR
        ├─ Consulta PostgreSQL vía Supabase JS client
        ├─ Página /deals con evaluación IA
-       └─ Imágenes desde CloudFront
+       └─ Imágenes desde R2
 ```
 
 Cada scraper implementa el pipeline completo dentro de `scrape()`:
@@ -33,12 +34,13 @@ Cada scraper implementa el pipeline completo dentro de `scrape()`:
 1. Paginación HTTP (httpx + BS4) o navegación headless (Playwright)
 2. Descarga de fotos → `data/raw/fotos/`
 3. Conversión a AVIF → `data/processed/fotos/`
-4. Upload a S3 con retry (12 × 10 min)
+4. Upload a R2 con retry (12 × 10 min)
 5. Append a `data/raw/avisos.jsonl`
 6. Deduplicación → validación → `data/processed/avisos.jsonl`
-7. Upload de metadata y `run_report.json` a S3
 
-`ScraperBase.ejecutar()` recibe el resultado y hace upsert en PostgreSQL (por lotes, para no exceder el límite de parámetros de asyncpg). Las imágenes AVIF se sirven a la web desde CloudFront (`CDN_BASE_URL`).
+`ScraperBase.ejecutar()` recibe el resultado, hace upsert en PostgreSQL (por lotes, para no exceder el límite de parámetros de asyncpg) y guarda las métricas de la corrida. Las imágenes AVIF se sirven a la web desde R2 (`CDN_BASE_URL`).
+
+Las fotos se suben con clave estable **`fotos/<fuente>/<id_externo>.avif`**. Como `id_externo` es un hash del URL canónico del aviso, cada aviso ocupa un objeto y solo uno: re-scrapear un aviso ya conocido no vuelve a subir la imagen. Los JSONL se siguen escribiendo en local para depurar una corrida, pero no se suben — PostgreSQL es la fuente de verdad.
 
 Al final de cada ciclo corre la **detección de deals** (`src/carflip/deals/`): una query SQL selecciona candidatos cuyo precio es outlier contra la mediana de su grupo comparable (marca/modelo/año ±1, con guard de kilometraje) y Groq los categoriza leyendo la descripción — categoría (`oportunidad_clara` / `buen_precio` / `revisar` / `descartar`), puntaje 0-100, riesgos y resumen. Un filtro anti-re-tokenización evita volver a llamar al LLM si el precio no cambió y la evaluación es reciente. Un fallo en esta etapa (Groq caído, cuota agotada) no aborta el ciclo de scraping.
 
@@ -46,12 +48,12 @@ Al final de cada ciclo corre la **detección de deals** (`src/carflip/deals/`): 
 
 ## Fuentes implementadas
 
-| Fuente      | Técnica               | Tabla PostgreSQL        |
-| ----------- | ---------------------- | ----------------------- |
+| Fuente      | Técnica               | Tabla PostgreSQL         |
+| ----------- | ---------------------- | ------------------------ |
 | Autosusados | httpx + BeautifulSoup4 | `autosusados_listings` |
 | Checkeados  | httpx + BeautifulSoup4 | `checkeados_listings`  |
-| Autocosmos  | httpx + BeautifulSoup4 | `autocosmos_listings` |
-| Yapo        | Playwright + stealth   | `yapo_listings`       |
+| Autocosmos  | httpx + BeautifulSoup4 | `autocosmos_listings`  |
+| Yapo        | Playwright + stealth   | `yapo_listings`        |
 
 > Existe la tabla `mercadolibre_listings` reservada para un scraper futuro vía la API oficial, pero aún no está implementado ni registrado.
 >
@@ -59,39 +61,40 @@ Al final de cada ciclo corre la **detección de deals** (`src/carflip/deals/`): 
 
 ---
 
-## Puesta en marcha en EC2
+## Ejecución programada (GitHub Actions)
 
-### Requisitos previos
+La ingesta corre en GitHub Actions: el workflow [`scrape.yml`](.github/workflows/scrape.yml) se dispara todos los días a las 08:00 UTC (04:00–05:00 en Chile), construye la imagen Docker del repositorio, aplica las migraciones pendientes (`alembic upgrade head`) y ejecuta los 4 scrapers en secuencia (`carflip run --scraper all`), incluida la detección de deals al final del ciclo.
 
-- Instancia EC2 (Amazon Linux 2023, `t3.small` recomendado — `t3.micro` puede quedarse corto de RAM para correr Chromium vía Playwright)
-- VPC con subred pública (la VPC default existente alcanza; no hace falta crear una subred nueva)
-- PostgreSQL externo con base de datos `carflip` creada (p. ej. Supabase)
-- Bucket S3 + distribución CloudFront
+### Secrets requeridos
 
-### 1 — Conectarse al servidor
+Configurar en **Settings → Secrets and variables → Actions**:
 
-```bash
-ssh -i /ruta/a/tu-llave.pem ec2-user@<ip-publica>
-```
+| Secret                                          | Descripción                                                          |
+| ----------------------------------------------- | --------------------------------------------------------------------- |
+| `DATABASE_URL`                                | `postgresql+asyncpg://...` hacia Supabase                           |
+| `R2_ACCOUNT_ID`                               | Account ID de Cloudflare                                              |
+| `R2_BUCKET`                                   | Bucket R2 donde se guardan las fotos                                  |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | API Token de R2 con permisos de escritura                             |
+| `CDN_BASE_URL`                                | Dominio público desde el que se sirven las fotos                     |
+| `GROQ_API_KEY`                                | Key de[console.groq.com](https://console.groq.com/keys) para los deals |
 
-### 2 — Instalar herramientas base
+El resto de la configuración (delays, umbral de deals, modelo Groq, etc.) usa los defaults de `src/carflip/config.py`.
 
-```bash
-sudo dnf update -y
-sudo dnf install -y tmux git
-```
+### Corrida manual
 
-### 3 — Instalar uv y Python 3.12
+**Actions → Scrape → Run workflow**. Los logs de cada corrida quedan en esa misma pestaña; las métricas por scraper (páginas, avisos válidos/rechazados, FAIL LOGs) se escriben automáticamente en las tablas `scrape_runs` y `run_fail_logs`, que alimentan el dashboard de la web.
 
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-source $HOME/.local/bin/env
-uv python install 3.12
-```
+### Notas operativas
 
-### 4 — Clonar el repositorio e instalar dependencias
+- El cron de GitHub no es exacto: puede demorar algunos minutos en horas de alta carga.
+- GitHub deshabilita los workflows programados si el repo pasa 60 días sin commits — se reactivan con un clic en la pestaña Actions.
+- Los runners usan rangos de IP compartidos (Azure), más propensos a bloqueos anti-bot que una IP dedicada. Si la tabla `run_fail_logs` empieza a mostrar bloqueos sistemáticos (especialmente en Yapo o Autosusados), la alternativa es correr el mismo workflow en un runner self-hosted.
 
-Si el repositorio es privado, `git clone` pedirá usuario y contraseña — usar un [token de acceso personal](https://github.com/settings/tokens) (scope `repo`) como contraseña; la contraseña real de la cuenta de GitHub ya no funciona para git desde 2021.
+---
+
+## Ejecución local
+
+**Requisitos:** Python 3.12 + [uv](https://docs.astral.sh/uv/), PostgreSQL externo con base `carflip` (p. ej. Supabase) y un bucket de Cloudflare R2.
 
 ```bash
 git clone https://github.com/VolutusDevGroup/CarFlip
@@ -100,24 +103,7 @@ uv sync
 uv run playwright install chromium
 ```
 
-> **Amazon Linux 2023 no está oficialmente soportado por Playwright** (usa el fallback de Ubuntu 24.04) y `--with-deps` falla porque intenta usar `apt-get`, inexistente en AL2023 (`sh: apt-get: command not found`). Instalar las dependencias del sistema a mano con `dnf` — ojo que los paquetes `libX*` van con mayúscula:
->
-> ```bash
-> sudo dnf install -y nss atk at-spi2-atk cups-libs libdrm libxkbcommon \
->   libXcomposite libXdamage libXrandr mesa-libgbm pango alsa-lib
-> ```
->
-> Verificar que Chromium arranca antes de seguir:
->
-> ```bash
-> uv run python -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); b = p.chromium.launch(); print('OK'); b.close(); p.stop()"
-> ```
-
-### 5 — Crear `.env`
-
-```bash
-nano .env
-```
+Crear `.env` en la raíz:
 
 ```env
 # Base de datos
@@ -128,15 +114,14 @@ USE_SSL=true
 MERCADOLIBRE_APP_ID=tu_app_id
 MERCADOLIBRE_CLIENT_SECRET=tu_client_secret
 
-# S3 — almacenamiento de fotos (raw + AVIF)
-S3_ACCESS_KEY_ID=tu_access_key
-S3_SECRET_ACCESS_KEY=tu_secret_key
-S3_REGION=us-east-1
-S3_BUCKET=carflip-raw
-S3_PREFIX=autocosmos/
+# Cloudflare R2 — almacenamiento de las fotos AVIF
+R2_ACCOUNT_ID=tu_account_id
+R2_BUCKET=carflip-fotos
+R2_ACCESS_KEY_ID=tu_access_key
+R2_SECRET_ACCESS_KEY=tu_secret_key
 
-# CloudFront — CDN que sirve las imágenes a la web
-CDN_BASE_URL=https://xxxxxxxxxx.cloudfront.net
+# Dominio público desde el que R2 sirve las imágenes
+CDN_BASE_URL=https://img.carflip.cl
 
 # Rate limiting
 MIN_DELAY_SECONDS=2.0
@@ -157,42 +142,24 @@ LOG_LEVEL=INFO
 LOG_FILE=logs/carflip.log
 ```
 
-`Ctrl+O` → `Enter` → `Ctrl+X` para guardar.
-
-### 6 — Aplicar migraciones
-
 ```bash
-uv run alembic upgrade head
+uv run alembic upgrade head   # aplicar migraciones
+uv run carflip run            # ciclo único
 ```
 
-### 7 — Ejecutar en tmux
-
-```bash
-tmux new -s carflip
-source .venv/bin/activate
-
-# Prueba única
-carflip run
-
-# Scheduler automático (cada SCRAPE_INTERVAL_HOURS horas)
-carflip start
-```
-
-Desconectarse sin detener el proceso: `Ctrl+B` → `D`
-
-Reconectar: `tmux attach -t carflip`
+También se puede correr con Docker, igual que en CI: `docker compose up --build`.
 
 ---
 
 ## Comandos disponibles
 
-| Comando                                    | Descripción                                          |
-| ------------------------------------------ | ----------------------------------------------------- |
-| `carflip run`                            | Ejecuta todos los scrapers una vez                    |
-| `carflip run --scraper autocosmos`       | Ejecuta un scraper específico                        |
-| `carflip start`                          | Inicia el scheduler automático                       |
-| `carflip market <marca> <modelo> <año>` | Estadísticas de mercado                              |
-| `carflip deals`                          | Detecta y categoriza deals (SQL + Groq)               |
+| Comando                                    | Descripción                            |
+| ------------------------------------------ | --------------------------------------- |
+| `carflip run`                            | Ejecuta todos los scrapers una vez      |
+| `carflip run --scraper autocosmos`       | Ejecuta un scraper específico          |
+| `carflip start`                          | Inicia el scheduler automático         |
+| `carflip market <marca> <modelo> <año>` | Estadísticas de mercado                |
+| `carflip deals`                          | Detecta y categoriza deals (SQL + Groq) |
 
 Los scrapers corren de forma **secuencial** (uno a la vez), con una pausa configurable entre cada uno. Scrapers registrados actualmente: `autosusados`, `checkeados`, `autocosmos`, `yapo`. La detección de deals también corre automáticamente al final de cada ciclo de `carflip run` / `carflip start`.
 
@@ -200,7 +167,7 @@ Los scrapers corren de forma **secuencial** (uno a la vez), con una pausa config
 
 ## Web (Vercel + Astro)
 
-La web está en `web/` y se despliega en Vercel bajo el dominio **[carflip.cl](https://carflip.cl)**. Es un proyecto **Astro 5 SSR** (con React + Tailwind) que consulta PostgreSQL vía el cliente JS de Supabase y sirve las imágenes desde CloudFront.
+La web está en `web/` y se despliega en Vercel bajo el dominio **[carflip.cl](https://carflip.cl)**. Es un proyecto **Astro 5 SSR** (con React + Tailwind) que consulta PostgreSQL vía el cliente JS de Supabase y sirve las imágenes desde Cloudflare R2.
 
 El dominio canónico se declara en `web/astro.config.mjs` (`site`). De ahí lo toman el sitemap, el `<link rel="canonical">` y los metadatos Open Graph del layout `Base.astro`, de modo que los deploys de preview (`*.vercel.app`) no compitan en SEO con el dominio productivo.
 
@@ -225,7 +192,7 @@ Contenido de `web/.env`:
 ```env
 SUPABASE_URL=https://<tu-proyecto>.supabase.co
 SUPABASE_SERVICE_KEY=<service_role key desde Supabase → Settings → API>
-CDN_BASE_URL=https://<tu-distribucion>.cloudfront.net
+CDN_BASE_URL=https://<tu-dominio-r2>
 ```
 
 ```bash
@@ -244,7 +211,7 @@ Configurar como variables de servidor las mismas tres claves:
 ```env
 SUPABASE_URL=https://<tu-proyecto>.supabase.co
 SUPABASE_SERVICE_KEY=<service_role key>
-CDN_BASE_URL=https://<tu-distribucion>.cloudfront.net
+CDN_BASE_URL=https://<tu-dominio-r2>
 ```
 
 ---
@@ -274,14 +241,6 @@ Ver checklist completo en [CLAUDE.md](CLAUDE.md).
 
 ## Resolución de problemas
 
-**`carflip: command not found` al reconectar SSH**
-
-```bash
-source .venv/bin/activate
-# o sin activar:
-.venv/bin/carflip start
-```
-
 **Timeouts o errores en Yapo (Playwright)**
 
 Aumentar delays en `.env`:
@@ -291,13 +250,9 @@ MIN_DELAY_SECONDS=3.0
 MAX_DELAY_SECONDS=8.0
 ```
 
-**IP pública cambia al reiniciar la instancia**
+**El workflow programado dejó de correr**
 
-Sin una Elastic IP asociada, cada `Stop` + `Start` asigna una IP pública nueva — revisarla en la consola de EC2 antes de reconectar por SSH.
-
-**Cambiar el tipo de instancia (ej. `t3.small` → `t2.medium` → `t3.micro`)**
-
-AWS exige detener la instancia primero para cambiar el tipo. Al detenerla se pierden los procesos en memoria — la sesión tmux y `carflip start` mueren — pero el disco EBS persiste (repo, `.env` y dependencias instaladas siguen ahí). Tras cambiar el tipo e iniciar de nuevo: reconectar por SSH con la IP nueva, `cd CarFlip`, y volver a levantar `tmux new -s carflip` + `carflip start`. Las migraciones ya aplicadas y los datos en Supabase no se ven afectados por este ciclo.
+GitHub deshabilita el cron tras 60 días sin commits en el repo. Reactivarlo en **Actions → Scrape → Enable workflow**.
 
 ---
 

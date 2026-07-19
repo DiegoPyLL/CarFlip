@@ -13,6 +13,7 @@
     "@astrojs/vercel": "^11.0.3",
     "@supabase/supabase-js": "^2.110.7",
     "@tailwindcss/vite": "^4.3.3",
+    "@vercel/analytics": "^1.6.1",
     "astro": "^7.1.1",
     "tailwindcss": "^4.3.3"
   },

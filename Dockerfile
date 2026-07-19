@@ -27,6 +27,7 @@ RUN uv run playwright install chromium --with-deps
 RUN useradd -m carflip && chown -R carflip /app
 USER carflip
 
-# Por defecto ejecuta un ciclo de scraping y termina (EventBridge dispara esto cada 6h)
+# Por defecto ejecuta un ciclo de scraping y termina
+# (.github/workflows/scrape.yml lo dispara una vez al día)
 ENTRYPOINT ["uv", "run", "carflip"]
 CMD ["run"]

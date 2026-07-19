@@ -26,7 +26,7 @@ npm run dev   # → http://localhost:4321
 |---|---|
 | `SUPABASE_URL` | URL del proyecto Supabase |
 | `SUPABASE_SERVICE_KEY` | Clave service_role, solo lecturas (pendiente migrar a anon + RLS) |
-| `CDN_BASE_URL` | Base de CloudFront para imágenes |
+| `CDN_BASE_URL` | Dominio público de R2 para las imágenes |
 
 ## Estructura
 
