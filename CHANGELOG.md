@@ -5,6 +5,28 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [0.5.0] - 2026-07-19
+
+### Changed
+
+- Web recreada desde cero sobre Astro 7 + Tailwind 4 (antes Astro 5 + Tailwind 3 vía `@astrojs/tailwind`, deprecado): misma funcionalidad y contenidos, 6 dependencias directas (antes 19)
+- Renames de Tailwind 4 aplicados: `focus:outline-hidden`, `backdrop-blur-xs`, `rounded-xs`
+- `compressHTML: true` explícito (el default `'jsx'` de Astro 7 colapsa espacios entre elementos inline)
+- `/dashboard` fuera de la navegación, del sitemap y de `llms.txt`, y con `noindex` (métricas operativas internas)
+
+### Removed
+
+- Dependencias sin uso: stack React completo (`react`, `react-dom`, `@astrojs/react`, `@radix-ui/react-slot`, `class-variance-authority`, `lucide-react`, `@types/react*`), `postgres`, `clsx`, `tailwind-merge` y residuos de shadcn (`components.json`, `cn()`)
+- `motion` y sus animaciones de entrada: la web queda con 0 KB de JavaScript de cliente
+- Shim `web/src/lib/db.ts` (los imports `@lib/db` resuelven a `lib/db/index.ts`)
+- Caché `web/.astro/` fuera del control de versiones
+
+### Security
+
+- `npm audit` pasa de 10 vulnerabilidades (5 high) a 0
+- Override `path-to-regexp@6.3.0` (parche de GHSA-9wv6-86v2-598j) mientras `@astrojs/vercel` arrastre `@vercel/routing-utils` con la versión vulnerable
+- Deuda anotada: la web usa la service_role key de Supabase solo para lecturas — pendiente migrar a anon key + políticas RLS
+
 ## [0.4.0] - 2026-07-13
 
 ### Added

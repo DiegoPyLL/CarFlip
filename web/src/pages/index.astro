@@ -133,7 +133,7 @@ const ordenOptions = [
               name="orden"
               aria-label="Ordenar por"
               onchange="document.getElementById('filtros-form').submit()"
-              class="text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-zinc-300 appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-amber-400/50 transition-colors"
+              class="text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-zinc-300 appearance-none cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-amber-400/50 transition-colors"
             >
               {ordenOptions.map(({ value, label }) => (
                 <option
@@ -181,30 +181,3 @@ const ordenOptions = [
   </form>
 
 </Base>
-
-<!-- Animaciones de entrada con Motion.dev -->
-<script>
-  import { animate, inView, stagger } from 'motion';
-
-  const grid = document.getElementById('listings-grid');
-  if (grid) {
-    const cards = grid.querySelectorAll('article');
-    animate(cards, { opacity: 0, y: 12 }, { duration: 0 });
-
-    inView(
-      grid,
-      () => {
-        animate(
-          cards,
-          { opacity: 1, y: 0 },
-          {
-            duration: 0.36,
-            delay: stagger(0.04),
-            easing: [0.2, 0, 0, 1],
-          }
-        );
-      },
-      { amount: 0.05 }
-    );
-  }
-</script>

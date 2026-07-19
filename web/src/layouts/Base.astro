@@ -1,10 +1,13 @@
 ---
+import '../styles/global.css';
+
 interface Props {
   titulo: string;
   descripcion?: string;
   urlCanonica?: string;
   urlImagen?: string;
   tipo?: string;
+  noindex?: boolean;
 }
 
 const {
@@ -13,6 +16,7 @@ const {
   urlCanonica = Astro.url.href,
   urlImagen = '/og-default.png',
   tipo = 'website',
+  noindex = false,
 } = Astro.props;
 
 const tituloCompleto = titulo.endsWith('CarFlip') ? titulo : `${titulo} — CarFlip`;
@@ -36,6 +40,7 @@ const urlImagenAbs = new URL(urlImagen, origenCanonico).href;
 
     <title>{tituloCompleto}</title>
     <meta name="description" content={descripcion} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
     <link rel="canonical" href={urlCanonicaAbs} />
 
     <!-- Open Graph -->
@@ -72,9 +77,6 @@ const urlImagenAbs = new URL(urlImagen, origenCanonico).href;
             </li>
             <li>
               <a href="/mercado" class="hover:text-zinc-200 transition-colors duration-150">Mercado</a>
-            </li>
-            <li>
-              <a href="/dashboard" class="hover:text-zinc-200 transition-colors duration-150">Dashboard</a>
             </li>
             <li>
               <a href="/como-funciona" class="hover:text-zinc-200 transition-colors duration-150">Cómo funciona</a>

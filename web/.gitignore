@@ -1,10 +1,8 @@
 node_modules/
 dist/
+.astro/
 .vercel/
 .env
-.env.local
-.DS_Store
+.env.*
 *.tsbuildinfo
-
-.vercel
-.env*
+.DS_Store

@@ -1,6 +1,6 @@
 /// <reference types="astro/client" />
 interface ImportMetaEnv {
-  readonly DATABASE_URL: string;
-  readonly USE_SSL: string;
+  readonly SUPABASE_URL: string;
+  readonly SUPABASE_SERVICE_KEY: string;
   readonly CDN_BASE_URL?: string;
 }

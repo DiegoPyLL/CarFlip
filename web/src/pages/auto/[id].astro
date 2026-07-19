@@ -59,7 +59,7 @@ const jsonLd = {
   urlImagen={urlImagen ?? undefined}
   tipo="product"
 >
-  <script slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
 
   <div class="max-w-4xl mx-auto">
 

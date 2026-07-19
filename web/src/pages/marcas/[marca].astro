@@ -244,24 +244,3 @@ const maxDist   = Math.max(...datos.distribucion.map(d => d.total), 1);
   )}
 
 </Base>
-
-<script>
-  import { animate, inView, stagger } from 'motion';
-
-  const grid = document.getElementById('avisos-grid');
-  if (grid) {
-    const cards = grid.querySelectorAll('article');
-    animate(cards, { opacity: 0, y: 12 }, { duration: 0 });
-    inView(
-      grid,
-      () => {
-        animate(cards, { opacity: 1, y: 0 }, {
-          duration: 0.36,
-          delay: stagger(0.04),
-          easing: [0.2, 0, 0, 1],
-        });
-      },
-      { amount: 0.05 }
-    );
-  }
-</script>

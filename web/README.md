@@ -1,82 +1,73 @@
 # CarFlip Web
 
-Frontend Astro 4 SSR para CarFlip — comparador de avisos de autos en Chile.
+Frontend Astro SSR para CarFlip — comparador de avisos de autos en Chile.
 
-## Descripción
+## Stack
 
-Agrega avisos de Autocosmos y MercadoLibre en una sola interfaz. Filtros por fuente, marca, año, combustible y precio. Sin JavaScript de cliente: todos los filtros funcionan con formularios GET nativos.
+- **Astro 7** (`output: 'server'`) + adaptador `@astrojs/vercel`
+- **Tailwind CSS 4** vía plugin de Vite (`@tailwindcss/vite`)
+- **Supabase JS** para lecturas de PostgreSQL
+- **0 KB de JavaScript de cliente**: filtros y paginación con formularios GET y enlaces nativos
 
 ## Requerimientos
 
-- Node 20+
-- Acceso a PostgreSQL con las tablas `autocosmos_listings` y `mercadolibre_listings`
+- Node 22.12+ (requisito de Astro 7)
 
 ## Setup local
 
 ```bash
-cp .env.example .env
-# Editar .env con tu DATABASE_URL real
 npm install
-npm run dev
-# → http://localhost:4321
+npm run dev   # → http://localhost:4321
 ```
+
+`web/.env` (las mismas 3 en Vercel como variables de servidor):
+
+| Variable | Uso |
+|---|---|
+| `SUPABASE_URL` | URL del proyecto Supabase |
+| `SUPABASE_SERVICE_KEY` | Clave service_role, solo lecturas (pendiente migrar a anon + RLS) |
+| `CDN_BASE_URL` | Base de CloudFront para imágenes |
 
 ## Estructura
 
 ```
 src/
-├── env.d.ts                 # Variables de entorno TypeScript
-├── layouts/
-│   └── Base.astro           # HTML shell con meta, OG, header y footer
+├── env.d.ts                  # Tipos de las variables de entorno
+├── styles/global.css         # @import "tailwindcss"
+├── layouts/Base.astro        # Shell HTML: meta/OG/canonical, header, footer, prop noindex
 ├── lib/
-│   ├── db.ts                # Conexión postgres.js y funciones de consulta
-│   ├── filtros.ts           # parsearFiltrosUrl() — validación de query params
-│   ├── formato.ts           # formatearPrecio(), formatearKm(), signosDelta()
-│   └── tipos.ts             # Interfaces TypeScript (Aviso, FiltrosAviso, etc.)
+│   ├── db/                   # Consultas Supabase: avisos, deals, mercado, estadisticas, metricas
+│   ├── filtros.ts            # parsearFiltrosUrl() — fuente de verdad de los query params
+│   ├── busqueda.ts           # Normalización de búsqueda (trigramas)
+│   ├── formato.ts            # formatearPrecio(), formatearKm(), etc.
+│   ├── cdn.ts                # Resolución de URLs de imagen vía CDN
+│   └── tipos.ts              # Interfaces (Aviso, Deal, FiltrosAviso, …)
 ├── pages/
-│   ├── index.astro          # Grid de listados con filtros y paginación
-│   └── auto/
-│       └── [id].astro       # Página de detalle con ficha técnica
-└── components/
-    ├── CardAviso.astro      # Card de aviso (imagen, precio, badge delta)
-    ├── FiltrosBarra.astro   # Formulario GET de filtros
-    └── Paginacion.astro     # Nav de páginas con ventana deslizante
+│   ├── index.astro           # Avisos con filtros y paginación
+│   ├── deals.astro           # Oportunidades con evaluación IA
+│   ├── mercado.astro         # Estadísticas de mercado
+│   ├── marcas/[marca].astro  # Detalle por marca
+│   ├── auto/[id].astro       # Ficha de aviso (con JSON-LD)
+│   ├── como-funciona.astro
+│   └── dashboard.astro       # Métricas internas — noindex, fuera del nav y del sitemap
+└── components/               # Cards, filtros y paginación (.astro puros)
 ```
 
-## Filtros disponibles
-
-| Parámetro   | Tipo    | Ejemplo                          |
-|-------------|---------|----------------------------------|
-| fuente      | string  | `?fuente=autocosmos`             |
-| marca       | string  | `?marca=Toyota`                  |
-| modelo      | string  | `?modelo=Corolla`                |
-| anio        | number  | `?anio=2020`                     |
-| precio_min  | number  | `?precio_min=5000000`            |
-| precio_max  | number  | `?precio_max=15000000`           |
-| km_max      | number  | `?km_max=100000`                 |
-| combustible | string  | `?combustible=Bencina`           |
-| pagina      | number  | `?pagina=2`                      |
-
-Parámetros inválidos se ignoran silenciosamente.
-
-## Build y preview
+## Comandos
 
 ```bash
-npm run build    # compila para producción (0 errores TypeScript)
-npm run preview  # previsualiza el build local
+npm run dev       # desarrollo
+npm run build     # producción (dist/ + .vercel/output)
+npx astro check   # chequeo TypeScript (pedirá instalar @astrojs/check)
 ```
+
+`npm run preview` no soporta el adaptador Vercel; usar deploy previews.
+
+## Seguridad de dependencias
+
+`package.json` fuerza `path-to-regexp@6.3.0` (parche del ReDoS [GHSA-9wv6-86v2-598j](https://github.com/advisories/GHSA-9wv6-86v2-598j)) dentro de `@vercel/routing-utils` mediante `overrides`, porque `@astrojs/vercel@11` aún arrastra la versión vulnerable. Retirar el override cuando `npm ls path-to-regexp` muestre ≥ 6.3.0 sin necesitarlo.
 
 ## Deploy en Vercel
 
-1. Crear nuevo proyecto en Vercel
-2. **Root Directory** → `web/`
-3. Variables de entorno (Server):
-   - `DATABASE_URL` → URL pooler de PostgreSQL (puerto 6543 para Supabase)
-   - `USE_SSL` → `true`
-
-## Decisiones de diseño
-
-- **Sin JS de cliente**: filtros y paginación son formularios GET y `<a>` nativos → 0 bundle JS
-- **Paginación de 24 ítems**: equilibrio entre carga y densidad de contenido
-- **max: 1 conexión**: evita agotar el límite de conexiones en Supabase free tier
-- **UNION ALL**: combina ambas tablas cuando no hay filtro de fuente, con `COUNT(*) OVER()` para evitar segunda query de conteo
+1. Root Directory → `web/`
+2. Variables de entorno de servidor: las 3 de la tabla de arriba
