@@ -1,4 +1,4 @@
-name: Scrape
+name: Carflip Scraper
 
 on:
   workflow_dispatch:

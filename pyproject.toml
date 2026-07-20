@@ -19,7 +19,7 @@ dependencies = [
     "loguru>=0.7",
     "click>=8.1",
     "aioboto3>=12.0",
-    "pillow>=10.3",
+    "pillow>=12.3",
 ]
 
 [project.scripts]
