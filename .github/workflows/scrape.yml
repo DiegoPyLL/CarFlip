@@ -1,15 +1,18 @@
-name: Scrape
+name: Carflip Scraper
+
+
 
 on:
   schedule:
-    # 08:00 UTC = 04:00–05:00 en Chile (según horario de verano/invierno)
-    - cron: "0 8 * * *"
+    - cron: "0 6 */2 * *" # cada 2 días, 06:00 UTC = 02:00/03:00 en Chile
+ 
+
   workflow_dispatch:
 
 # Un ciclo a la vez: si una corrida se demora, la siguiente espera en cola
 # (replica la garantía del BlockingScheduler que corría en EC2).
 concurrency:
-  group: scrape
+  group: Carflip Scraper
   cancel-in-progress: false
 
 jobs:

@@ -11,5 +11,7 @@ logs/
 .mypy_cache/
 .ruff_cache/
 data/raw/
+reports/
 .vercel
 .env*
+.diagrama-er.html
