@@ -2,7 +2,7 @@ name: Auditoria Semanal
 
 on:
   schedule:
-    - cron: "0 12 * * 1" # lunes 12:00 UTC = 08:00/09:00 en Chile
+    - cron: "0 19 * * 2" # martes 19:00 UTC = 15:00/16:00 en Chile
   workflow_dispatch:
 
 permissions:

@@ -1,6 +1,12 @@
 name: Carflip Scraper
 
+
+
 on:
+  schedule:
+    - cron: "0 6 */2 * *" # cada 2 días, 06:00 UTC = 02:00/03:00 en Chile
+ 
+
   workflow_dispatch:
 
 # Un ciclo a la vez: si una corrida se demora, la siguiente espera en cola
