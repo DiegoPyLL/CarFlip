@@ -113,10 +113,10 @@ class CheckeadosListing(ListingMixin, Base):
 
 
 class ScrapedRun(Base):
-    """Bitácora de corridas de scraping, alimentada desde los run_report.json.
+    """Bitácora de corridas de scraping, persistida por ScraperBase.ejecutar().
 
     Una fila por corrida por fuente. La clave natural es (source, started_at):
-    la carga desde S3 es idempotente vía upsert sobre esa clave.
+    el upsert de metricas.py es idempotente sobre esa clave.
     """
 
     __tablename__ = "scrape_runs"

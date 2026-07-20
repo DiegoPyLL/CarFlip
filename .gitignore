@@ -1,5 +1,5 @@
-.env
 .venv/
+node_modules/
 __pycache__/
 *.pyc
 *.pyo
@@ -13,4 +13,3 @@ logs/
 data/raw/
 .vercel
 .env*
-web/.env.example

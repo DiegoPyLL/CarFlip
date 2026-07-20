@@ -194,11 +194,12 @@
     <p class="eyebrow">CarFlip · PostgreSQL (Supabase)</p>
     <h1>Diagrama Entidad-Relación</h1>
     <p class="lede">
-      Siete tablas: <strong>cinco tablas de avisos</strong> con esquema idéntico heredado de
+      Ocho tablas: <strong>cinco tablas de avisos</strong> con esquema idéntico heredado de
       <code class="mono">ListingMixin</code> (diseño «tabla por scraper», sin tabla unificada),
       la tabla <strong>deals</strong> con snapshots de oportunidades detectadas, y la bitácora
-      <strong>scrape_runs</strong>. No existen foreign keys físicas — las relaciones punteadas
-      son lógicas, resueltas por <code class="mono">fuente + id_externo</code> en la aplicación.
+      <strong>scrape_runs</strong> con su detalle <strong>run_fail_logs</strong> (la única
+      foreign key física del esquema). Las demás relaciones punteadas son lógicas, resueltas
+      por <code class="mono">fuente + id_externo</code> en la aplicación.
     </p>
   </header>
 
@@ -207,7 +208,7 @@
     <span class="item"><span class="badge b-uk">UK</span> restricción única</span>
     <span class="item"><span class="badge b-ix">IX</span> columna indexada</span>
     <span class="item"><span class="badge b-nn">NN</span> not&nbsp;null</span>
-    <span class="item"><span class="wire-sample"></span> relación lógica (sin FK en la BD) · 1&nbsp;—&nbsp;0..N</span>
+    <span class="item"><span class="wire-sample"></span> relación · 1&nbsp;—&nbsp;0..N (lógica salvo la FK de run_fail_logs)</span>
   </div>
 
   <div class="diagram">
@@ -306,12 +307,36 @@
           </div>
           <ul class="cols">
             <li><span class="col-name">id <span class="badge b-pk">PK</span></span><span class="col-type">bigint · autoincr</span></li>
-            <li><span class="col-name">source <span class="badge b-nn">NN</span></span><span class="col-type">varchar(50)</span>
-                <span class="note">coincide con «fuente» del scraper</span></li>
-            <li><span class="col-name">started_at <span class="badge b-nn">NN</span></span><span class="col-type">timestamptz = now()</span></li>
+            <li><span class="col-name">source <span class="badge b-uk">UK</span> <span class="badge b-nn">NN</span></span><span class="col-type">varchar(50)</span>
+                <span class="note">uq_scrape_runs_source_started_at (compuesta)</span></li>
+            <li><span class="col-name">started_at <span class="badge b-uk">UK</span> <span class="badge b-nn">NN</span></span><span class="col-type">timestamptz = now()</span></li>
             <li><span class="col-name">finished_at</span><span class="col-type">timestamptz</span></li>
             <li><span class="col-name">items_found <span class="badge b-nn">NN</span></span><span class="col-type">integer = 0</span></li>
             <li><span class="col-name">errors <span class="badge b-nn">NN</span></span><span class="col-type">integer = 0</span></li>
+            <li class="group">Métricas del pipeline (migración 0008)</li>
+            <li><span class="col-name">duracion_segundos</span><span class="col-type">float</span></li>
+            <li><span class="col-name">paginas_procesadas</span><span class="col-type">integer</span></li>
+            <li><span class="col-name">avisos_encontrados</span><span class="col-type">integer</span></li>
+            <li><span class="col-name">avisos_unicos</span><span class="col-type">integer</span></li>
+            <li><span class="col-name">avisos_validos</span><span class="col-type">integer</span></li>
+            <li><span class="col-name">avisos_rechazados</span><span class="col-type">integer</span></li>
+          </ul>
+        </section>
+
+        <section class="entity" id="ent-faillogs" aria-label="Tabla run_fail_logs">
+          <div class="head">
+            <div class="name">run_fail_logs</div>
+            <div class="meta">FAIL LOGs individuales de cada corrida</div>
+          </div>
+          <ul class="cols">
+            <li><span class="col-name">id <span class="badge b-pk">PK</span></span><span class="col-type">bigint · autoincr</span></li>
+            <li><span class="col-name">run_id <span class="badge b-ix">IX</span> <span class="badge b-nn">NN</span></span><span class="col-type">bigint</span>
+                <span class="note">FK → scrape_runs.id · ON DELETE CASCADE</span></li>
+            <li><span class="col-name">fuente <span class="badge b-nn">NN</span></span><span class="col-type">varchar(50)</span></li>
+            <li><span class="col-name">etapa <span class="badge b-ix">IX</span> <span class="badge b-nn">NN</span></span><span class="col-type">varchar(50)</span></li>
+            <li><span class="col-name">motivo <span class="badge b-nn">NN</span></span><span class="col-type">text</span></li>
+            <li><span class="col-name">id_externo</span><span class="col-type">varchar(200)</span></li>
+            <li><span class="col-name">timestamp</span><span class="col-type">timestamptz</span></li>
           </ul>
         </section>
 
@@ -322,8 +347,10 @@
              <code>(fuente, id_externo)</code>.</p>
           <p><strong>listings → scrape_runs</strong> · cada corrida registra su fuente en
              <code>source</code>; una fuente acumula 0..N corridas.</p>
+          <p><strong>scrape_runs → run_fail_logs</strong> · cada corrida acumula 0..N FAIL LOGs
+             vía <code>run_id</code>, la única FK física del esquema (ON DELETE CASCADE).</p>
           <p><strong>listings entre sí</strong> · sin relación en la BD; la web las consulta con
-             <code>UNION ALL</code> en <code>db.ts</code>.</p>
+             <code>UNION ALL</code> en <code>web/src/lib/db/</code>.</p>
         </div>
       </div>
 
@@ -331,7 +358,7 @@
   </div>
 
   <footer>
-    Generado desde <code>src/carflip/database/models.py</code> · SQLAlchemy 2.0 · migraciones Alembic · 2026-07-12
+    Generado desde <code>src/carflip/database/models.py</code> · SQLAlchemy 2.0 · migraciones Alembic · 2026-07-19
   </footer>
 </div>
 
@@ -341,7 +368,8 @@
     var NS = 'http://www.w3.org/2000/svg';
     var rels = [
       { from: 'ent-listings', to: 'ent-deals', label: 'fuente + id_externo · snapshot' },
-      { from: 'ent-listings', to: 'ent-runs',  label: 'source = fuente' }
+      { from: 'ent-listings', to: 'ent-runs',  label: 'source = fuente' },
+      { from: 'ent-runs', to: 'ent-faillogs', label: 'run_id · FK', stacked: true }
     ];
 
     function anchor(el, side, frac) {
@@ -371,7 +399,7 @@
         if (!a || !b) return;
         var p1, p2, d;
 
-        if (vertical || (twoCol && rel.to === 'ent-runs')) {
+        if (vertical || rel.stacked || (twoCol && rel.to === 'ent-runs')) {
           // apilado: conectar borde inferior/superior por la izquierda
           p1 = anchor(a, 'bottom', 0.12);
           p2 = anchor(b, 'top', 0.12);

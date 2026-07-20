@@ -6,7 +6,7 @@
 
 Plataforma que agrega avisos de autos en venta desde portales chilenos, normaliza los datos, los almacena en PostgreSQL y detecta oportunidades de compra (deals) comparando cada aviso contra su mercado y evaluándolo con IA.
 
-**Stack actual:** Python 3.12 + httpx/Playwright · PostgreSQL (Supabase) · Cloudflare R2 · Groq (evaluación IA de deals) · Astro 5 + Vercel
+**Stack actual:** Python 3.12 + httpx/Playwright · PostgreSQL (Supabase) · Cloudflare R2 · Groq (evaluación IA de deals) · Astro 7 + Vercel
 
 ---
 
@@ -23,7 +23,7 @@ GitHub Actions  (ingesta — cron diario)
        └─ Groq: categorización IA  →  tabla `deals`
 
 Vercel  (web)
-  └─ Astro 5 SSR
+  └─ Astro 7 SSR
        ├─ Consulta PostgreSQL vía Supabase JS client
        ├─ Página /deals con evaluación IA
        └─ Imágenes desde R2
@@ -167,15 +167,15 @@ Los scrapers corren de forma **secuencial** (uno a la vez), con una pausa config
 
 ## Web (Vercel + Astro)
 
-La web está en `web/` y se despliega en Vercel bajo el dominio **[carflip.cl](https://carflip.cl)**. Es un proyecto **Astro 5 SSR** (con React + Tailwind) que consulta PostgreSQL vía el cliente JS de Supabase y sirve las imágenes desde Cloudflare R2.
+La web está en `web/` y se despliega en Vercel bajo el dominio **[carflip.cl](https://carflip.cl)**. Es un proyecto **Astro 7 SSR** (Tailwind 4, sin más JavaScript de cliente que Vercel Analytics) que consulta PostgreSQL vía el cliente JS de Supabase y sirve las imágenes desde Cloudflare R2.
 
 El dominio canónico se declara en `web/astro.config.mjs` (`site`). De ahí lo toman el sitemap, el `<link rel="canonical">` y los metadatos Open Graph del layout `Base.astro`, de modo que los deploys de preview (`*.vercel.app`) no compitan en SEO con el dominio productivo.
 
-Páginas principales: listado con filtros por fuente (`/`), detalle de aviso (`/auto/...`), estadísticas de mercado (`/mercado`), y `/deals` — oportunidades de compra con la evaluación IA (badge de categoría, puntaje, riesgos, precio vs mercado y resumen), filtrables por fuente y categoría.
+Páginas principales: listado con filtros por fuente (`/`), detalle de aviso (`/auto/...`), detalle por marca (`/marcas/...`), estadísticas de mercado (`/mercado`), `/como-funciona`, y `/deals` — oportunidades de compra con la evaluación IA (badge de categoría, puntaje, riesgos, precio vs mercado y resumen), filtrables por fuente y categoría.
 
 ### Levantar en local
 
-**Requisitos:** Node.js 20+
+**Requisitos:** Node.js 22.12+ (requisito de Astro 7)
 
 ```bash
 # 1. Entrar a la carpeta web
@@ -233,9 +233,7 @@ pytest -x -v tests/test_price_tracker.py          # test específico
 3. Generar y aplicar migración Alembic
 4. Declarar `model_class` y `fuente` en el scraper
 5. Registrar en `src/carflip/scheduler/runner.py`
-6. Actualizar los 5 archivos de la web (`tipos.ts`, `filtros.ts`, `FiltrosBarra.astro`, `db.ts`, `index.astro`)
-
-Ver checklist completo en [CLAUDE.md](CLAUDE.md).
+6. Actualizar los 5 puntos de la web (`tipos.ts`, `filtros.ts`, `FiltrosBarra.astro`, `lib/db/`, `index.astro`)
 
 ---
 
@@ -258,4 +256,6 @@ GitHub deshabilita el cron tras 60 días sin commits en el repo. Reactivarlo en 
 
 ## Documentación
 
-- [CLAUDE.md](CLAUDE.md) — arquitectura, convenciones y decisiones de diseño
+- [CLAUDE.md](CLAUDE.md) — principios de desarrollo del proyecto (simpleza, rendimiento, SEO)
+- [web/README.md](web/README.md) — stack y estructura de la web
+- [CHANGELOG.md](CHANGELOG.md) — historial de versiones

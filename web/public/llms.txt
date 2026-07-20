@@ -1,6 +1,6 @@
 # CarFlip
 
-> Comparador de precios de autos usados en Chile. CarFlip recopila automáticamente los avisos publicados en los principales portales del país, los normaliza a un esquema común y detecta oportunidades de compra analizando el historial de precios.
+> Comparador de precios de autos usados en Chile. CarFlip recopila automáticamente los avisos publicados en los principales portales del país, los normaliza a un esquema común y detecta oportunidades de compra comparando cada aviso contra el valor de mercado de su marca, modelo y año.
 
 CarFlip no publica avisos propios ni intermedia ventas: es una capa de comparación sobre avisos de terceros. Cada aviso enlaza al portal original, donde ocurre el contacto con el vendedor.
 

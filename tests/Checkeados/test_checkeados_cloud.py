@@ -1,28 +1,18 @@
-"""Tests del scraper Checkeados Cloud: parsers puros sobre el sitemap y el JSON
-__NEXT_DATA__ del detalle, validación, y un test de integración de scrape()
-con httpx mockeado."""
+"""Tests del scraper Checkeados Cloud: parsers puros sobre el JSON de
+/api/vehicles, construcción de la URL pública, validación, y un test de
+integración de scrape() con httpx mockeado."""
 
-import json
 from datetime import datetime, timedelta
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from carflip.scrapers.Checkeados.checkeadosCloud import (
     ScraperCheckeadosCloud,
-    _extraer_vehicle,
     _parsear_vehicle,
-    _urls_desde_sitemap,
+    _url_detalle,
     _validar_aviso,
 )
 from carflip.scrapers.base import AvisoAuto
-
-_SITEMAP_XML = """<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://www.checkeados.cl/comprar</loc></url>
-  <url><loc>https://www.checkeados.cl/comprar/hyundai~accent~2023~2d26</loc></url>
-  <url><loc>https://www.checkeados.cl/comprar/suzuki~swift~2025~2846</loc></url>
-</urlset>
-"""
 
 
 def _vehicle_valido(**kw) -> dict:
@@ -47,11 +37,6 @@ def _vehicle_valido(**kw) -> dict:
     return base
 
 
-def _html_next_data_detalle(vehicle: dict | None) -> str:
-    data = {"props": {"pageProps": {"vehicle": vehicle}}}
-    return f'<html><body><script id="__NEXT_DATA__" type="application/json">{json.dumps(data)}</script></body></html>'
-
-
 def _aviso_valido(**kw) -> AvisoAuto:
     base = dict(
         fuente="checkeados",
@@ -70,31 +55,21 @@ def _aviso_valido(**kw) -> AvisoAuto:
     return AvisoAuto(**base)
 
 
-class TestUrlsDesdeSitemap:
-    def test_extrae_solo_urls_de_comprar(self):
-        urls = _urls_desde_sitemap(_SITEMAP_XML)
-        assert urls == [
-            "https://www.checkeados.cl/comprar/hyundai~accent~2023~2d26",
-            "https://www.checkeados.cl/comprar/suzuki~swift~2025~2846",
-        ]
+class TestUrlDetalle:
+    def test_construye_url_publica(self):
+        url = _url_detalle(_vehicle_valido())
+        assert url == "https://www.checkeados.cl/comprar/hyundai~accent~2023~2d26"
 
-    def test_sitemap_vacio(self):
-        assert _urls_desde_sitemap("<urlset></urlset>") == []
-
-
-class TestExtraerVehicle:
-    def test_extrae_vehicle_del_next_data(self):
-        html = _html_next_data_detalle(_vehicle_valido())
-        vehicle = _extraer_vehicle(html)
-        assert vehicle is not None
-        assert vehicle["brand"] == "HYUNDAI"
-
-    def test_sin_next_data_retorna_none(self):
-        assert _extraer_vehicle("<html><body>nada</body></html>") is None
-
-    def test_vehicle_none_retorna_none(self):
-        html = _html_next_data_detalle(None)
-        assert _extraer_vehicle(html) is None
+    def test_codifica_espacios_y_usa_4_chars_del_id(self):
+        vehicle = _vehicle_valido(
+            id="9f8e7d6c-1111-2222-3333-444455556666",
+            brand="LAND ROVER",
+            model="RANGE ROVER EVOQUE",
+            year=2020,
+        )
+        assert _url_detalle(vehicle) == (
+            "https://www.checkeados.cl/comprar/land%20rover~range%20rover%20evoque~2020~9f8e"
+        )
 
 
 class TestParsearVehicle:
@@ -158,23 +133,29 @@ class TestValidacionCheckeados:
 
 
 class TestScraperCheckeadosCloudIntegracion:
-    """scrape() end-to-end con httpx mockeado (sin red, sin disco, sin S3)."""
+    """scrape() end-to-end con httpx mockeado (sin red, sin disco, sin R2)."""
 
     async def test_scrape_filtra_invalidos_y_deduplica(self, monkeypatch, tmp_path):
         monkeypatch.chdir(tmp_path)
 
-        vehicle_barato = _vehicle_valido(id="v2", price=100000, brand="SUZUKI", model="SWIFT")
+        hyundai = _vehicle_valido()
+        suzuki_barato = _vehicle_valido(
+            id="a1b2c3d4-0000-1111-2222-333344445555",
+            price=100000,
+            brand="SUZUKI",
+            model="SWIFT",
+        )
+        # El tercer vehicle repite el id del primero → misma URL → mismo id_externo
+        vehiculos = [hyundai, suzuki_barato, dict(hyundai)]
 
-        async def _mock_get(url, headers=None, timeout=None):
+        async def _mock_get(url, params=None, headers=None, timeout=None):
             resp = MagicMock()
             resp.raise_for_status = MagicMock()
             resp.status_code = 200
-            if "sitemap_catalog" in url:
-                resp.text = _SITEMAP_XML
-            elif "suzuki" in url:
-                resp.text = _html_next_data_detalle(vehicle_barato)
+            if url.endswith("/count"):
+                resp.json = MagicMock(return_value=len(vehiculos))
             else:
-                resp.text = _html_next_data_detalle(_vehicle_valido())
+                resp.json = MagicMock(return_value=vehiculos)
             return resp
 
         mock_client = AsyncMock()
@@ -189,10 +170,9 @@ class TestScraperCheckeadosCloudIntegracion:
             scraper = ScraperCheckeadosCloud(guardar_raw=False)
             avisos = await scraper.scrape()
 
-        assert isinstance(avisos, list)
         assert all(isinstance(a, AvisoAuto) for a in avisos)
-        # El aviso con precio $100.000 (bajo el mínimo) fue rechazado en validación
-        assert len(avisos) == 1
-        assert avisos[0].marca == "Hyundai"
-        ids = [a.id_externo for a in avisos]
-        assert len(ids) == len(set(ids))
+        # El duplicado cae en limpieza y el Suzuki a $100.000 en validación
+        assert [a.marca for a in avisos] == ["Hyundai"]
+        assert scraper.ultimo_reporte["avisos_encontrados"] == 3
+        assert scraper.ultimo_reporte["avisos_unicos"] == 2
+        assert scraper.ultimo_reporte["avisos_validos"] == 1

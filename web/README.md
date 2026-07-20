@@ -7,7 +7,7 @@ Frontend Astro SSR para CarFlip — comparador de avisos de autos en Chile.
 - **Astro 7** (`output: 'server'`) + adaptador `@astrojs/vercel`
 - **Tailwind CSS 4** vía plugin de Vite (`@tailwindcss/vite`)
 - **Supabase JS** para lecturas de PostgreSQL
-- **0 KB de JavaScript de cliente**: filtros y paginación con formularios GET y enlaces nativos
+- **Sin JavaScript propio en el cliente**: filtros y paginación con formularios GET y enlaces nativos; el único script de cliente es Vercel Analytics (`@vercel/analytics`)
 
 ## Requerimientos
 

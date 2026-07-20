@@ -5,6 +5,26 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [0.6.0] - 2026-07-19
+
+### Changed
+
+- Ingesta migrada de AWS EC2 (tmux + APScheduler) a GitHub Actions: workflow `scrape.yml` con cron diario a las 08:00 UTC, `concurrency` sin solape y `.env` generado desde los secrets del repo
+- Fotos migradas de S3 + CloudFront a Cloudflare R2, con clave estable `fotos/<fuente>/<id_externo>.avif` — re-scrapear un aviso conocido ya no vuelve a subir la imagen (corrige el crecimiento `días × avisos` de la etapa S3)
+- Métricas de corrida (`scrape_runs`/`run_fail_logs`) escritas directo en PostgreSQL al final de cada scraper; ya no pasan por `run_report.json` en S3 ni requieren carga manual
+- Scraper Checkeados reescrito contra `GET /api/vehicles` (el sitemap y las páginas por marca topan en 20 resultados); sus tests actualizados al nuevo diseño
+
+### Added
+
+- `@vercel/analytics` en la web (único JavaScript de cliente)
+- `og-default.png`: imagen Open Graph por defecto que `Base.astro` ya referenciaba
+
+### Removed
+
+- Todo el código de AWS: `storage/s3_cdn.py`, `storage/migrar_s3_a_r2.py`, `tools/cargar_desde_s3.py`, `tools/cargar_reports_s3.py`
+- `scripts/concesionarios_autofin.py` (script standalone ajeno al pipeline, sin referencias)
+- `package.json`, `package-lock.json` y `node_modules/` accidentales en la raíz; `node_modules/` agregado a `.gitignore`
+
 ## [0.5.0] - 2026-07-19
 
 ### Changed
@@ -58,7 +78,7 @@ y el proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ### Added
 
 - Scraper Yapo con Playwright + stealth (`yapoCloud.py`) y tabla `yapo_listings` (migración 0004)
-- Arquitectura free-tier: GitHub Actions (cron) + Supabase PostgreSQL + Cloudflare R2
+- Arquitectura cloud: ingesta en AWS EC2 (tmux + APScheduler), fotos en S3 + CloudFront, PostgreSQL en Supabase (reemplazada en 0.6.0 por GitHub Actions + Cloudflare R2)
 
 ### Removed
 
