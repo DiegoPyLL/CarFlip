@@ -1,0 +1,119 @@
+name: Auditoria Semanal
+
+on:
+  schedule:
+    - cron: "0 12 * * 1" # lunes 12:00 UTC = 08:00/09:00 en Chile
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  auditoria:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Misma cache que el workflow del scraper: la corrida semanal además
+      # la mantiene viva (GitHub la borra tras 7 días sin uso).
+      - name: Construir imagen
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: carflip:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Docker Scout exige sesión en Docker Hub, incluso para imágenes locales
+      - name: Iniciar sesión en Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Instalar Docker Scout
+        run: curl -fsSL https://raw.githubusercontent.com/docker/scout-cli/main/install.sh | sh -s --
+
+      - uses: astral-sh/setup-uv@v6
+
+      # Falla si hay vulnerabilidades en paquetes de PyPI (el gate del test)
+      # y deja el escaneo completo en reports/auditoria_imagen.json.
+      - name: Ejecutar tests de auditoría
+        run: uv run pytest -m integration tests/test_auditoria_imagen.py
+
+      - name: Publicar reporte
+        if: always() && hashFiles('reports/auditoria_imagen.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: auditoria-imagen
+          path: reports/auditoria_imagen.json
+
+      # Crea un issue mencionando a los miembros de la organización: la mención
+      # dispara la notificación push (app móvil de GitHub) y web de cada uno.
+      - name: Notificar módulos por actualizar
+        if: always() && hashFiles('reports/auditoria_imagen.json') != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reporte = JSON.parse(fs.readFileSync('reports/auditoria_imagen.json', 'utf8'));
+
+            // Agrupa por módulo; el reporte viene ordenado por severidad,
+            // así que la primera aparición trae la severidad máxima.
+            const modulos = new Map();
+            for (const v of reporte.vulnerabilidades) {
+              const clave = `${v.paquete}@${v.version}`;
+              const m = modulos.get(clave) ?? {
+                paquete: v.paquete, version: v.version, tipo: v.tipo,
+                severidad: v.severidad, vulns: 0, fix: null,
+              };
+              m.vulns += 1;
+              m.fix = m.fix ?? v.fix;
+              modulos.set(clave, m);
+            }
+
+            const lista = [...modulos.values()];
+            const porActualizar = lista.filter((m) => m.fix).length;
+            const sinFix = lista.length - porActualizar;
+
+            const tabla = lista.length
+              ? [
+                  '| Módulo | Versión | Ecosistema | Severidad máx. | Vulns | Fix |',
+                  '|---|---|---|---|---|---|',
+                  ...lista.map((m) => `| ${m.paquete} | ${m.version} | ${m.tipo} | ${m.severidad} | ${m.vulns} | ${m.fix ?? '—'} |`),
+                ].join('\n')
+              : 'Sin vulnerabilidades detectadas.';
+
+            const { data: colaboradores } = await github.rest.repos.listCollaborators({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const menciones = colaboradores
+              .filter((c) => c.type === 'User')
+              .map((c) => `@${c.login}`)
+              .join(' ');
+
+            const corrida = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Auditoría semanal ${reporte.generado.slice(0, 10)}: ${porActualizar} módulos por actualizar`,
+              body: [
+                `Auditoría de \`${reporte.imagen}\` con Docker Scout (\`tests/test_auditoria_imagen.py\`).`,
+                '',
+                `**Módulos por actualizar (con fix disponible): ${porActualizar}**`,
+                `Módulos vulnerables sin fix: ${sinFix} · Vulnerabilidades totales: ${reporte.total}`,
+                '',
+                tabla,
+                '',
+                `Reporte completo en el artifact [\`auditoria-imagen\`](${corrida}) de la corrida.`,
+                '',
+                menciones,
+              ].join('\n'),
+            });

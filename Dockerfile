@@ -26,6 +26,10 @@ COPY alembic.ini ./
 # Asegurar que la versión de Playwright en el código coincide con la del sistema
 RUN uv run playwright install chromium --with-deps
 
+# Eliminar cachés heredados de la imagen base y del build: contienen wheels
+# vulnerables (ej. pip) que no se usan en runtime
+RUN rm -rf /root/.cache
+
 # Ejecutar como usuario no-root (sin forzar UID: la imagen base de Playwright
 # ya usa el 1000 para su propio usuario "pwuser")
 RUN useradd -m carflip && chown -R carflip /app

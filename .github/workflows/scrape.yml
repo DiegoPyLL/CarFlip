@@ -6,7 +6,7 @@ on:
 # Un ciclo a la vez: si una corrida se demora, la siguiente espera en cola
 # (replica la garantía del BlockingScheduler que corría en EC2).
 concurrency:
-  group: scrape
+  group: Carflip Scraper
   cancel-in-progress: false
 
 jobs:
