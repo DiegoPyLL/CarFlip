@@ -1,9 +1,6 @@
 name: Scrape
 
 on:
-  schedule:
-    # 08:00 UTC = 04:00–05:00 en Chile (según horario de verano/invierno)
-    - cron: "0 8 * * *"
   workflow_dispatch:
 
 # Un ciclo a la vez: si una corrida se demora, la siguiente espera en cola

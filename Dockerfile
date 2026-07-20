@@ -28,6 +28,6 @@ RUN useradd -m carflip && chown -R carflip /app
 USER carflip
 
 # Por defecto ejecuta un ciclo de scraping y termina
-# (.github/workflows/scrape.yml lo dispara una vez al día)
+# (.github/workflows/scrape.yml lo dispara)
 ENTRYPOINT ["uv", "run", "carflip"]
 CMD ["run"]
