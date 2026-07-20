@@ -1,7 +1,7 @@
 services:
   carflip:
     build: .
-    # Todas las variables (DATABASE_URL hacia Supabase, R2, MercadoLibre, etc.)
+    # Todas las variables en .env
     # se leen directamente desde tu .env local — no se duplican aquí.
     env_file:
       - .env
