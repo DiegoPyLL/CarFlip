@@ -1,1 +1,87 @@
 @import "tailwindcss";
+
+/*
+  Sistema visual de DESIGN.md en dos temas. El claro es el principal; el oscuro
+  es la lectura original de "galería nocturna". Los nombres son semánticos
+  (canvas/ink/muted) y no cromáticos: el mismo token cambia de valor por tema.
+
+  Contrastes verificados sobre su propio fondo:
+    claro  → ink 21:1 · muted 6.39:1 · line-strong 4.54:1 · scarlet 4.85:1
+    oscuro → ink 21:1 · muted 8.03:1 · line-strong 8.03:1 · scarlet 4.33:1
+  El escarlata solo alcanza AA de texto normal en claro; en oscuro queda
+  restringido a elementos gráficos y display (ver uso del punto de 6px).
+*/
+:root {
+  color-scheme: light;
+
+  --c-canvas: #ffffff;
+  --c-surface: #f4f4f4;
+  --c-ink: #000000;
+  --c-muted: #5f5f5f;
+  --c-line: #dcdcdc;
+  --c-line-strong: #767676;
+  --c-scarlet: #e4002b;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --c-canvas: #000000;
+  --c-surface: #101010;
+  --c-ink: #ffffff;
+  --c-muted: #a0a0a0;
+  --c-line: #484848;
+  --c-line-strong: #a0a0a0;
+  --c-scarlet: #e4002b;
+}
+
+/*
+  `inline` hace que las utilidades emitan `var(--c-*)` en vez del valor
+  resuelto, que es lo que permite que sigan la cascada al cambiar de tema.
+*/
+/* Habilita `dark:` sobre nuestro atributo en vez del media query del sistema:
+   el tema lo manda la preferencia guardada, no el SO. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+  --color-canvas: var(--c-canvas);
+  --color-surface: var(--c-surface);
+  --color-ink: var(--c-ink);
+  --color-muted: var(--c-muted);
+  --color-line: var(--c-line);
+  --color-line-strong: var(--c-line-strong);
+  --color-scarlet-signal: var(--c-scarlet);
+}
+
+@theme {
+  /* Ritmo vertical adaptado al producto: 120/240px son de portafolio y hundirían
+     un grid de 24 avisos bajo el fold. 120 se reserva a páginas de marketing. */
+  --spacing-element: 16px;
+  --spacing-block: 48px;
+  --spacing-section: 80px;
+  --spacing-editorial: 120px;
+
+  /* Radio 0 en todas las variantes: si sobrevive algún `rounded-*`, queda inerte. */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
+}
+
+/* El peso whisper es el default para no repetirlo en cada elemento.
+   El tracking se aprieta a medida que crece el tamaño. */
+body {
+  font-weight: 300;
+  letter-spacing: -0.01em;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}

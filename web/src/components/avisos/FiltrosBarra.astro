@@ -17,19 +17,25 @@ const fuentes = [
 ];
 
 const selectCls = [
-  'text-sm bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5',
-  'text-zinc-200 appearance-none cursor-pointer',
-  'focus:outline-hidden focus:ring-1 focus:ring-amber-400/50 focus:border-amber-400/50',
+  'text-base bg-canvas border border-line-strong px-3 py-2',
+  'text-ink appearance-none cursor-pointer',
+  'focus:outline-hidden focus:border-scarlet-signal',
   'transition-colors',
 ].join(' ');
+
+const labelCls = 'text-sm text-muted uppercase tracking-wider';
 ---
 
-<div class="flex flex-wrap items-end gap-3 pb-5 mb-5 border-b border-zinc-800/60">
+<!--
+  A 16px las cinco fuentes más los dos selects no caben en una sola fila:
+  se apila en dos bloques, igual que los filtros de /deals.
+-->
+<div class="pb-block mb-block border-b border-line space-y-element">
 
   <!-- Fuente: toggle buttons -->
-  <div>
-    <p class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider mb-1.5">Fuente</p>
-    <div class="flex gap-1">
+  <fieldset>
+    <legend class={`${labelCls} mb-2`}>Fuente</legend>
+    <div class="flex flex-wrap gap-2">
       {fuentes.map(({ value, label }) => (
         <label class="cursor-pointer select-none">
           <input
@@ -39,52 +45,53 @@ const selectCls = [
             class="sr-only peer"
             checked={filtros.fuente === value || (!filtros.fuente && value === '')}
           />
-          <span class="inline-block px-3 py-1.5 text-xs font-semibold rounded-lg border border-zinc-700 text-zinc-500 peer-checked:bg-amber-400 peer-checked:text-zinc-900 peer-checked:border-amber-400 hover:border-zinc-500 hover:text-zinc-300 transition-all">
+          <span class="block px-3 py-2 text-base border border-line-strong text-muted peer-checked:bg-ink peer-checked:text-canvas peer-checked:border-ink peer-focus-visible:border-scarlet-signal hover:border-ink hover:text-ink transition-colors whitespace-nowrap">
             {label}
           </span>
         </label>
       ))}
     </div>
-  </div>
+  </fieldset>
 
-  <!-- Marca -->
-  <div class="flex flex-col gap-1">
-    <label for="marca" class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider">Marca</label>
-    <select id="marca" name="marca" class={selectCls}>
-      <option value="">Todas</option>
-      {disponibles.marcas.map((m) => (
-        <option value={m} selected={filtros.marca === m}>{m}</option>
-      ))}
-    </select>
-  </div>
+  <div class="flex flex-wrap items-end gap-element">
 
-  <!-- Año -->
-  <div class="flex flex-col gap-1">
-    <label for="anio" class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider">Año</label>
-    <select id="anio" name="anio" class={selectCls}>
-      <option value="">Todos</option>
-      {disponibles.anios.map((a) => (
-        <option value={a} selected={filtros.anio === a}>{a}</option>
-      ))}
-    </select>
-  </div>
+    <!-- Marca -->
+    <div class="flex flex-col gap-2">
+      <label for="marca" class={labelCls}>Marca</label>
+      <select id="marca" name="marca" class={selectCls}>
+        <option value="">Todas</option>
+        {disponibles.marcas.map((m) => (
+          <option value={m} selected={filtros.marca === m}>{m}</option>
+        ))}
+      </select>
+    </div>
 
-  <!-- Spacer -->
-  <div class="hidden lg:flex flex-1" />
+    <!-- Año -->
+    <div class="flex flex-col gap-2">
+      <label for="anio" class={labelCls}>Año</label>
+      <select id="anio" name="anio" class={selectCls}>
+        <option value="">Todos</option>
+        {disponibles.anios.map((a) => (
+          <option value={a} selected={filtros.anio === a}>{a}</option>
+        ))}
+      </select>
+    </div>
 
-  <!-- Acciones -->
-  <div class="flex items-end gap-2 ml-auto lg:ml-0">
-    <button
-      type="submit"
-      class="bg-amber-400 hover:bg-amber-300 text-zinc-900 text-sm font-semibold px-5 py-1.5 rounded-lg transition-colors duration-150"
-    >
-      Filtrar
-    </button>
-    <a
-      href="/"
-      class="text-sm text-zinc-600 hover:text-zinc-300 transition-colors py-1.5"
-    >
-      Limpiar
-    </a>
+    <!-- Acciones: sin relleno de color, pero con borde y target táctil suficiente -->
+    <div class="flex items-end gap-element ml-auto">
+      <button
+        type="submit"
+        class="inline-flex items-center gap-2 text-base text-ink border border-ink px-5 py-2 hover:bg-ink hover:text-canvas focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150"
+      >
+        <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+        Filtrar
+      </button>
+      <a
+        href="/avisos"
+        class="text-base text-muted hover:text-ink transition-colors py-2"
+      >
+        Limpiar
+      </a>
+    </div>
   </div>
 </div>

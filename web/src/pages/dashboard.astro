@@ -9,14 +9,14 @@ const [op, veh] = await Promise.all([
   obtenerMetricasVehiculos(),
 ]);
 
-// Identidad fija por fuente — paleta categórica validada sobre zinc-900 (CVD floor:
-// siempre acompañada de etiqueta de texto, nunca color solo).
+// Identidad fija por fuente — rampa acromática de blanco, diferenciada por opacidad.
+// La etiqueta de texto siempre acompaña, nunca se codifica solo por tono (CVD floor).
 const ORDEN_FUENTES = ['autocosmos', 'yapo', 'autosusados', 'checkeados'] as const;
 const COLOR_FUENTE: Record<string, string> = {
-  autocosmos: '#3987e5',
-  yapo: '#199e70',
-  autosusados: '#c98500',
-  checkeados: '#008300',
+  autocosmos: '#ffffff',
+  yapo: '#c0c0c0',
+  autosusados: '#a0a0a0',
+  checkeados: '#707070',
 };
 const NOMBRE_FUENTE: Record<string, string> = {
   autocosmos: 'Autocosmos',
@@ -34,12 +34,13 @@ const NOMBRE_ETAPA: Record<string, string> = {
   s3_upload: 'Subida a S3',
 };
 
-// Estados de KPI — color + texto siempre juntos (nunca color solo)
+// Estados de KPI — acromáticos salvo `critical`, único gasto del acento escarlata
+// en esta pantalla. Color + texto siempre juntos (nunca color solo).
 type Estado = 'good' | 'warning' | 'critical';
 const COLOR_ESTADO: Record<Estado, string> = {
-  good: '#0ca30c',
-  warning: '#fab219',
-  critical: '#d03b3b',
+  good: '#ffffff',
+  warning: '#a0a0a0',
+  critical: '#e4002b',
 };
 const TEXTO_ESTADO: Record<Estado, string> = {
   good: 'Cumple la meta',
@@ -69,11 +70,12 @@ const ultimaActualizacion = ultimas.length
   ? new Date(Math.max(...ultimas.map((r) => r.started_at.getTime())))
   : null;
 
+// Rampa acromática descendente: la jerarquía la da el tono, no el matiz.
 const CATEGORIA_DEAL: Record<string, { nombre: string; color: string }> = {
-  oportunidad_clara: { nombre: 'Oportunidad clara', color: '#0ca30c' },
-  buen_precio: { nombre: 'Buen precio', color: '#a1a1aa' },
-  revisar: { nombre: 'Revisar', color: '#fab219' },
-  descartar: { nombre: 'Descartar', color: '#52525b' },
+  oportunidad_clara: { nombre: 'Oportunidad clara', color: '#ffffff' },
+  buen_precio: { nombre: 'Buen precio', color: '#c0c0c0' },
+  revisar: { nombre: 'Revisar', color: '#a0a0a0' },
+  descartar: { nombre: 'Descartar', color: '#707070' },
 };
 
 const KPIS_PENDIENTES = [
@@ -101,10 +103,10 @@ function avisosPorMinuto(r: CorridaScrape): string {
   noindex
 >
   <!-- Header -->
-  <div class="mb-8">
-    <p class="text-xs font-semibold text-amber-400 uppercase tracking-widest mb-2">Sala de máquinas</p>
-    <h1 class="text-3xl font-black text-zinc-100 mb-3">Dashboard</h1>
-    <p class="text-sm text-zinc-500 max-w-xl">
+  <div class="mb-section">
+    <p class="text-base text-muted uppercase tracking-widest mb-2">Sala de máquinas</p>
+    <h1 class="text-3xl text-ink mb-3">Dashboard</h1>
+    <p class="text-base text-muted max-w-xl">
       Salud operativa del pipeline de ingesta y métricas del mercado.
       {ultimaActualizacion && (
         <span>Última corrida registrada: {formatearFechaHora(ultimaActualizacion)}</span>
@@ -113,103 +115,103 @@ function avisosPorMinuto(r: CorridaScrape): string {
   </div>
 
   {ultimas.length === 0 ? (
-    <section class="bg-zinc-900 rounded-xl border border-zinc-800/60 p-10 text-center">
-      <p class="text-sm font-semibold text-zinc-300 mb-1">Sin corridas registradas</p>
-      <p class="text-xs text-zinc-600">
-        Ejecuta <code class="text-zinc-400">cargar_reports_s3.py</code> para poblar scrape_runs desde los run_reports de S3.
+    <section class="border border-line p-element">
+      <p class="text-base text-ink mb-1">Sin corridas registradas</p>
+      <p class="text-base text-muted">
+        Ejecuta <code class="text-muted">cargar_reports_s3.py</code> para poblar scrape_runs desde los run_reports de S3.
       </p>
     </section>
   ) : (
     <>
       <!-- KPI row — Operación -->
-      <div class="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+      <div class="grid grid-cols-2 xl:grid-cols-4 gap-element mb-element">
 
         <!-- Éxito de extracción -->
-        <div class="bg-zinc-900 rounded-xl border border-zinc-800/60 p-5">
-          <p class="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">Éxito de extracción</p>
-          <p class="text-3xl font-black text-zinc-100 mt-2">
+        <div class="border border-line p-element">
+          <p class="text-base text-muted uppercase tracking-widest">Éxito de extracción</p>
+          <p class="text-3xl text-ink mt-2">
             {exito !== null ? `${exito.toFixed(1)}%` : '—'}
           </p>
           <div class="flex items-center gap-1.5 mt-2">
-            <span class="w-2 h-2 rounded-full shrink-0" style={`background:${COLOR_ESTADO[estadoExito]}`}></span>
-            <span class="text-xs text-zinc-400">{TEXTO_ESTADO[estadoExito]} · meta &gt; 95%</span>
+            <span class="w-2 h-2 shrink-0" style={`background:${COLOR_ESTADO[estadoExito]}`}></span>
+            <span class="text-base text-muted">{TEXTO_ESTADO[estadoExito]} · meta &gt; 95%</span>
           </div>
-          <div class="relative h-1.5 bg-zinc-800 rounded-full overflow-hidden mt-3" title={`${validos.toLocaleString('es-CL')} válidos de ${encontrados.toLocaleString('es-CL')} encontrados`}>
-            <div class="h-full rounded-full" style={`width:${exito ?? 0}%;background:${COLOR_ESTADO[estadoExito]}`}></div>
-            <div class="absolute top-0 bottom-0 w-px bg-zinc-500" style="left:95%"></div>
+          <div class="relative h-1.5 bg-line mt-3" title={`${validos.toLocaleString('es-CL')} válidos de ${encontrados.toLocaleString('es-CL')} encontrados`}>
+            <div class="h-full" style={`width:${exito ?? 0}%;background:${COLOR_ESTADO[estadoExito]}`}></div>
+            <div class="absolute top-0 bottom-0 w-px bg-muted" style="left:95%"></div>
           </div>
         </div>
 
         <!-- Fotos fallidas -->
-        <div class="bg-zinc-900 rounded-xl border border-zinc-800/60 p-5">
-          <p class="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">Fotos fallidas</p>
-          <p class="text-3xl font-black text-zinc-100 mt-2">
+        <div class="border border-line p-element">
+          <p class="text-base text-muted uppercase tracking-widest">Fotos fallidas</p>
+          <p class="text-3xl text-ink mt-2">
             {fotosPct !== null ? `${fotosPct.toFixed(1)}%` : '—'}
           </p>
           <div class="flex items-center gap-1.5 mt-2">
-            <span class="w-2 h-2 rounded-full shrink-0" style={`background:${COLOR_ESTADO[estadoFotos]}`}></span>
-            <span class="text-xs text-zinc-400">{TEXTO_ESTADO[estadoFotos]} · meta &lt; 2%</span>
+            <span class="w-2 h-2 shrink-0" style={`background:${COLOR_ESTADO[estadoFotos]}`}></span>
+            <span class="text-base text-muted">{TEXTO_ESTADO[estadoFotos]} · meta &lt; 2%</span>
           </div>
-          <div class="relative h-1.5 bg-zinc-800 rounded-full overflow-hidden mt-3" title={`${op.fotosFallidasUltimoCiclo.toLocaleString('es-CL')} descargas de foto fallidas sobre ${encontrados.toLocaleString('es-CL')} avisos`}>
-            <div class="h-full rounded-full" style={`width:${Math.min(100, (fotosPct ?? 0) * 10)}%;background:${COLOR_ESTADO[estadoFotos]}`}></div>
-            <div class="absolute top-0 bottom-0 w-px bg-zinc-500" style="left:20%"></div>
+          <div class="relative h-1.5 bg-line mt-3" title={`${op.fotosFallidasUltimoCiclo.toLocaleString('es-CL')} descargas de foto fallidas sobre ${encontrados.toLocaleString('es-CL')} avisos`}>
+            <div class="h-full" style={`width:${Math.min(100, (fotosPct ?? 0) * 10)}%;background:${COLOR_ESTADO[estadoFotos]}`}></div>
+            <div class="absolute top-0 bottom-0 w-px bg-muted" style="left:20%"></div>
           </div>
         </div>
 
         <!-- Duración del ciclo -->
-        <div class="bg-zinc-900 rounded-xl border border-zinc-800/60 p-5" title={ultimas.map((r) => `${NOMBRE_FUENTE[r.source] ?? r.source}: ${formatearDuracion(r.duracion_segundos)}`).join(' · ')}>
-          <p class="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">Duración del ciclo</p>
-          <p class="text-3xl font-black text-zinc-100 mt-2">{formatearDuracion(duracionCiclo)}</p>
-          <p class="text-xs text-zinc-500 mt-2">Suma de la última corrida de {ultimas.length} fuentes</p>
+        <div class="border border-line p-element" title={ultimas.map((r) => `${NOMBRE_FUENTE[r.source] ?? r.source}: ${formatearDuracion(r.duracion_segundos)}`).join(' · ')}>
+          <p class="text-base text-muted uppercase tracking-widest">Duración del ciclo</p>
+          <p class="text-3xl text-ink mt-2">{formatearDuracion(duracionCiclo)}</p>
+          <p class="text-base text-muted mt-2">Suma de la última corrida de {ultimas.length} fuentes</p>
         </div>
 
         <!-- Avisos válidos -->
-        <div class="bg-zinc-900 rounded-xl border border-zinc-800/60 p-5">
-          <p class="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">Avisos válidos</p>
-          <p class="text-3xl font-black text-zinc-100 mt-2">{validos.toLocaleString('es-CL')}</p>
-          <p class="text-xs text-zinc-500 mt-2">
+        <div class="border border-line p-element">
+          <p class="text-base text-muted uppercase tracking-widest">Avisos válidos</p>
+          <p class="text-3xl text-ink mt-2">{validos.toLocaleString('es-CL')}</p>
+          <p class="text-base text-muted mt-2">
             {(encontrados - validos).toLocaleString('es-CL')} rechazados en el último ciclo
           </p>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6">
+      <div class="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-element">
 
         <!-- Columna principal -->
-        <div class="space-y-6">
+        <div class="space-y-element">
 
           <!-- Última corrida por fuente -->
-          <section class="bg-zinc-900 rounded-xl border border-zinc-800/60 overflow-hidden">
-            <div class="px-5 py-4 border-b border-zinc-800/60">
-              <h2 class="text-sm font-bold text-zinc-200">Última corrida por fuente</h2>
-              <p class="text-xs text-zinc-600 mt-0.5">Avisos válidos, duración y ritmo de cada scraper</p>
+          <section class="border border-line">
+            <div class="p-element border-b border-line">
+              <h2 class="text-base text-ink">Última corrida por fuente</h2>
+              <p class="text-base text-muted mt-0.5">Avisos válidos, duración y ritmo de cada scraper</p>
             </div>
-            <div class="p-5 space-y-5">
+            <div class="p-element space-y-element">
               {ultimas.map((r) => (
                 <div title={`${(r.avisos_encontrados ?? 0).toLocaleString('es-CL')} encontrados · ${(r.avisos_unicos ?? 0).toLocaleString('es-CL')} únicos · ${(r.avisos_validos ?? 0).toLocaleString('es-CL')} válidos · ${(r.avisos_rechazados ?? 0).toLocaleString('es-CL')} rechazados · ${r.errors} fallas registradas`}>
                   <div class="flex items-center justify-between mb-1.5">
                     <div class="flex items-center gap-2 min-w-0">
-                      <span class="w-2.5 h-2.5 rounded-xs shrink-0" style={`background:${COLOR_FUENTE[r.source] ?? '#71717a'}`}></span>
-                      <span class="text-sm font-semibold text-zinc-200">{NOMBRE_FUENTE[r.source] ?? r.source}</span>
-                      <span class="text-[10px] text-zinc-600 tabular-nums">{formatearFechaHora(r.started_at)}</span>
+                      <span class="w-2.5 h-2.5 shrink-0" style={`background:${COLOR_FUENTE[r.source] ?? '#484848'}`}></span>
+                      <span class="text-base text-ink">{NOMBRE_FUENTE[r.source] ?? r.source}</span>
+                      <span class="text-base text-muted tabular-nums">{formatearFechaHora(r.started_at)}</span>
                     </div>
-                    <span class="text-xs text-zinc-500 tabular-nums ml-3 shrink-0">
+                    <span class="text-base text-muted tabular-nums ml-3 shrink-0">
                       {formatearDuracion(r.duracion_segundos)} · {avisosPorMinuto(r)} avisos/min
                     </span>
                   </div>
                   <div class="flex items-center gap-3">
                     <div class="flex-1 h-5">
                       <div
-                        class="h-full rounded-r-[4px]"
-                        style={`width:${(((r.avisos_validos ?? 0) / maxValidos) * 100).toFixed(1)}%;background:${COLOR_FUENTE[r.source] ?? '#71717a'}`}
+                        class="h-full"
+                        style={`width:${(((r.avisos_validos ?? 0) / maxValidos) * 100).toFixed(1)}%;background:${COLOR_FUENTE[r.source] ?? '#484848'}`}
                       ></div>
                     </div>
-                    <span class="text-xs font-semibold text-zinc-300 tabular-nums w-14 text-right shrink-0">
+                    <span class="text-base text-ink tabular-nums w-14 text-right shrink-0">
                       {(r.avisos_validos ?? 0).toLocaleString('es-CL')}
                     </span>
                   </div>
                   {(r.avisos_rechazados ?? 0) > 0 || r.errors > 0 ? (
-                    <p class="text-[10px] text-zinc-600 mt-1">
+                    <p class="text-base text-muted mt-1">
                       {(r.avisos_rechazados ?? 0) > 0 && <span>{r.avisos_rechazados} rechazados por validación</span>}
                       {(r.avisos_rechazados ?? 0) > 0 && r.errors > 0 && <span> · </span>}
                       {r.errors > 0 && <span>{r.errors} fallas en el pipeline</span>}
@@ -221,47 +223,47 @@ function avisosPorMinuto(r: CorridaScrape): string {
           </section>
 
           <!-- Historial de corridas -->
-          <section class="bg-zinc-900 rounded-xl border border-zinc-800/60 overflow-hidden">
-            <div class="px-5 py-4 border-b border-zinc-800/60">
-              <h2 class="text-sm font-bold text-zinc-200">Historial de corridas</h2>
-              <p class="text-xs text-zinc-600 mt-0.5">Todas las corridas registradas, la más reciente primero</p>
+          <section class="border border-line">
+            <div class="p-element border-b border-line">
+              <h2 class="text-base text-ink">Historial de corridas</h2>
+              <p class="text-base text-muted mt-0.5">Todas las corridas registradas, la más reciente primero</p>
             </div>
             <div class="overflow-x-auto">
-              <table class="w-full text-xs">
+              <table class="w-full text-base">
                 <thead>
-                  <tr class="text-[10px] uppercase tracking-wider text-zinc-600 border-b border-zinc-800/60">
-                    <th class="text-left font-semibold px-5 py-2.5">Fecha</th>
-                    <th class="text-left font-semibold px-3 py-2.5">Fuente</th>
-                    <th class="text-right font-semibold px-3 py-2.5">Duración</th>
-                    <th class="text-right font-semibold px-3 py-2.5">Págs</th>
-                    <th class="text-right font-semibold px-3 py-2.5">Encontrados</th>
-                    <th class="text-right font-semibold px-3 py-2.5">Válidos</th>
-                    <th class="text-right font-semibold px-3 py-2.5">Fallas</th>
-                    <th class="text-right font-semibold px-5 py-2.5">Éxito</th>
+                  <tr class="text-base uppercase tracking-wider text-muted border-b border-line">
+                    <th class="text-left px-5 py-2.5">Fecha</th>
+                    <th class="text-left px-3 py-2.5">Fuente</th>
+                    <th class="text-right px-3 py-2.5">Duración</th>
+                    <th class="text-right px-3 py-2.5">Págs</th>
+                    <th class="text-right px-3 py-2.5">Encontrados</th>
+                    <th class="text-right px-3 py-2.5">Válidos</th>
+                    <th class="text-right px-3 py-2.5">Fallas</th>
+                    <th class="text-right px-5 py-2.5">Éxito</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-800/40">
+                <tbody class="divide-y divide-line">
                   {op.historial.map((r) => {
                     const tasa = tasaExito(r);
                     const estado: Estado = tasa === null ? 'warning' : tasa >= 95 ? 'good' : tasa >= 90 ? 'warning' : 'critical';
                     return (
-                      <tr class="hover:bg-zinc-800/30 transition-colors">
-                        <td class="px-5 py-2.5 text-zinc-400 tabular-nums whitespace-nowrap">{formatearFechaHora(r.started_at)}</td>
+                      <tr class="hover:bg-surface transition-colors">
+                        <td class="px-5 py-2.5 text-muted tabular-nums whitespace-nowrap">{formatearFechaHora(r.started_at)}</td>
                         <td class="px-3 py-2.5">
                           <span class="inline-flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-xs shrink-0" style={`background:${COLOR_FUENTE[r.source] ?? '#71717a'}`}></span>
-                            <span class="text-zinc-300 font-medium">{NOMBRE_FUENTE[r.source] ?? r.source}</span>
+                            <span class="w-2 h-2 shrink-0" style={`background:${COLOR_FUENTE[r.source] ?? '#484848'}`}></span>
+                            <span class="text-ink">{NOMBRE_FUENTE[r.source] ?? r.source}</span>
                           </span>
                         </td>
-                        <td class="px-3 py-2.5 text-right text-zinc-400 tabular-nums whitespace-nowrap">{formatearDuracion(r.duracion_segundos)}</td>
-                        <td class="px-3 py-2.5 text-right text-zinc-500 tabular-nums">{r.paginas_procesadas ?? '—'}</td>
-                        <td class="px-3 py-2.5 text-right text-zinc-400 tabular-nums">{r.avisos_encontrados?.toLocaleString('es-CL') ?? '—'}</td>
-                        <td class="px-3 py-2.5 text-right text-zinc-300 font-semibold tabular-nums">{r.avisos_validos?.toLocaleString('es-CL') ?? '—'}</td>
-                        <td class="px-3 py-2.5 text-right text-zinc-500 tabular-nums">{r.errors}</td>
+                        <td class="px-3 py-2.5 text-right text-muted tabular-nums whitespace-nowrap">{formatearDuracion(r.duracion_segundos)}</td>
+                        <td class="px-3 py-2.5 text-right text-muted tabular-nums">{r.paginas_procesadas ?? '—'}</td>
+                        <td class="px-3 py-2.5 text-right text-muted tabular-nums">{r.avisos_encontrados?.toLocaleString('es-CL') ?? '—'}</td>
+                        <td class="px-3 py-2.5 text-right text-ink tabular-nums">{r.avisos_validos?.toLocaleString('es-CL') ?? '—'}</td>
+                        <td class="px-3 py-2.5 text-right text-muted tabular-nums">{r.errors}</td>
                         <td class="px-5 py-2.5 text-right whitespace-nowrap">
                           <span class="inline-flex items-center gap-1.5 justify-end">
-                            <span class="text-zinc-300 tabular-nums">{tasa !== null ? `${tasa.toFixed(1)}%` : '—'}</span>
-                            <span class="w-1.5 h-1.5 rounded-full shrink-0" style={`background:${COLOR_ESTADO[estado]}`}></span>
+                            <span class="text-ink tabular-nums">{tasa !== null ? `${tasa.toFixed(1)}%` : '—'}</span>
+                            <span class="w-1.5 h-1.5 shrink-0" style={`background:${COLOR_ESTADO[estado]}`}></span>
                           </span>
                         </td>
                       </tr>
@@ -274,17 +276,17 @@ function avisosPorMinuto(r: CorridaScrape): string {
         </div>
 
         <!-- Columna lateral -->
-        <div class="space-y-6">
+        <div class="space-y-element">
 
           <!-- Mercado / vehículos -->
-          <section class="bg-zinc-900 rounded-xl border border-zinc-800/60 overflow-hidden">
-            <div class="px-5 py-4 border-b border-zinc-800/60">
-              <h2 class="text-sm font-bold text-zinc-200">Vehículos</h2>
-              <p class="text-xs text-zinc-600 mt-0.5">Avisos activos en las 4 fuentes</p>
+          <section class="border border-line">
+            <div class="p-element border-b border-line">
+              <h2 class="text-base text-ink">Vehículos</h2>
+              <p class="text-base text-muted mt-0.5">Avisos activos en las 4 fuentes</p>
             </div>
-            <div class="p-5">
-              <p class="text-4xl font-black text-zinc-100">{veh.totalAvisos.toLocaleString('es-CL')}</p>
-              <p class="text-xs text-zinc-500 mt-1 mb-4">avisos en seguimiento</p>
+            <div class="p-element">
+              <p class="text-4xl text-ink">{veh.totalAvisos.toLocaleString('es-CL')}</p>
+              <p class="text-base text-muted mt-1 mb-4">avisos en seguimiento</p>
 
               <div class="space-y-3 mb-5">
                 {ORDEN_FUENTES.map((f) => {
@@ -294,55 +296,55 @@ function avisosPorMinuto(r: CorridaScrape): string {
                     <div>
                       <div class="flex items-center justify-between mb-1">
                         <span class="inline-flex items-center gap-1.5">
-                          <span class="w-2 h-2 rounded-xs shrink-0" style={`background:${COLOR_FUENTE[f]}`}></span>
-                          <span class="text-xs font-medium text-zinc-400">{NOMBRE_FUENTE[f]}</span>
+                          <span class="w-2 h-2 shrink-0" style={`background:${COLOR_FUENTE[f]}`}></span>
+                          <span class="text-base text-muted">{NOMBRE_FUENTE[f]}</span>
                         </span>
-                        <span class="text-xs text-zinc-500 tabular-nums">{fila.total.toLocaleString('es-CL')}</span>
+                        <span class="text-base text-muted tabular-nums">{fila.total.toLocaleString('es-CL')}</span>
                       </div>
-                      <div class="h-1 bg-zinc-800 rounded-full overflow-hidden">
-                        <div class="h-full rounded-full" style={`width:${((fila.total / maxPorFuente) * 100).toFixed(1)}%;background:${COLOR_FUENTE[f]}`}></div>
+                      <div class="h-1 bg-line">
+                        <div class="h-full" style={`width:${((fila.total / maxPorFuente) * 100).toFixed(1)}%;background:${COLOR_FUENTE[f]}`}></div>
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              <div class="grid grid-cols-2 gap-3 border-t border-zinc-800/60 pt-4">
+              <div class="grid grid-cols-2 gap-3 border-t border-line pt-4">
                 <div>
-                  <p class="text-xl font-black text-zinc-100 tabular-nums">{veh.nuevos24h.toLocaleString('es-CL')}</p>
-                  <p class="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mt-0.5">Nuevos · 24 h</p>
+                  <p class="text-2xl text-ink tabular-nums">{veh.nuevos24h.toLocaleString('es-CL')}</p>
+                  <p class="text-base text-muted uppercase tracking-wider mt-0.5">Nuevos · 24 h</p>
                 </div>
                 <div>
-                  <p class="text-xl font-black text-zinc-100 tabular-nums">{veh.bajadas7d.toLocaleString('es-CL')}</p>
-                  <p class="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mt-0.5">Bajaron de precio · 7 d</p>
+                  <p class="text-2xl text-ink tabular-nums">{veh.bajadas7d.toLocaleString('es-CL')}</p>
+                  <p class="text-base text-muted uppercase tracking-wider mt-0.5">Bajaron de precio · 7 d</p>
                 </div>
               </div>
             </div>
           </section>
 
           <!-- Deals activos -->
-          <section class="bg-zinc-900 rounded-xl border border-zinc-800/60 overflow-hidden">
-            <div class="px-5 py-4 border-b border-zinc-800/60 flex items-baseline justify-between">
+          <section class="border border-line">
+            <div class="p-element border-b border-line flex items-baseline justify-between">
               <div>
-                <h2 class="text-sm font-bold text-zinc-200">Deals activos</h2>
-                <p class="text-xs text-zinc-600 mt-0.5">Categorizados por IA</p>
+                <h2 class="text-base text-ink">Deals activos</h2>
+                <p class="text-base text-muted mt-0.5">Categorizados por IA</p>
               </div>
-              <a href="/deals" class="text-xs font-semibold text-amber-400 hover:text-amber-300 transition-colors">Ver deals →</a>
+              <a href="/deals" class="text-base text-ink hover:text-muted transition-colors">Ver deals →</a>
             </div>
-            <div class="p-5">
+            <div class="p-element">
               {veh.dealsPorCategoria.length === 0 ? (
-                <p class="text-xs text-zinc-600">Sin deals activos por ahora.</p>
+                <p class="text-base text-muted">Sin deals activos por ahora.</p>
               ) : (
                 <div class="space-y-2.5">
                   {veh.dealsPorCategoria.map((d) => {
-                    const cat = CATEGORIA_DEAL[d.categoria] ?? { nombre: d.categoria, color: '#71717a' };
+                    const cat = CATEGORIA_DEAL[d.categoria] ?? { nombre: d.categoria, color: '#484848' };
                     return (
                       <div class="flex items-center justify-between">
                         <span class="inline-flex items-center gap-1.5">
-                          <span class="w-2 h-2 rounded-full shrink-0" style={`background:${cat.color}`}></span>
-                          <span class="text-xs font-medium text-zinc-400">{cat.nombre}</span>
+                          <span class="w-2 h-2 shrink-0" style={`background:${cat.color}`}></span>
+                          <span class="text-base text-muted">{cat.nombre}</span>
                         </span>
-                        <span class="text-xs font-semibold text-zinc-300 tabular-nums">{d.total.toLocaleString('es-CL')}</span>
+                        <span class="text-base text-ink tabular-nums">{d.total.toLocaleString('es-CL')}</span>
                       </div>
                     );
                   })}
@@ -352,24 +354,24 @@ function avisosPorMinuto(r: CorridaScrape): string {
           </section>
 
           <!-- Fallas por etapa -->
-          <section class="bg-zinc-900 rounded-xl border border-zinc-800/60 overflow-hidden">
-            <div class="px-5 py-4 border-b border-zinc-800/60">
-              <h2 class="text-sm font-bold text-zinc-200">Fallas por etapa</h2>
-              <p class="text-xs text-zinc-600 mt-0.5">FAIL LOGs de las corridas recientes</p>
+          <section class="border border-line">
+            <div class="p-element border-b border-line">
+              <h2 class="text-base text-ink">Fallas por etapa</h2>
+              <p class="text-base text-muted mt-0.5">FAIL LOGs de las corridas recientes</p>
             </div>
-            <div class="p-5 space-y-4">
+            <div class="p-element space-y-element">
               {op.fallasPorEtapa.length === 0 ? (
-                <p class="text-xs text-zinc-600">Sin fallas registradas. Impecable.</p>
+                <p class="text-base text-muted">Sin fallas registradas. Impecable.</p>
               ) : (
                 op.fallasPorEtapa.map((f) => (
                   <div>
                     <div class="flex items-center justify-between mb-1.5">
-                      <span class="text-xs font-medium text-zinc-400">{NOMBRE_ETAPA[f.etapa] ?? f.etapa}</span>
-                      <span class="text-xs text-zinc-500 tabular-nums">{f.total.toLocaleString('es-CL')}</span>
+                      <span class="text-base text-muted">{NOMBRE_ETAPA[f.etapa] ?? f.etapa}</span>
+                      <span class="text-base text-muted tabular-nums">{f.total.toLocaleString('es-CL')}</span>
                     </div>
-                    <div class="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                    <div class="h-1.5 bg-line">
                       <div
-                        class="h-full bg-zinc-500/70 rounded-full"
+                        class="h-full bg-muted"
                         style={`width:${((f.total / maxFallas) * 100).toFixed(1)}%`}
                       ></div>
                     </div>
@@ -380,16 +382,16 @@ function avisosPorMinuto(r: CorridaScrape): string {
           </section>
 
           <!-- KPIs pendientes de instrumentación -->
-          <section class="bg-zinc-900 rounded-xl border border-zinc-800/60 overflow-hidden">
-            <div class="px-5 py-4 border-b border-zinc-800/60">
-              <h2 class="text-sm font-bold text-zinc-200">KPIs pendientes</h2>
-              <p class="text-xs text-zinc-600 mt-0.5">Definidos en Monitoreo, aún sin telemetría</p>
+          <section class="border border-line">
+            <div class="p-element border-b border-line">
+              <h2 class="text-base text-ink">KPIs pendientes</h2>
+              <p class="text-base text-muted mt-0.5">Definidos en Monitoreo, aún sin telemetría</p>
             </div>
-            <div class="p-5 space-y-2">
+            <div class="p-element space-y-2">
               {KPIS_PENDIENTES.map((k) => (
-                <div class="flex items-center justify-between border border-dashed border-zinc-800 rounded-lg px-3 py-2">
-                  <span class="text-xs text-zinc-500">{k.nombre}</span>
-                  <span class="text-[10px] text-zinc-600 tabular-nums shrink-0 ml-3">meta {k.meta}</span>
+                <div class="flex items-center justify-between border border-dashed border-line px-3 py-2">
+                  <span class="text-base text-muted">{k.nombre}</span>
+                  <span class="text-base text-muted tabular-nums shrink-0 ml-3">meta {k.meta}</span>
                 </div>
               ))}
             </div>

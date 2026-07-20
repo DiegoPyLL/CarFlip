@@ -9,22 +9,22 @@ interface Props {
 const { filtros, disponibles } = Astro.props;
 
 const inputCls = [
-  'w-full text-sm',
-  'bg-zinc-800 border border-zinc-700/80 rounded-lg px-3 py-1.5',
-  'text-zinc-200 placeholder-zinc-600',
-  'focus:outline-hidden focus:ring-1 focus:ring-amber-400/50 focus:border-amber-400/50',
+  'w-full text-base',
+  'bg-canvas border border-line-strong px-3 py-2',
+  'text-ink placeholder-muted',
+  'focus:outline-hidden focus:border-scarlet-signal',
   'transition-colors',
 ].join(' ');
 
 const selectCls = [
-  'w-full text-sm',
-  'bg-zinc-800 border border-zinc-700/80 rounded-lg px-3 py-1.5',
-  'text-zinc-200 appearance-none cursor-pointer',
-  'focus:outline-hidden focus:ring-1 focus:ring-amber-400/50 focus:border-amber-400/50',
+  'w-full text-base',
+  'bg-canvas border border-line-strong px-3 py-2',
+  'text-ink appearance-none cursor-pointer',
+  'focus:outline-hidden focus:border-scarlet-signal',
   'transition-colors',
 ].join(' ');
 
-const labelCls = 'text-[10px] font-semibold text-zinc-600 uppercase tracking-wider block mb-1';
+const labelCls = 'text-sm text-muted uppercase tracking-wider block mb-1';
 
 const hayFiltrosAvanzados = !!(
   filtros.modelo ||
@@ -40,16 +40,16 @@ const hayFiltrosAvanzados = !!(
   <button
     type="button"
     id="sidebar-toggle"
-    class="flex items-center gap-2 text-xs font-semibold text-zinc-500 hover:text-zinc-300 transition-colors py-1"
+    class="flex items-center gap-2 text-base text-muted hover:text-ink transition-colors py-2"
   >
-    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M3 6h18M7 12h10M10 18h4"/>
     </svg>
     <span id="toggle-label">
       {hayFiltrosAvanzados ? 'Filtros avanzados activos' : 'Más filtros'}
     </span>
     {hayFiltrosAvanzados && (
-      <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block shrink-0" />
+      <span class="w-1.5 h-1.5 bg-scarlet-signal inline-block shrink-0" />
     )}
   </button>
 </div>
@@ -62,8 +62,8 @@ const hayFiltrosAvanzados = !!(
   id="filtros-sidebar"
   class="hidden lg:block w-full lg:w-48 lg:shrink-0 lg:sticky lg:top-20 lg:self-start"
 >
-  <div class="bg-zinc-900 rounded-xl border border-zinc-800/60 p-4 space-y-3.5">
-    <p class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider hidden lg:block">
+  <div class="border border-line p-element space-y-element">
+    <p class="text-sm text-muted uppercase tracking-wider hidden lg:block">
       Filtros avanzados
     </p>
 
@@ -139,7 +139,7 @@ const hayFiltrosAvanzados = !!(
 
     <button
       type="submit"
-      class="w-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-xs font-semibold py-2 rounded-lg transition-colors mt-1"
+      class="w-full border border-line-strong text-ink text-base py-2 hover:border-ink hover:bg-ink hover:text-canvas focus:outline-hidden focus:border-scarlet-signal transition-colors mt-1"
     >
       Aplicar filtros
     </button>
