@@ -1,0 +1,227 @@
+---
+import Base from '@layouts/Base.astro';
+
+// Página utilitaria, no editorial: sin ritmo `editorial` (reservado a
+// /quienes-somos y /como-funciona, ver DESIGN.md). La confirmación de envío
+// usa blue-signal (check y barra) a pedido explícito del usuario — excepción
+// puntual a que el acento quede solo en footer/hero. El check es un glifo
+// ink-on-tint sobre un cuadrado blue-signal, el régimen correcto del token.
+const enviado = Astro.url.searchParams.has('enviado');
+const conError = Astro.url.searchParams.has('error');
+
+const inputCls =
+  'w-full bg-transparent border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
+---
+
+<Base
+  titulo="Contáctanos"
+  descripcion="Escríbenos si tienes dudas, sugerencias o encontraste un problema en CarFlip."
+>
+  {enviado ? (
+    <div
+      class="flex flex-col items-center justify-center text-center min-h-[calc(100dvh-7rem)] lg:min-h-[calc(100dvh-9rem)]"
+      role="status"
+    >
+      <svg class="logo-anim w-48 h-48 sm:w-56 sm:h-56 mb-block" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
+        <g class="arco arco-azul"><circle cx="100" cy="100" r="72" pathLength="100" stroke-dasharray="24 76" /></g>
+        <g class="arco arco-verde"><circle cx="100" cy="100" r="72" pathLength="100" stroke-dasharray="24 76" /></g>
+        <g class="nucleo nucleo-azul"><circle cx="84" cy="100" r="32" /></g>
+        <g class="nucleo nucleo-verde"><circle cx="116" cy="100" r="32" /></g>
+      </svg>
+
+      <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">Gracias.</h1>
+
+      <p class="text-lg sm:text-xl  leading-relaxed max-w-xl mb-block text-balance">
+        Recibimos tu mensaje correctamente. Te responderemos dentro de los próximos días.
+      </p>
+
+      <div class="h-1.5 w-full max-w-2xl border border-line bg-canvas overflow-hidden mb-element">
+        <div id="barra-confirmacion" class="h-full w-full origin-left bg-blue-signal"></div>
+      </div>
+
+      <p class="text-base  mb-element">
+        Redireccionando en <span id="cuenta" class="text-ink tabular-nums">6</span> s
+      </p>
+
+      <a
+        href="/"
+        class="inline-flex items-center gap-2 text-base bg-blue-signal text-ink-on-tint px-6 py-3 hover:bg-ink hover:text-canvas transition-colors duration-150"
+      >
+        <span aria-hidden="true">←</span> Volver ahora
+      </a>
+    </div>
+  ) : (
+    <div class="grid gap-block lg:grid-cols-2 lg:gap-section items-start">
+      <div>
+        <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">Escríbenos.</h1>
+
+        <p class="text-lg  leading-relaxed max-w-xl">
+          CarFlip es un proyecto sin fines de lucro. Si quieres sumarte a nuestra comunidad, tienes dudas, sugerencias o encontraste un
+          problema con un aviso, un dato o el sitio, cuéntanos.
+        </p>
+      </div>
+
+      <div>
+        {conError && (
+          <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
+            No se pudo enviar el mensaje. Revisa los datos e inténtalo de nuevo.
+          </div>
+        )}
+
+        <form method="POST" action="/api/contacto" class="space-y-element">
+        <div class="grid gap-element sm:grid-cols-2">
+          <div>
+            <label for="nombre" class="flex items-baseline justify-between text-base text-ink mb-2">
+              Nombre <span class="text-sm text-scarlet-signal">*Requerido</span>
+            </label>
+            <input
+              type="text"
+              id="nombre"
+              name="nombre"
+              required
+              maxlength="100"
+              pattern="[\p{L}\s]+"
+              title="Solo letras y espacios, sin números ni signos."
+              aria-describedby="err-nombre"
+              class={`${inputCls} campo`}
+            />
+            <p id="err-nombre" class="campo-error text-sm text-scarlet-signal mt-1.5">
+              Ingresa tu nombre: solo letras y espacios.
+            </p>
+          </div>
+          <div>
+            <label for="email" class="flex items-baseline justify-between text-base text-ink mb-2">
+              Email <span class="text-sm text-scarlet-signal">*Requerido</span>
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              required
+              maxlength="200"
+              aria-describedby="err-email"
+              class={`${inputCls} campo`}
+            />
+            <p id="err-email" class="campo-error text-sm text-scarlet-signal mt-1.5">
+              Ingresa un correo electrónico válido.
+            </p>
+          </div>
+        </div>
+        <div>
+          <label for="mensaje" class="flex items-baseline justify-between text-base text-ink mb-2">
+            Mensaje <span class="text-sm text-scarlet-signal">*Requerido</span>
+          </label>
+          <textarea
+            id="mensaje"
+            name="mensaje"
+            required
+            maxlength="2000"
+            rows="5"
+            aria-describedby="err-mensaje"
+            class={`${inputCls} campo resize-none overflow-y-auto`}
+          ></textarea>
+          <p id="err-mensaje" class="campo-error text-sm text-scarlet-signal mt-1.5">
+            Escribe tu mensaje antes de enviar.
+          </p>
+        </div>
+
+        <!-- Honeypot: invisible para personas, un bot que autocompleta todo lo llena. -->
+        <div class="hidden" aria-hidden="true">
+          <label for="web">No completar este campo</label>
+          <input type="text" id="web" name="web" tabindex="-1" autocomplete="off" />
+        </div>
+
+        <button
+          type="submit"
+          class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150"
+        >
+          Enviar mensaje
+          <span aria-hidden="true">→</span>
+        </button>
+        </form>
+
+        <p class="mt-element text-sm  leading-relaxed max-w-xl">
+          Tus datos se usan únicamente para responder tu mensaje. No los utilizamos con otros fines.
+        </p>
+
+        <style>
+          /* Validación en vivo sin JS: el mensaje y el borde rojo aparecen en
+             cuanto el usuario deja un campo mal (al salir o al escribir algo
+             inválido), no solo al enviar. `:user-invalid` no marca los campos
+             vacíos en la carga inicial, así el formulario parte limpio. */
+          .campo-error {
+            display: none;
+          }
+          .campo:user-invalid {
+            border-color: var(--color-scarlet-signal);
+          }
+          .campo:user-invalid ~ .campo-error {
+            display: block;
+          }
+        </style>
+      </div>
+    </div>
+  )}
+
+  {enviado && (
+    <>
+      <style>
+        /* Confirmación animada: dos núcleos que van y vienen y dos arcos que
+           orbitan en sentidos opuestos. Los cruces mezclan color con multiply
+           dentro de un contexto aislado (isolation), así el arco-arco y el
+           núcleo-núcleo se oscurecen igual en tema claro y oscuro, sin tocar
+           el fondo de la página. */
+        .logo-anim { isolation: isolate; }
+        .logo-anim circle { fill: none; }
+        .arco circle { stroke-width: 6; stroke-linecap: round; }
+        .arco-azul circle { stroke: var(--color-blue-signal); }
+        .arco-verde circle { stroke: var(--color-green-signal); }
+        .nucleo-azul circle { fill: var(--color-blue-signal); }
+        .nucleo-verde circle { fill: var(--color-green-signal); }
+        .arco, .nucleo { mix-blend-mode: multiply; }
+
+        .arco { transform-box: view-box; transform-origin: 100px 100px; }
+        .arco-azul { animation: girar-azul 4.5s linear infinite; }
+        .arco-verde { animation: girar-verde 3.6s linear infinite; }
+        .nucleo-azul { animation: vaiven-azul 2.8s ease-in-out infinite; }
+        .nucleo-verde { animation: vaiven-verde 2.8s ease-in-out infinite; }
+
+        @keyframes girar-azul { from { transform: rotate(140deg); } to { transform: rotate(500deg); } }
+        @keyframes girar-verde { from { transform: rotate(-40deg); } to { transform: rotate(-400deg); } }
+        @keyframes vaiven-azul { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-11px, 3px); } }
+        @keyframes vaiven-verde { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(11px, -3px); } }
+
+        #barra-confirmacion {
+          animation: barra-confirmacion 6s linear forwards;
+        }
+        @keyframes barra-confirmacion {
+          from { transform: scaleX(0); }
+          to { transform: scaleX(1); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          #barra-confirmacion {
+            animation: none;
+            transform: scaleX(1);
+          }
+          .arco-azul, .arco-verde, .nucleo-azul, .nucleo-verde { animation: none; }
+          .arco-azul { transform: rotate(140deg); }
+          .arco-verde { transform: rotate(-40deg); }
+        }
+      </style>
+      <script>
+        // El enlace "Volver ahora" funciona sin JS al ser un <a href="/">;
+        // este script solo agrega la cuenta regresiva y la redirección a los 6s.
+        const cuenta = document.getElementById('cuenta');
+        let restante = 6;
+        const id = window.setInterval(() => {
+          restante -= 1;
+          if (cuenta) cuenta.textContent = String(restante);
+          if (restante <= 0) {
+            window.clearInterval(id);
+            window.location.href = '/';
+          }
+        }, 1000);
+      </script>
+    </>
+  )}
+</Base>

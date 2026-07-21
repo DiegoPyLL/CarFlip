@@ -9,10 +9,13 @@ corrigen desde este repositorio, por lo que quedan fuera del gate, pero el
 escaneo completo se vuelca en reports/auditoria_imagen.json con el listado de
 módulos afectados, severidades y versiones de fix.
 
-Requiere Docker corriendo, el plugin Docker Scout (incluido en Docker Desktop),
-sesión iniciada en Docker Hub y la imagen construida:
+Requiere el plugin Docker Scout (incluido en Docker Desktop), sesión iniciada
+en Docker Hub y la imagen construida:
 
     docker build -t carflip:ci .
+
+Si Docker Desktop no está corriendo, el test intenta iniciarlo y espera a que
+el daemon responda antes de continuar.
 
 Ejecutar con: pytest -m integration -v tests/test_auditoria_imagen.py
 """
@@ -20,6 +23,8 @@ Ejecutar con: pytest -m integration -v tests/test_auditoria_imagen.py
 import json
 import shutil
 import subprocess
+import sys
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -33,10 +38,34 @@ REPORTE = Path(__file__).resolve().parent.parent / "reports" / "auditoria_imagen
 SEVERIDADES = ("critical", "high", "medium", "low", "unspecified")
 _ORDEN = {severidad: i for i, severidad in enumerate(SEVERIDADES)}
 
+DOCKER_DESKTOP = Path(r"C:\Program Files\Docker\Docker\Docker Desktop.exe")
+ESPERA_DOCKER_SEGUNDOS = 120
+
+
+def _docker_corriendo() -> bool:
+    return subprocess.run(["docker", "info"], capture_output=True).returncode == 0
+
+
+def _asegurar_docker_corriendo() -> bool:
+    """Si el daemon no responde, intenta iniciar Docker Desktop y espera a que levante."""
+    if _docker_corriendo():
+        return True
+    if sys.platform != "win32" or not DOCKER_DESKTOP.exists():
+        return False
+    subprocess.Popen([str(DOCKER_DESKTOP)])
+    limite = time.monotonic() + ESPERA_DOCKER_SEGUNDOS
+    while time.monotonic() < limite:
+        time.sleep(3)
+        if _docker_corriendo():
+            return True
+    return False
+
 
 def _requisito_faltante() -> str | None:
     if shutil.which("docker") is None:
         return "requiere Docker instalado"
+    if not _asegurar_docker_corriendo():
+        return f"requiere Docker Desktop corriendo (no respondió tras {ESPERA_DOCKER_SEGUNDOS}s de espera)"
     if subprocess.run(["docker", "image", "inspect", IMAGEN], capture_output=True).returncode != 0:
         return f"requiere la imagen construida: docker build -t {IMAGEN} ."
     if subprocess.run(["docker", "scout", "version"], capture_output=True).returncode != 0:

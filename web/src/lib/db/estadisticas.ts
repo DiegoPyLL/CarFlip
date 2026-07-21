@@ -1,27 +1,19 @@
 import { supabase } from './client';
+import { FUENTES, TABLA_POR_FUENTE, soloPublicados } from './fuentes';
 import type { Aviso, Estadisticas } from '../tipos';
-
-const TABLA_POR_FUENTE: Record<Aviso['fuente'], string> = {
-  autocosmos: 'autocosmos_listings',
-  yapo: 'yapo_listings',
-  autosusados: 'autosusados_listings',
-  checkeados: 'checkeados_listings',
-};
-
-const FUENTES = Object.keys(TABLA_POR_FUENTE) as Aviso['fuente'][];
 
 const TAMANO_LOTE = 1000;
 
 // Supabase/PostgREST limita cada select a TAMANO_LOTE filas por defecto,
 // así que hay que paginar con .range() para traer tablas más grandes.
-async function obtenerTodasLasFilas(tabla: string, columnas: string): Promise<any[]> {
+async function obtenerTodasLasFilas(fuente: Aviso['fuente'], columnas: string): Promise<any[]> {
   const todas: any[] = [];
   let desde = 0;
   while (true) {
-    const { data, error } = await supabase
-      .from(tabla)
-      .select(columnas)
-      .range(desde, desde + TAMANO_LOTE - 1);
+    const { data, error } = await soloPublicados(
+      supabase.from(TABLA_POR_FUENTE[fuente]).select(columnas),
+      fuente,
+    ).range(desde, desde + TAMANO_LOTE - 1);
     if (error) throw error;
     todas.push(...(data ?? []));
     if (!data || data.length < TAMANO_LOTE) break;
@@ -32,7 +24,7 @@ async function obtenerTodasLasFilas(tabla: string, columnas: string): Promise<an
 
 export async function obtenerEstadisticas(): Promise<Estadisticas> {
   const resultados = await Promise.all(
-    FUENTES.map((fuente) => obtenerTodasLasFilas(TABLA_POR_FUENTE[fuente], 'precio, ultima_vez_visto'))
+    FUENTES.map((fuente) => obtenerTodasLasFilas(fuente, 'precio, ultima_vez_visto'))
   );
 
   const totalesPorFuente: Record<string, number> = {};

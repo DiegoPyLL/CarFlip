@@ -1,0 +1,213 @@
+---
+import Base from '@layouts/Base.astro';
+import HeroMarketing from '@components/marketing/HeroMarketing.astro';
+import SeccionEditorial from '@components/marketing/SeccionEditorial.astro';
+import ListaNumerada from '@components/marketing/ListaNumerada.astro';
+import { seccionCls, gridEditorialCls } from '@lib/marketing';
+
+
+
+
+
+const principios = [
+
+  {
+    titulo: 'Las oportunidades no se venden, se muestran',
+    texto: 'Damos una vuelta al mercado de autos usados y democratizamos el acceso a la información.'
+  },
+  {
+    titulo: 'Sin fines de lucro',
+    texto: 'No cobramos comisión, no vendemos tus datos, no vendemos autos y ningún vendedor puede pagar por aparecer más arriba.',
+  },  
+  {
+    titulo: 'Devolver el tráfico a la fuente original',
+    texto: 'Si la publicación viene de una fuente externa, cada ficha enlaza al aviso original.',
+  },
+  {
+    titulo: 'Transparencia en el código',
+    texto: 'El sitio es de código abierto y puedes ver cómo funciona en nuestro repositorio de ',
+    enlace: {
+      texto: 'GitHub',
+      href: 'https://github.com/VolutusDevGroup/CarFlip',
+    },
+  },
+  {
+    titulo: 'Rápido antes que llamativo',
+    texto: 'El sitio se construye para cargar en cualquier conexión y en cualquier teléfono. La estética nunca justifica un segundo extra de espera.',
+  },
+
+];
+
+// Segunda página de marketing del sitio (junto a /como-funciona). El hero usa
+// la variante `marca` (fondo blue-signal), único bloque de contenido, además
+// del footer, con este acento.
+//
+// Orden narrativo: misión → origen → cómo operamos (principios) → por qué sin
+// fines de lucro → prueba (cifras) → quién está detrás → acción. Las cifras van
+// como evidencia hacia el final, no interrumpiendo el relato de la misión.
+//
+// El ritmo vertical es deliberadamente irregular, no un salto constante:
+//   0px   → el bloque azul y la foto de apertura se pegan y leen como portada.
+//   48px  → une un párrafo con la foto que lo ilustra ("Cómo empezó").
+//   80/120 → el paso normal entre secciones.
+// Y hay tres anchos en juego: portada (todo el contenedor), lectura (64ch, con
+// el rubro descolgado al margen) y la foto de respiro, alineada al cuerpo.
+---
+
+<Base
+  titulo="Quiénes somos"
+  descripcion="CarFlip es un proyecto sin fines de lucro construido por un grupo de desarrolladores chilenos con una misión: democratizar el acceso a la información de precios en la reventa de autos."
+>
+  <div class="max-w-4xl">
+
+    <!-- Portada: el bloque de marca y la foto se pegan (sin salto) y leen como
+         una sola unidad antes del primer respiro largo. -->
+    <HeroMarketing
+      rubro="Nuestra misión"
+      titulo="Democratizar la reventa de autos en Chile."
+      marca
+      class=""
+    >
+    </HeroMarketing>
+
+    <div class={`${seccionCls} aspect-[21/9] bg-surface`}>
+      <img
+        src="/quienes-somos.webp"
+        alt="Un conductor mira el atardecer sobre un camino de montaña, apoyado en su auto."
+        width={1600}
+        height={686}
+        loading="eager"
+        fetchpriority="high"
+        class="w-full h-full object-cover"
+      />
+    </div>
+
+
+
+
+    
+    <!-- La misión, en extenso -->
+    <SeccionEditorial rubro="La misión">
+      <p class="text-4xl text-ink leading-tight mb-8 text-balance">
+        Que cualquier persona en Chile pueda saber si un precio es bueno antes de negociarlo.
+
+      </p>
+
+      <p class="text-lg leading-relaxed mb-6">
+        Comprar o vender un auto usado en Chile significa recorrer múltiples portales y encontrarse con anuncios
+        de vehículos que pagan por aparecer primero, no necesariamente con las mejores ofertas. CarFlip existe
+        para cerrar esa brecha de información y dar la misma oportunidad a todos.
+
+      </p>
+
+      <p class="text-lg leading-relaxed">
+        <em>Para encontrar un buen auto no hay que buscar más, sino comparar mejor.</em>
+      </p>
+    </SeccionEditorial>
+
+
+
+
+
+
+
+
+    <!-- Historia: salto corto hacia su foto, que ilustra este párrafo -->
+    <SeccionEditorial rubro="Cómo empezó" class="mb-block">
+      <p class="text-lg leading-relaxed mb-6">
+        A inicios del 2026 surgió la idea de crear CarFlip. Una página que reuniera los mejores vehiculos de particulares,
+        automotoras pequeñas y medianas en un solo lugar e impulsara los mejores vehiculos sin tener que pagar por aparecer primero.
+      </p>
+
+      <p class="text-lg leading-relaxed mb-6">
+        Carflip nació de una necesidad real, no de un plan de negocio. Somos un grupo de
+        amigos que vio un mercado repartido en todo chile sin tener un lugar centralizado, sin ningún
+        lugar donde comparar precios y donde un buen vehículo se ve opacado por promociones de otros.
+      </p>
+
+      <p class="text-lg leading-relaxed">
+        El proyecto empezó como un script privado para responder una sola pregunta: ¿este auto está
+        caro? Comparar a mano un modelo entre todos los portales tomaría una tarde entera, y al día
+        siguiente los avisos ya eran otros. Automatizar esa comparación resultó más útil de lo
+        esperado, así que la convertimos en un sitio público, gratuito y abierto a cualquiera que
+        esté comprando o vendiendo.
+      </p>
+    </SeccionEditorial>
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Foto de respiro, alineada al cuerpo y no al contenedor: el margen del
+         rubro queda vacío y sostiene el pie. -->
+    <figure class={`${seccionCls} ${gridEditorialCls}`}>
+      <div class="lg:col-start-2">
+        <div class="aspect-[3/2] bg-surface">
+          <img
+            src="/ford-bronco.webp"
+            alt="Una camioneta estacionada bajo un árbol en un parque, con su dueño apoyado en la puerta."
+            width={1400}
+            height={933}
+            loading="lazy"
+            decoding="async"
+            class="w-full h-full object-cover"
+          />
+        </div>
+      </div>
+    </figure>
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Principios: cómo operamos -->
+    <SeccionEditorial rubro="Nuestros principios">
+      <ListaNumerada items={principios} />
+    </SeccionEditorial>
+
+    <!-- Modelo -->
+    <SeccionEditorial rubro="Por qué sin fines de lucro">
+      <p class="text-lg leading-relaxed">
+        No cobramos comisión, no vendemos autos y no tenemos ningún interés comercial en qué auto
+        compras ni a quién. CarFlip se sostiene como un proyecto independiente, mantenido por el
+        mismo grupo de desarrolladores que lo construyó. Creemos que la transparencia de precio en
+        un mercado tan grande como el de los autos usados no debería depender de un modelo de negocio.
+      </p>
+    </SeccionEditorial>
+
+
+    <!-- Quién está detrás -->
+    <SeccionEditorial rubro="Quién está detrás">
+      <p class="text-lg leading-relaxed mb-block">
+        CarFlip lo desarrolla y mantiene <a
+          href="https://volutus.cl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-ink underline">VolutusDevGroup</a>, un grupo
+        chileno de desarrolladores de software. El equipo se encarga de la recopilación diaria, la
+        normalización de los datos y el sitio que estás viendo. Los detalles de responsabilidad y
+        propiedad están en <a href="/legal" class="text-ink underline">Legales</a>.
+      </p>
+      <p class="text-lg leading-relaxed">
+        ¿Te quieres sumar, encontraste un error o tienes una idea? Escríbenos desde
+        <a href="/contacto" class="text-ink underline">Contacto</a>.
+      </p>
+    </SeccionEditorial>
+
+
+  </div>
+</Base>

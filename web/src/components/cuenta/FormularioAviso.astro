@@ -1,0 +1,133 @@
+---
+import type { AvisoPropio } from '@lib/publicaciones/consultas';
+import {
+  ANIO_MINIMO,
+  COMBUSTIBLES,
+  REGIONES,
+  TRANSMISIONES,
+  anioMaximo,
+} from '@lib/publicaciones/opciones';
+
+interface Props {
+  accion: string;
+  aviso?: AvisoPropio;
+  textoBoton: string;
+}
+
+const { accion, aviso, textoBoton } = Astro.props;
+
+// `ubicacion` se guarda como "Comuna, Región" para encajar en ListingMixin sin
+// columnas extra; aquí se vuelve a partir para poblar los dos campos.
+const [comunaActual = '', regionActual = ''] = (aviso?.ubicacion ?? '')
+  .split(',')
+  .map((parte) => parte.trim());
+
+const anioTope = anioMaximo();
+
+const inputCls =
+  'w-full bg-transparent border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
+const labelCls = 'flex items-baseline justify-between text-base text-ink mb-2';
+const requerido = 'text-sm text-scarlet-signal';
+---
+
+<!-- Validación nativa del navegador: required/min/max/pattern. Cero JavaScript. -->
+<form method="POST" action={accion} class="space-y-element">
+  <div class="grid gap-element sm:grid-cols-2">
+    <div>
+      <label for="marca" class={labelCls}>Marca <span class={requerido}>*Requerido</span></label>
+      <input type="text" id="marca" name="marca" required maxlength="100" value={aviso?.marca ?? ''} class={`${inputCls} campo`} aria-describedby="err-marca" />
+      <p id="err-marca" class="campo-error text-sm text-scarlet-signal mt-1.5">Indica la marca del auto.</p>
+    </div>
+
+    <div>
+      <label for="modelo" class={labelCls}>Modelo <span class={requerido}>*Requerido</span></label>
+      <input type="text" id="modelo" name="modelo" required maxlength="100" value={aviso?.modelo ?? ''} class={`${inputCls} campo`} aria-describedby="err-modelo" />
+      <p id="err-modelo" class="campo-error text-sm text-scarlet-signal mt-1.5">Indica el modelo del auto.</p>
+    </div>
+
+    <div>
+      <label for="version" class={labelCls}>Versión</label>
+      <input type="text" id="version" name="version" maxlength="100" placeholder="XEI 1.8 Aut." value={aviso?.version ?? ''} class={inputCls} />
+    </div>
+
+    <div>
+      <label for="anio" class={labelCls}>Año <span class={requerido}>*Requerido</span></label>
+      <input type="number" id="anio" name="anio" required min={ANIO_MINIMO} max={anioTope} step="1" inputmode="numeric" value={aviso?.anio ?? ''} class={`${inputCls} campo tabular-nums`} aria-describedby="err-anio" />
+      <p id="err-anio" class="campo-error text-sm text-scarlet-signal mt-1.5">Un año entre {ANIO_MINIMO} y {anioTope}.</p>
+    </div>
+
+    <div>
+      <label for="km" class={labelCls}>Kilometraje <span class={requerido}>*Requerido</span></label>
+      <input type="number" id="km" name="km" required min="0" max="2000000" step="1" inputmode="numeric" value={aviso?.km ?? ''} class={`${inputCls} campo tabular-nums`} aria-describedby="err-km" />
+      <p id="err-km" class="campo-error text-sm text-scarlet-signal mt-1.5">Ingresa el kilometraje en números.</p>
+    </div>
+
+    <div>
+      <label for="precio" class={labelCls}>Precio en pesos <span class={requerido}>*Requerido</span></label>
+      <input type="number" id="precio" name="precio" required min="1" max="999000000" step="1" inputmode="numeric" value={aviso?.precio ?? ''} class={`${inputCls} campo tabular-nums`} aria-describedby="err-precio" />
+      <p id="err-precio" class="campo-error text-sm text-scarlet-signal mt-1.5">Ingresa el precio en pesos, sin puntos.</p>
+    </div>
+
+    <div>
+      <label for="combustible" class={labelCls}>Combustible</label>
+      <select id="combustible" name="combustible" class={inputCls}>
+        <option value="">Sin especificar</option>
+        {COMBUSTIBLES.map((c) => <option value={c} selected={aviso?.combustible === c}>{c}</option>)}
+      </select>
+    </div>
+
+    <div>
+      <label for="transmision" class={labelCls}>Transmisión</label>
+      <select id="transmision" name="transmision" class={inputCls}>
+        <option value="">Sin especificar</option>
+        {TRANSMISIONES.map((t) => <option value={t} selected={aviso?.transmision === t}>{t}</option>)}
+      </select>
+    </div>
+
+    <div>
+      <label for="region" class={labelCls}>Región <span class={requerido}>*Requerido</span></label>
+      <select id="region" name="region" required class={inputCls}>
+        <option value="">Selecciona…</option>
+        {REGIONES.map((r) => <option value={r} selected={regionActual === r}>{r}</option>)}
+      </select>
+    </div>
+
+    <div>
+      <label for="comuna" class={labelCls}>Comuna <span class={requerido}>*Requerido</span></label>
+      <input type="text" id="comuna" name="comuna" required maxlength="100" value={comunaActual} class={inputCls} />
+    </div>
+  </div>
+
+  <div>
+    <label for="descripcion" class={labelCls}>Descripción</label>
+    <textarea id="descripcion" name="descripcion" maxlength="2000" rows="6" placeholder="Mantención al día, dueño único, detalles del estado…" class={`${inputCls} resize-none overflow-y-auto`}>{aviso?.descripcion ?? ''}</textarea>
+    <p class="text-sm mt-1.5">No incluyas tu teléfono ni tu correo: los compradores con sesión ya ven tu contacto.</p>
+  </div>
+
+  <!-- Honeypot: invisible para personas, un bot que autocompleta todo lo llena. -->
+  <div class="hidden" aria-hidden="true">
+    <label for="web">No completar este campo</label>
+    <input type="text" id="web" name="web" tabindex="-1" autocomplete="off" />
+  </div>
+
+  <button
+    type="submit"
+    class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150"
+  >
+    <span class="w-1.5 h-1.5 bg-scarlet-signal" aria-hidden="true"></span>
+    {textoBoton}
+    <span aria-hidden="true">→</span>
+  </button>
+</form>
+
+<style>
+  .campo-error {
+    display: none;
+  }
+  .campo:user-invalid {
+    border-color: var(--color-scarlet-signal);
+  }
+  .campo:user-invalid ~ .campo-error {
+    display: block;
+  }
+</style>

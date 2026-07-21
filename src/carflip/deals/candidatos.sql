@@ -3,6 +3,7 @@
 -- Parámetros vinculados (SQLAlchemy text()):
 --   :umbral_pct       — % bajo la mediana del grupo para ser outlier (ej. 15)
 --   :min_comparables  — mínimo de avisos por grupo marca/modelo/año (ej. 5)
+--   :min_comparables_particular — mínimo más alto para los avisos de particulares (ej. 12)
 --   :max_candidatos   — LIMIT de la corrida (ej. 200)
 --
 -- Decisiones de diseño:
@@ -37,6 +38,13 @@ WITH avisos AS (
     SELECT 'checkeados', id_externo, url, titulo, marca, modelo, anio, km,
            precio, moneda, ubicacion, descripcion, url_imagen, delta_pct, disponible
     FROM checkeados_listings
+    UNION ALL
+    -- Avisos de particulares: solo los publicados. Los pausados y vendidos no
+    -- son ofertas vigentes y tampoco deben pesar en la mediana del grupo.
+    SELECT 'particular', id_externo, url, titulo, marca, modelo, anio, km,
+           precio, moneda, ubicacion, descripcion, url_imagen, delta_pct, disponible
+    FROM particulares_listings
+    WHERE estado = 'publicado'
 ),
 validos AS (
     SELECT a.*,
@@ -88,11 +96,17 @@ JOIN grupos g
  AND v.modelo_n = g.modelo_n
  AND v.anio = g.anio
 WHERE
-    -- Outlier estadístico: bien por debajo de la mediana del grupo...
-    ( v.precio <= g.precio_mediana * (1 - :umbral_pct / 100.0)
-      -- ...sin que el kilometraje lo explique.
-      AND (v.km IS NULL OR g.km_mediana IS NULL OR v.km <= g.km_mediana * 1.5) )
-    -- O bajada de precio significativa registrada por el uploader.
-    OR v.delta_pct <= -(:umbral_pct / 3.0)
+    -- Un aviso de particular no pasó por el filtro de ningún portal: cualquiera
+    -- puede publicar un precio irreal y saldría como oportunidad. Se le exige un
+    -- grupo comparable más grande antes de dejarlo entrar.
+    (v.fuente <> 'particular' OR g.comparables >= :min_comparables_particular)
+    AND (
+        -- Outlier estadístico: bien por debajo de la mediana del grupo...
+        ( v.precio <= g.precio_mediana * (1 - :umbral_pct / 100.0)
+          -- ...sin que el kilometraje lo explique.
+          AND (v.km IS NULL OR g.km_mediana IS NULL OR v.km <= g.km_mediana * 1.5) )
+        -- O bajada de precio significativa registrada por el uploader.
+        OR v.delta_pct <= -(:umbral_pct / 3.0)
+    )
 ORDER BY pct_vs_mercado ASC NULLS LAST
 LIMIT :max_candidatos;

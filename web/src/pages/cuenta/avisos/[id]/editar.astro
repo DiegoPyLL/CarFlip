@@ -1,0 +1,79 @@
+---
+import FormularioAviso from '@components/cuenta/FormularioAviso.astro';
+import SubidorFotos from '@components/cuenta/SubidorFotos.astro';
+import Base from '@layouts/Base.astro';
+import { listarFotos, obtenerAvisoPropio } from '@lib/publicaciones/consultas';
+import { mensajeDeError } from '@lib/publicaciones/limites';
+import { ETIQUETA_ESTADO } from '@lib/publicaciones/opciones';
+
+const usuario = Astro.locals.usuario;
+const supabase = Astro.locals.supabase;
+if (!usuario || !supabase) return Astro.redirect('/entrar?volver=/cuenta/avisos');
+
+const id = Number(Astro.params.id);
+if (!Number.isInteger(id)) return Astro.redirect('/cuenta/avisos?error=no_encontrado');
+
+const aviso = await obtenerAvisoPropio(supabase, id, usuario.id);
+if (!aviso) return Astro.redirect('/cuenta/avisos?error=no_encontrado');
+
+const fotos = await listarFotos(supabase, id);
+
+const creado = Astro.url.searchParams.has('creado');
+const guardado = Astro.url.searchParams.has('guardado');
+const mensajeError = mensajeDeError(Astro.url.searchParams.get('error'));
+---
+
+<Base titulo="Editar publicación" descripcion="Edita tu publicación en CarFlip." noindex>
+  <div class="max-w-3xl mx-auto">
+    <a href="/cuenta/avisos" class="text-base underline underline-offset-4 hover:text-ink transition-colors duration-150">
+      <span aria-hidden="true">←</span> Mis publicaciones
+    </a>
+
+    <div class="flex items-baseline gap-3 flex-wrap mt-element mb-block">
+      <h1 class="text-5xl sm:text-7xl text-ink leading-none text-balance">{aviso.titulo}</h1>
+      <span class="text-sm border border-line-strong px-2 py-0.5">{ETIQUETA_ESTADO[aviso.estado]}</span>
+    </div>
+
+    {creado && (
+      <div class="mb-element px-6 py-2.5 border border-line-strong text-base text-ink" role="status">
+        Tu aviso ya está publicado. Agrégale fotos para que rinda mejor en el listado.
+      </div>
+    )}
+
+    {guardado && (
+      <div class="mb-element px-6 py-2.5 border border-line-strong text-base text-ink" role="status">
+        Cambios guardados.
+      </div>
+    )}
+
+    {mensajeError && (
+      <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
+        {mensajeError}
+      </div>
+    )}
+
+    <div class="mb-block">
+      <SubidorFotos avisoId={id} fotos={fotos} />
+    </div>
+
+    <h2 class="text-2xl text-ink mb-element">Datos del auto</h2>
+    <FormularioAviso accion={`/api/publicacion/${id}`} aviso={aviso} textoBoton="Guardar cambios" />
+
+    <div class="mt-block pt-element border-t border-line">
+      <h2 class="text-2xl text-ink mb-element">Eliminar</h2>
+      <p class="text-base leading-relaxed max-w-xl mb-element">
+        Se borra la publicación y sus fotos, sin vuelta atrás. Si solo quieres sacarla del listado,
+        pausala desde <a href="/cuenta/avisos" class="text-ink underline underline-offset-4">Mis publicaciones</a>.
+      </p>
+      <form method="POST" action={`/api/publicacion/${id}`}>
+        <input type="hidden" name="accion" value="eliminar" />
+        <button
+          type="submit"
+          class="inline-flex items-center gap-2 text-base text-ink border border-scarlet-signal px-6 py-2.5 hover:bg-scarlet-signal hover:text-ink-on-tint transition-colors duration-150 cursor-pointer"
+        >
+          Eliminar publicación
+        </button>
+      </form>
+    </div>
+  </div>
+</Base>

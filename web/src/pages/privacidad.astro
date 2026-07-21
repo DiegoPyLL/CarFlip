@@ -1,0 +1,143 @@
+---
+import Base from '@layouts/Base.astro';
+
+const rubroCls = 'text-2xl text-ink mb-element';
+const parrafoCls = 'text-base  leading-relaxed';
+---
+
+<Base
+  titulo="Términos de privacidad"
+  descripcion="Cómo trata CarFlip los datos personales de quienes visitan el sitio, crean una cuenta o publican un aviso."
+>
+  <div class="max-w-3xl">
+    <div class="mb-section">
+      <p class="text-base  uppercase tracking-widest mb-element">Legal</p>
+      <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">Términos de privacidad</h1>
+      <p class="text-base ">Última actualización: 21 de julio de 2026.</p>
+    </div>
+
+    <div class="space-y-block mb-section">
+      <section>
+        <h2 class={rubroCls}>Quién trata tus datos</h2>
+        <p class={parrafoCls}>
+          El responsable del tratamiento es VolutusDevGroup, que desarrolla y mantiene CarFlip
+          (carflip.cl). Puedes escribirnos por cualquier asunto de privacidad a través de
+          <a href="/contacto" class="text-ink underline underline-offset-4">Contáctanos</a>.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Navegar no requiere cuenta</h2>
+        <p class={parrafoCls}>
+          Buscar, filtrar y comparar avisos no exige registrarse ni deja un perfil asociado a ti.
+          Solo hacen falta datos personales para publicar un auto o para ver el teléfono de un
+          vendedor particular.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Qué datos tratamos y para qué</h2>
+        <p class={parrafoCls}>
+          Si creas una cuenta: tu correo electrónico y, si entras con Google, el identificador que
+          ese proveedor nos devuelve. Sirven para autenticarte y para avisarte de asuntos de tu
+          cuenta. Si publicas un aviso: además tu nombre, teléfono, región y comuna, junto con los
+          datos y las fotos del vehículo. El nombre y el teléfono son los que se entregan a un
+          comprador cuando pide tu contacto; el resto se muestra en el aviso público. Si escribes
+          por <a href="/contacto" class="text-ink underline underline-offset-4">Contáctanos</a>:
+          el nombre, correo y mensaje que ingresas, solo para responderte.
+        </p>
+        <p class={`${parrafoCls} mt-element`}>
+          La base de este tratamiento es la ejecución del servicio que solicitas: sin esos datos no
+          es posible mantener tu sesión, publicar tu aviso ni poner en contacto a las partes.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Revelación del teléfono</h2>
+        <p class={parrafoCls}>
+          El teléfono de un vendedor particular nunca aparece en el HTML público ni en buscadores.
+          Se muestra únicamente a un usuario con sesión iniciada que lo pide de forma explícita en
+          el aviso, con un tope diario para evitar la recolección masiva. Cada revelación queda
+          registrada —qué cuenta pidió qué aviso y cuándo— para poder investigar abusos y para que
+          el vendedor sepa cuánto interés recibió. Ese registro no se comparte con terceros.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Analítica de navegación</h2>
+        <p class={parrafoCls}>
+          Usamos Vercel Analytics para medir tráfico agregado (páginas vistas, origen, dispositivo).
+          Es un servicio sin cookies que no identifica personalmente a quien visita el sitio. Las
+          únicas cookies del sitio son las de tu sesión: son técnicas, no rastrean, y desaparecen
+          al cerrar sesión.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Con quién se comparten</h2>
+        <p class={parrafoCls}>
+          No vendemos ni cedemos datos personales. Solo los procesan por encargo nuestro los
+          proveedores que hacen funcionar el sitio: Supabase (base de datos, autenticación y
+          almacenamiento de fotos), Vercel (alojamiento web y analítica), Cloudflare (imágenes de
+          los avisos recopilados), Resend (envío del formulario de contacto) y Google, únicamente si
+          eliges entrar con tu cuenta de Google. Algunos operan servidores fuera de Chile.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Cuánto los conservamos</h2>
+        <p class={parrafoCls}>
+          Los datos de tu cuenta y tus avisos se conservan mientras la cuenta exista. Al eliminarla
+          se borran tu perfil, tus publicaciones, sus fotos y el registro de contactos revelados.
+          Los mensajes del formulario de contacto se conservan solo el tiempo necesario para
+          atender la consulta.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Datos de los avisos recopilados</h2>
+        <p class={parrafoCls}>
+          Los avisos que CarFlip recopila de otros portales (precio, fotos, descripción) provienen
+          de páginas públicas de terceros. No extraemos ni almacenamos datos de contacto de sus
+          vendedores: para eso, el aviso enlaza siempre al portal de origen.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Tus derechos</h2>
+        <p class={parrafoCls}>
+          Conforme a la Ley 21.719 puedes acceder a tus datos, rectificarlos, suprimirlos, oponerte
+          a su tratamiento, solicitar su bloqueo y pedir una copia en formato portable. Los tres
+          primeros los ejerces por tu cuenta y al instante: tus datos están en
+          <a href="/cuenta" class="text-ink underline underline-offset-4">tu cuenta</a>, donde
+          también puedes corregirlos y eliminar la cuenta completa. Para el resto, o si prefieres
+          que lo hagamos nosotros, escríbenos a
+          <a href="/contacto" class="text-ink underline underline-offset-4">Contáctanos</a> y
+          responderemos en los plazos que fija la ley. También puedes reclamar ante la autoridad de
+          protección de datos personales.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Menores de edad</h2>
+        <p class={parrafoCls}>
+          El sitio está dirigido a personas mayores de 18 años. No tratamos datos de menores a
+          sabiendas; si detectamos una cuenta de un menor, la eliminamos.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Cambios a esta política</h2>
+        <p class={parrafoCls}>
+          Puede actualizarse a medida que el sitio evoluciona. La fecha de arriba indica la última
+          revisión.
+        </p>
+      </section>
+    </div>
+
+    <p class={parrafoCls}>
+      Ver también: <a href="/condiciones-de-uso" class="text-ink underline underline-offset-4">Condiciones de Uso</a>,
+      {' '}<a href="/legal" class="text-ink underline underline-offset-4">Legales</a>.
+    </p>
+  </div>
+</Base>

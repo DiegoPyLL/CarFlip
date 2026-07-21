@@ -30,6 +30,38 @@ const rutaCanonica = new URL(urlCanonica, Astro.url.origin);
 const urlCanonicaAbs = new URL(rutaCanonica.pathname + rutaCanonica.search, origenCanonico).href;
 // Las imágenes del CDN ya vienen absolutas; solo se resuelven las rutas locales.
 const urlImagenAbs = new URL(urlImagen, origenCanonico).href;
+
+// A 320px no caben cinco enlaces más el logo y el toggle. Se ocultan por orden
+// de redundancia: "Home" porque el logo ya lleva ahí, y "Cómo funciona" por ser
+// la sección menos transaccional. Ninguna queda inalcanzable.
+// El enlace de sesión también se oculta bajo sm: a 320px no cabe un sexto
+// enlace. No queda inalcanzable — el footer lo repite sin condición de ancho.
+const enlaceSesion = Astro.locals.usuario
+  ? { href: '/cuenta', texto: 'Mi cuenta', visible: 'hidden sm:block' }
+  : { href: '/entrar', texto: 'Entrar', visible: 'hidden sm:block' };
+
+const enlacesNav = [
+  { href: '/',              texto: 'Home',          visible: 'hidden sm:block' },
+  { href: '/avisos',        texto: 'Avisos',        visible: '' },
+  { href: '/deals',         texto: 'Deals',         visible: '' },
+  { href: '/mercado',       texto: 'Mercado',       visible: '' },
+  { href: '/como-funciona', texto: 'Cómo funciona', visible: 'hidden md:block' },
+  enlaceSesion,
+];
+
+// `/` solo marca activo en coincidencia exacta; el resto también en sus subrutas
+// (así /marcas/Kia resalta Mercado y /auto/814 resalta Avisos).
+const rutaActual = Astro.url.pathname.replace(/\/+$/, '') || '/';
+const prefijosPorSeccion: Record<string, string[]> = {
+  '/avisos': ['/auto'],
+  '/mercado': ['/marcas'],
+  '/cuenta': ['/cuenta'],
+};
+function esRutaActiva(href: string): boolean {
+  if (href === '/') return rutaActual === '/';
+  if (rutaActual === href) return true;
+  return (prefijosPorSeccion[href] ?? []).some((p) => rutaActual.startsWith(p));
+}
 ---
 
 <!doctype html>
@@ -37,7 +69,22 @@ const urlImagenAbs = new URL(urlImagen, origenCanonico).href;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#fbbf24" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+
+    <!--
+      Bloqueante y en <head> a propósito: aplica el tema guardado antes del
+      primer pintado. Diferirlo provocaría un flash del tema equivocado.
+      El claro es el principal, así que solo se marca el documento si hay
+      preferencia explícita por el oscuro.
+    -->
+    <script is:inline>
+      try {
+        if (localStorage.getItem('tema') === 'oscuro') {
+          document.documentElement.dataset.theme = 'dark';
+        }
+      } catch (_) {}
+    </script>
 
     <title>{tituloCompleto}</title>
     <meta name="description" content={descripcion} />
@@ -61,42 +108,148 @@ const urlImagenAbs = new URL(urlImagen, origenCanonico).href;
 
     <slot name="head" />
   </head>
-  <body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col antialiased">
-    <header class="sticky top-0 z-20 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/60">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-        <a href="/" class="flex items-center gap-3">
-          <span class="font-black text-xl tracking-tight text-amber-400">CarFlip</span>
-          <span class="hidden sm:block text-xs text-zinc-600 font-medium">Comparador de autos Chile</span>
+  <body class="bg-canvas text-ink min-h-screen flex flex-col antialiased">
+    <!-- La barra se funde con el canvas: sin borde ni blur. -->
+    <header class="sticky top-0 z-20 bg-canvas">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-12 flex items-center justify-between gap-4">
+        <a href="/" class="flex items-center gap-4 shrink-0">
+          <span class="text-base font-normal text-ink">CarFlip</span>
+          <span class="hidden lg:block text-base ">Comparador de autos Chile</span>
         </a>
-        <nav aria-label="Navegación principal">
-          <ul class="flex gap-5 text-sm font-medium text-zinc-500">
-            <li>
-              <a href="/" class="hover:text-zinc-200 transition-colors duration-150">Avisos</a>
-            </li>
-            <li>
-              <a href="/deals" class="hover:text-green-400 transition-colors duration-150">Deals</a>
-            </li>
-            <li>
-              <a href="/mercado" class="hover:text-zinc-200 transition-colors duration-150">Mercado</a>
-            </li>
-            <li>
-              <a href="/como-funciona" class="hover:text-zinc-200 transition-colors duration-150">Cómo funciona</a>
-            </li>
-          </ul>
-        </nav>
+
+        <div class="flex items-center gap-3 sm:gap-4">
+          <nav aria-label="Navegación principal">
+            <ul class="flex gap-3 sm:gap-4 text-base text-ink">
+              {enlacesNav.map(({ href, texto, visible }) => (
+                <li class={visible}>
+                  <a
+                    href={href}
+                    aria-current={esRutaActiva(href) ? 'page' : undefined}
+                    class={esRutaActiva(href)
+                      ? 'text-ink underline underline-offset-4'
+                      : ' hover:text-ink transition-colors duration-150'}
+                  >
+                    {texto}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <!-- Toggle de tema. El claro es el principal; se guarda la elección. -->
+          <button
+            type="button"
+            id="tema-toggle"
+            class="shrink-0 -mr-2 h-10 w-10 flex items-center justify-center hover:opacity-70 transition-opacity cursor-pointer"
+            aria-label="Cambiar a tema oscuro"
+          >
+            <svg class="text-sun-line dark:hidden" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4" class="fill-sun-signal"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+            </svg>
+            <svg class="hidden text-moon-signal dark:block" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </header>
 
-    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 lg:py-block">
       <slot />
     </main>
 
-    <footer class="border-t border-zinc-800/60 mt-10">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex items-center justify-between">
-        <span class="text-xs text-zinc-600">&copy; {new Date().getFullYear()} CarFlip</span>
-        <span class="text-xs text-zinc-700">Comparador de precios de autos en Chile</span>
+    <!-- Único bloque del sitio con el acento blue-signal: identifica el footer
+         como bloque de marca, no de producto. Todo el texto usa ink-on-tint
+         (blanco fijo), no ink, que en tema claro sería negro y perdería
+         contraste sobre este azul. -->
+    <footer class="mt-section bg-blue-signal">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-block">
+        <div class="flex flex-col gap-block lg:flex-row lg:justify-between">
+          <div class="max-w-sm">
+            <span class="text-2xl font-semibold text-ink-on-tint">CarFlip</span>
+            <p class="text-sm text-ink-on-tint leading-relaxed mt-2">
+              Comparador de autos usados en Chile. Un proyecto sin fines de lucro que reúne
+              los avisos de los principales portales para que compares precios en un solo lugar.
+            </p>
+            <a
+              href="/quienes-somos"
+              class="inline-block text-base text-ink-on-tint underline underline-offset-4 mt-element"
+            >
+              Quiénes somos →
+            </a>
+          </div>
+
+          <div class="flex flex-wrap gap-block">
+            <nav aria-label="Producto">
+              <h2 class="text-sm font-semibold text-ink-on-tint uppercase tracking-widest mb-element">Producto</h2>
+              <ul class="space-y-2">
+                <li><a href="/avisos" class="text-base text-ink-on-tint hover:underline underline-offset-4">Avisos</a></li>
+                <li><a href="/deals" class="text-base text-ink-on-tint hover:underline underline-offset-4">Deals</a></li>
+                <li><a href="/mercado" class="text-base text-ink-on-tint hover:underline underline-offset-4">Mercado</a></li>
+                <li>
+                  <a href={enlaceSesion.href} rel="nofollow" class="text-base text-ink-on-tint hover:underline underline-offset-4">
+                    {enlaceSesion.texto}
+                  </a>
+                </li>
+              </ul>
+            </nav>
+
+            <nav aria-label="Compañía">
+              <h2 class="text-sm font-semibold text-ink-on-tint uppercase tracking-widest mb-element">Compañía</h2>
+              <ul class="space-y-2">
+                <li><a href="/como-funciona#preguntas-frecuentes" class="text-base text-ink-on-tint hover:underline underline-offset-4">Preguntas Frecuentes</a></li>
+                <li><a href="/contacto" class="text-base text-ink-on-tint hover:underline underline-offset-4">Contáctanos</a></li>
+                <li>
+                  <a
+                    href="https://github.com/VolutusDevGroup"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-2 text-base text-ink-on-tint hover:underline underline-offset-4">Github</a></li>
+                <li>
+                  <a
+                    href="https://volutus.cl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-2 text-base text-ink-on-tint hover:underline underline-offset-4">Volutus</a></li>
+              </ul>
+            </nav>
+
+            <nav aria-label="Legal">
+              <h2 class="text-sm font-semibold text-ink-on-tint uppercase tracking-widest mb-element">Legal</h2>
+              <ul class="space-y-2">
+                <li><a href="/condiciones-de-uso" class="text-base text-ink-on-tint hover:underline underline-offset-4">Condiciones de Uso</a></li>
+                <li><a href="/privacidad" class="text-base text-ink-on-tint hover:underline underline-offset-4">Términos de privacidad</a></li>
+                <li><a href="/legal" class="text-base text-ink-on-tint hover:underline underline-offset-4">Legales</a></li>
+              </ul>
+            </nav>
+          </div>
+        </div>
+
+        <div class="mt-block pt-element border-t border-ink-on-tint/15 flex flex-wrap gap-2 items-center justify-between">
+          <span class="text-sm text-ink-on-tint">&copy; {new Date().getFullYear()} CarFlip. Todos los derechos reservados.</span>
+        </div>
       </div>
     </footer>
+
+    <script is:inline>
+      (() => {
+        const raiz = document.documentElement;
+        const boton = document.getElementById('tema-toggle');
+        const rotular = () => {
+          const oscuro = raiz.dataset.theme === 'dark';
+          boton?.setAttribute('aria-label', oscuro ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro');
+        };
+        rotular();
+        boton?.addEventListener('click', () => {
+          const oscuro = raiz.dataset.theme === 'dark';
+          if (oscuro) delete raiz.dataset.theme;
+          else raiz.dataset.theme = 'dark';
+          try { localStorage.setItem('tema', oscuro ? 'claro' : 'oscuro'); } catch (_) {}
+          rotular();
+        });
+      })();
+    </script>
 
     <Analytics />
   </body>

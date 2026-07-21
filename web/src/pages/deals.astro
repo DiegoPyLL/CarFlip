@@ -8,7 +8,7 @@ const params = Astro.url.searchParams;
 
 // Filtros propios de esta página (la tabla deals incluye mercadolibre,
 // a diferencia de FiltrosAviso del listado general).
-const fuentesValidas: FuenteDeal[] = ['autocosmos', 'yapo', 'mercadolibre'];
+const fuentesValidas: FuenteDeal[] = ['autocosmos', 'yapo', 'mercadolibre', 'particular'];
 const categoriasValidas: CategoriaDeal[] = ['oportunidad_clara', 'buen_precio', 'revisar'];
 
 const fuenteParam = params.get('fuente') ?? '';
@@ -31,18 +31,31 @@ const puntajePromedio = conPuntaje.length > 0
   ? conPuntaje.reduce((acc, d) => acc + (d.puntaje ?? 0), 0) / conPuntaje.length
   : null;
 
-const fuentes = [
-  { value: '', label: 'Todas' },
-  { value: 'autocosmos', label: 'Autocosmos' },
-  { value: 'yapo', label: 'Yapo' },
-  { value: 'mercadolibre', label: 'MercadoLibre' },
-];
-
-const categorias = [
-  { value: '', label: 'Todas' },
-  { value: 'oportunidad_clara', label: 'Oportunidad' },
-  { value: 'buen_precio', label: 'Buen precio' },
-  { value: 'revisar', label: 'Revisar' },
+// Ambos grupos de filtros comparten markup: se declaran como datos y se recorren.
+const gruposFiltro = [
+  {
+    name: 'fuente',
+    label: 'Fuente',
+    activo: fuente ?? '',
+    opciones: [
+      { value: '', label: 'Todas' },
+      { value: 'autocosmos', label: 'Autocosmos' },
+      { value: 'yapo', label: 'Yapo' },
+      { value: 'mercadolibre', label: 'MercadoLibre' },
+      { value: 'particular', label: 'Particulares' },
+    ],
+  },
+  {
+    name: 'categoria',
+    label: 'Categoría',
+    activo: categoria ?? '',
+    opciones: [
+      { value: '', label: 'Todas' },
+      { value: 'oportunidad_clara', label: 'Oportunidad' },
+      { value: 'buen_precio', label: 'Buen precio' },
+      { value: 'revisar', label: 'Revisar' },
+    ],
+  },
 ];
 ---
 
@@ -52,101 +65,81 @@ const categorias = [
 >
 
   <!-- Header de sección -->
-  <div class="mb-8">
-    <p class="text-xs font-semibold text-green-500 uppercase tracking-widest mb-2">Oportunidades de compra</p>
-    <h1 class="text-3xl font-black text-zinc-100 mb-3">Deals</h1>
-    <p class="text-sm text-zinc-500 max-w-xl">
+  <div class="mb-section">
+    <p class="text-base  uppercase tracking-widest mb-element">Oportunidades de compra</p>
+    <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-element">Deals</h1>
+    <p class="text-base  max-w-xl">
       Autos publicados bajo su precio de mercado (comparados contra avisos similares de la misma
       marca, modelo y año). Cada deal es evaluado por IA, que lee el aviso para detectar riesgos.
     </p>
   </div>
 
-  <!-- Stats strip -->
+  <!-- Stats: pares label/valor apilados, sin cajas ni separadores -->
   {totalDeals > 0 && (
-    <div class="flex flex-wrap items-baseline gap-x-5 gap-y-1.5 mb-6 pb-5 border-b border-zinc-800/60">
-      <span class="flex items-baseline gap-2">
-        <span class="text-2xl font-black text-zinc-100 tabular-nums">{totalDeals}</span>
-        <span class="text-sm text-zinc-600">deals activos</span>
-      </span>
-      <span class="text-zinc-800 hidden sm:block">·</span>
-      <span class="flex items-baseline gap-2">
-        <span class="text-lg font-bold text-green-500 tabular-nums">{totalOportunidades}</span>
-        <span class="text-sm text-zinc-600">oportunidades claras</span>
-      </span>
+    <div class="flex flex-wrap gap-x-block gap-y-element mb-block pb-block border-b border-line">
+      <div>
+        <p class="text-base ">Deals activos</p>
+        <p class="text-base text-ink tabular-nums">{totalDeals}</p>
+      </div>
+      <div>
+        <p class="text-base ">Oportunidades claras</p>
+        <p class="text-base text-ink tabular-nums">{totalOportunidades}</p>
+      </div>
       {puntajePromedio !== null && (
-        <>
-          <span class="text-zinc-800 hidden sm:block">·</span>
-          <span class="flex items-baseline gap-2">
-            <span class="text-lg font-bold text-amber-400 tabular-nums">{puntajePromedio.toFixed(0)}/100</span>
-            <span class="text-sm text-zinc-600">puntaje promedio</span>
-          </span>
-        </>
+        <div>
+          <p class="text-base ">Puntaje promedio</p>
+          <p class="text-base text-ink tabular-nums">{puntajePromedio.toFixed(0)}/100</p>
+        </div>
       )}
     </div>
   )}
 
   <!-- Filtros -->
-  <form method="GET" action="/deals" class="mb-6 space-y-3">
-    <div class="flex items-center gap-2">
-      <span class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Fuente</span>
-      <div class="flex flex-wrap gap-1">
-        {fuentes.map(({ value, label }) => (
-          <label class="cursor-pointer select-none">
-            <input
-              type="radio"
-              name="fuente"
-              value={value}
-              class="sr-only peer"
-              checked={fuente === value || (!fuente && value === '')}
-              onchange="this.form.submit()"
-            />
-            <span class="inline-block px-3 py-1.5 text-xs font-semibold rounded-lg border border-zinc-700 text-zinc-500 peer-checked:bg-amber-400 peer-checked:text-zinc-900 peer-checked:border-amber-400 hover:border-zinc-500 hover:text-zinc-300 transition-all">
-              {label}
-            </span>
-          </label>
-        ))}
-      </div>
-    </div>
-    <div class="flex items-center gap-2">
-      <span class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Categoría</span>
-      <div class="flex flex-wrap gap-1">
-        {categorias.map(({ value, label }) => (
-          <label class="cursor-pointer select-none">
-            <input
-              type="radio"
-              name="categoria"
-              value={value}
-              class="sr-only peer"
-              checked={categoria === value || (!categoria && value === '')}
-              onchange="this.form.submit()"
-            />
-            <span class="inline-block px-3 py-1.5 text-xs font-semibold rounded-lg border border-zinc-700 text-zinc-500 peer-checked:bg-green-500 peer-checked:text-zinc-950 peer-checked:border-green-500 hover:border-zinc-500 hover:text-zinc-300 transition-all">
-              {label}
-            </span>
-          </label>
-        ))}
-      </div>
-    </div>
+  <form method="GET" action="/deals" class="mb-block space-y-element">
+    {gruposFiltro.map(({ name, label, activo, opciones }) => (
+      <fieldset class="flex flex-wrap items-center gap-element">
+        <legend class="sr-only">{label}</legend>
+        <span class="text-sm  uppercase tracking-wider shrink-0 w-full sm:w-24" aria-hidden="true">{label}</span>
+        <div class="flex flex-wrap gap-2">
+          {opciones.map(({ value, label: opcion }) => (
+            <label class="cursor-pointer select-none shrink-0">
+              <input
+                type="radio"
+                name={name}
+                value={value}
+                class="sr-only peer"
+                checked={activo === value}
+                onchange="this.form.submit()"
+              />
+              <span class="block px-3 py-2 text-base border border-line-strong  peer-checked:bg-ink peer-checked:text-canvas peer-checked:border-ink peer-focus-visible:border-scarlet-signal hover:border-ink hover:text-ink transition-colors whitespace-nowrap">
+                {opcion}
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+    ))}
   </form>
 
   <!-- Grid de deals -->
   {totalDeals > 0 ? (
     <div
       id="deals-grid"
-      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6"
+      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-element"
     >
       {deals.map((deal) => (
         <CardDeal deal={deal} />
       ))}
     </div>
   ) : (
-    <div class="text-center py-24 border border-zinc-800/60 rounded-xl">
-      <p class="text-zinc-500 font-medium">Sin deals disponibles ahora</p>
-      <p class="text-sm text-zinc-700 mt-2 max-w-xs mx-auto">
+    <div class="py-section border border-line p-element">
+      <p class="text-2xl text-ink">Sin deals disponibles ahora</p>
+      <p class="text-base  mt-element max-w-md">
         Los deals aparecen cuando detectamos un aviso publicado bajo el precio de mercado
         de vehículos comparables. Vuelve a revisar después de la próxima actualización.
       </p>
-      <a href="/" class="mt-5 inline-block text-sm text-amber-400 hover:text-amber-300 transition-colors">
+      <a href="/avisos" class="mt-block inline-flex items-center gap-2 text-base text-ink hover: transition-colors">
+        <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
         Ver todos los avisos
       </a>
     </div>

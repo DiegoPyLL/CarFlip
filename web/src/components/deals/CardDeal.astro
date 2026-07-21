@@ -10,18 +10,25 @@ interface Props {
 const { deal } = Astro.props;
 const urlImagen = resolverUrlImagen(deal.url_imagen);
 
+// El aviso de un particular ya vive en CarFlip: su `url` es la canónica propia,
+// así que no se abre en pestaña nueva ni se anuncia como enlace a otro portal.
+const esInterno = deal.fuente === 'particular';
+
 const fuenteLabels: Record<Deal['fuente'], string> = {
   autocosmos: 'Autocosmos',
   yapo: 'Yapo',
   mercadolibre: 'MercadoLibre',
+  particular: 'Particular',
 };
 
+// Jerarquía por relleno y borde, no por color: la escala es acromática y la
+// etiqueta de texto siempre acompaña, así que no se pierde información.
 const categoriaEstilos: Record<CategoriaDeal | 'sin_evaluar', { label: string; clases: string }> = {
-  oportunidad_clara: { label: 'Oportunidad', clases: 'bg-green-500 text-zinc-950' },
-  buen_precio:       { label: 'Buen precio', clases: 'bg-amber-400 text-zinc-900' },
-  revisar:           { label: 'Revisar',     clases: 'bg-zinc-700 text-zinc-200' },
-  descartar:         { label: 'Descartar',   clases: 'bg-red-500 text-zinc-950' },
-  sin_evaluar:       { label: 'Sin evaluar', clases: 'bg-zinc-800 text-zinc-400' },
+  oportunidad_clara: { label: 'Oportunidad', clases: 'bg-ink text-canvas' },
+  buen_precio:       { label: 'Buen precio', clases: 'bg-canvas text-ink border border-ink' },
+  revisar:           { label: 'Revisar',     clases: 'bg-canvas  border border-muted' },
+  descartar:         { label: 'Descartar',   clases: 'bg-canvas  border border-line' },
+  sin_evaluar:       { label: 'Sin evaluar', clases: 'bg-canvas  border border-line' },
 };
 
 const badge = categoriaEstilos[deal.categoria ?? 'sin_evaluar'];
@@ -37,16 +44,16 @@ const metaItems = [
 ].filter(Boolean);
 ---
 
-<article class="group bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800/50 hover:border-zinc-700 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-zinc-950/60">
+<article class="group border border-line hover:border-ink transition-colors duration-200">
   <a
     href={deal.url}
-    target="_blank"
-    rel="noopener noreferrer"
-    aria-label={`Ver ${deal.titulo} en ${fuenteLabels[deal.fuente]}`}
+    target={esInterno ? undefined : '_blank'}
+    rel={esInterno ? undefined : 'noopener noreferrer'}
+    aria-label={esInterno ? `Ver ${deal.titulo}` : `Ver ${deal.titulo} en ${fuenteLabels[deal.fuente]}`}
     class="block"
   >
     <!-- Imagen con badge de categoría IA -->
-    <div class="aspect-[16/10] bg-zinc-800 relative overflow-hidden">
+    <div class="aspect-[16/10] bg-surface relative">
       {urlImagen ? (
         <img
           src={urlImagen}
@@ -54,72 +61,72 @@ const metaItems = [
           width={640}
           height={400}
           loading="lazy"
-          class="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300 ease-out"
+          class="w-full h-full object-cover"
         />
       ) : (
-        <div class="w-full h-full flex items-center justify-center text-zinc-700 text-sm">Sin imagen</div>
+        <div class="w-full h-full flex items-center justify-center  text-base">Sin imagen</div>
       )}
 
       <!-- Badge de categoría: protagonista en esta pantalla -->
-      <div class="absolute top-3 right-3">
-        <span class={`text-sm font-black px-3 py-1.5 rounded-lg shadow-lg ${badge.clases}`}>
+      <div class="absolute top-element right-element">
+        <span class={`text-base px-3 py-1 ${badge.clases}`}>
           {badge.label}
         </span>
       </div>
 
       <!-- Fuente -->
-      <div class="absolute top-3 left-3">
-        <span class="text-xs font-semibold px-2.5 py-1 rounded bg-zinc-950/75 text-zinc-300 backdrop-blur-xs">
+      <div class="absolute top-element left-element">
+        <span class="text-sm px-2 py-0.5 bg-canvas/75 ">
           {fuenteLabels[deal.fuente]}
         </span>
       </div>
     </div>
 
     <!-- Contenido -->
-    <div class="p-5">
-      <h2 class="text-base font-medium text-zinc-200 line-clamp-2 leading-snug mb-4">
+    <div class="p-element">
+      <h2 class="text-base  line-clamp-2 leading-snug mb-4">
         {deal.titulo}
       </h2>
 
       <!-- Precio + puntaje IA -->
       <div class="flex items-baseline justify-between gap-2 mb-1.5">
-        <span class="text-2xl font-bold text-amber-400 tabular-nums">
+        <span class="text-2xl text-ink tabular-nums">
           {formatearPrecio(deal.precio, deal.moneda)}
         </span>
         {deal.puntaje !== null && (
-          <span class="text-base font-black text-zinc-300 tabular-nums" title="Puntaje IA (0-100)">
-            {deal.puntaje}<span class="text-xs font-semibold text-zinc-600">/100</span>
+          <span class="text-base text-ink tabular-nums" title="Puntaje IA (0-100)">
+            {deal.puntaje}<span class="">/100</span>
           </span>
         )}
       </div>
 
       <!-- Precio vs mercado -->
       {pctMercado !== null && pctMercado < 0 && (
-        <p class="text-sm font-semibold text-green-500 mb-1 tabular-nums">
+        <p class="text-base text-ink mb-1 tabular-nums">
           ▼ {Math.abs(pctMercado).toFixed(1)}% vs mercado
           {deal.precio_mercado !== null && (
-            <span class="text-zinc-600 font-normal"> ({formatearPrecio(deal.precio_mercado, deal.moneda)})</span>
+            <span class=""> ({formatearPrecio(deal.precio_mercado, deal.moneda)})</span>
           )}
         </p>
       )}
 
       <!-- Bajada de precio propia del aviso -->
       {deal.delta_pct !== null && deal.delta_pct < 0 && (
-        <p class="text-xs text-green-600 mb-1 tabular-nums">
+        <p class="text-base  mb-1 tabular-nums">
           Bajó {Math.abs(deal.delta_pct).toFixed(1)}% desde que lo vimos
         </p>
       )}
 
       <!-- Riesgos detectados por la IA -->
       {riesgosVisibles.length > 0 && (
-        <div class="flex flex-wrap gap-1.5 mt-3 mb-1">
+        <div class="flex flex-wrap gap-2 mt-3 mb-1">
           {riesgosVisibles.map((riesgo) => (
-            <span class="text-xs font-medium px-2 py-1 rounded bg-red-500/10 text-red-400 border border-red-500/20">
+            <span class="text-sm px-2 py-0.5  border border-line">
               {riesgo}
             </span>
           ))}
           {riesgosExtra > 0 && (
-            <span class="text-xs font-medium px-2 py-1 rounded bg-zinc-800 text-zinc-500">
+            <span class="text-sm px-2 py-0.5  border border-line">
               +{riesgosExtra}
             </span>
           )}
@@ -128,11 +135,11 @@ const metaItems = [
 
       <!-- Resumen IA -->
       {deal.resumen && (
-        <p class="text-sm text-zinc-500 line-clamp-2 mt-3 mb-1">{deal.resumen}</p>
+        <p class="text-base  line-clamp-2 mt-3 mb-1">{deal.resumen}</p>
       )}
 
       {metaItems.length > 0 && (
-        <p class="text-sm text-zinc-600 truncate mt-3">{metaItems.join(' · ')}</p>
+        <p class="text-base  truncate mt-3">{metaItems.join(' · ')}</p>
       )}
     </div>
   </a>

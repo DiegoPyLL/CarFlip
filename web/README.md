@@ -20,13 +20,17 @@ npm install
 npm run dev   # → http://localhost:4321
 ```
 
-`web/.env` (las mismas 3 en Vercel como variables de servidor):
+El `.env` vive en la raíz del repo (no en `web/`), compartido con el backend
+Python — Astro lo lee de ahí vía `envDir: '../'` en `astro.config.mjs`. Las
+mismas variables van también en Vercel como variables de servidor:
 
 | Variable | Uso |
 |---|---|
 | `SUPABASE_URL` | URL del proyecto Supabase |
 | `SUPABASE_SERVICE_KEY` | Clave service_role, solo lecturas (pendiente migrar a anon + RLS) |
 | `CDN_BASE_URL` | Dominio público de R2 para las imágenes |
+| `RESEND_API_KEY` | API key de Resend para el formulario de `/contacto` |
+| `CONTACT_EMAIL` | Correo destino de los mensajes de `/contacto` |
 
 ## Estructura
 

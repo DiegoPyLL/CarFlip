@@ -1,0 +1,122 @@
+---
+import Base from '@layouts/Base.astro';
+import CardAviso from '@components/avisos/CardAviso.astro';
+import FiltrosBarra from '@components/avisos/FiltrosBarra.astro';
+import FiltrosSidebar from '@components/avisos/FiltrosSidebar.astro';
+import Paginacion from '@components/avisos/Paginacion.astro';
+import { obtenerAvisos, obtenerFiltrosDisponibles } from '@lib/db';
+import { parsearFiltrosUrl } from '@lib/filtros';
+import { normalizarBusqueda } from '@lib/busqueda';
+
+const params = Astro.url.searchParams;
+const filtros = parsearFiltrosUrl(params);
+
+// Obtenemos las marcas disponibles primero para poder normalizar el término de búsqueda.
+// Así "peugot" → "Peugeot" antes de hacer la query a la BD.
+const disponibles = await obtenerFiltrosDisponibles();
+
+if (filtros.modelo) {
+  filtros.modelo = normalizarBusqueda(filtros.modelo, disponibles.marcas);
+}
+
+const resultado = await obtenerAvisos(filtros);
+
+const ordenOptions = [
+  { value: 'reciente',    label: 'Más reciente' },
+  { value: 'precio_asc',  label: 'Precio: menor a mayor' },
+  { value: 'precio_desc', label: 'Precio: mayor a menor' },
+  { value: 'km_asc',      label: 'Menor kilometraje' },
+];
+---
+
+<Base
+  titulo="Avisos — Autos en venta en Chile"
+  descripcion="Todos los autos en venta en Chile en un solo lugar. Filtra por marca, año, kilometraje y precio sobre Autocosmos, Yapo, AutosUsados y Checkeados."
+>
+
+  <div class="mb-block">
+    <p class="text-base  uppercase tracking-widest mb-element">Listado completo</p>
+    <h1 class="text-5xl sm:text-7xl text-ink leading-none">Avisos</h1>
+  </div>
+
+  <!-- Único form que engloba todos los filtros -->
+  <form method="GET" action="/avisos" id="filtros-form">
+
+    <!-- Barra superior: fuente + marca + año -->
+    <FiltrosBarra filtros={filtros} disponibles={disponibles} />
+
+    <!-- Layout de dos columnas (en mobile se apila verticalmente) -->
+    <div class="flex flex-col lg:flex-row gap-element items-start">
+
+      <!-- Sidebar izquierdo (filtros avanzados) -->
+      <FiltrosSidebar filtros={filtros} disponibles={disponibles} />
+
+      <!-- Contenido principal -->
+      <div class="flex-1 min-w-0">
+
+        <!-- Barra: ordenar + contador -->
+        <div class="flex flex-wrap items-center justify-between gap-element mb-element">
+          <p class="text-base ">
+            {resultado.total === 0
+              ? 'Sin resultados'
+              : <><span class="text-ink tabular-nums">{resultado.total.toLocaleString('es-CL')}</span> {resultado.total === 1 ? 'aviso' : 'avisos'}</>
+            }
+          </p>
+          <div class="flex items-center gap-2">
+            <label for="orden" class="text-base  hidden sm:block shrink-0">
+              Ordenar por
+            </label>
+            <select
+              id="orden"
+              name="orden"
+              aria-label="Ordenar por"
+              onchange="document.getElementById('filtros-form').submit()"
+              class="text-base bg-canvas border border-line-strong px-3 py-2 text-ink appearance-none cursor-pointer focus:outline-hidden focus:border-scarlet-signal transition-colors"
+            >
+              {ordenOptions.map(({ value, label }) => (
+                <option
+                  value={value}
+                  selected={filtros.orden === value || (!filtros.orden && value === 'reciente')}
+                >
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <!-- Grid de avisos -->
+        {resultado.items.length > 0 ? (
+          <div
+            id="listings-grid"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-element"
+          >
+            {resultado.items.map((aviso) => (
+              <CardAviso aviso={aviso} />
+            ))}
+          </div>
+        ) : (
+          <div class="py-section">
+            <p class="text-2xl text-ink">Sin resultados para estos filtros</p>
+            <a
+              href="/avisos"
+              class="mt-element inline-flex items-center gap-2 text-base text-ink hover: transition-colors"
+            >
+              <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+              Ver todos los avisos
+            </a>
+          </div>
+        )}
+
+        <!-- Paginación -->
+        <Paginacion
+          pagina={resultado.pagina}
+          total_paginas={resultado.total_paginas}
+          params={params}
+        />
+
+      </div>
+    </div>
+  </form>
+
+</Base>

@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     # Detección de deals
     deal_threshold_pct: float = 15.0        # % bajo la mediana del grupo para ser candidato
     deal_min_comparables: int = 5           # mínimo de avisos por grupo marca/modelo/año
+    deal_min_comparables_particular: int = 12  # más exigente: el aviso de un particular no lo filtró ningún portal
     deal_max_candidatos: int = 200          # tope de candidatos por corrida
     deal_lote_ia: int = 10                  # candidatos por request a Groq
     deal_recategorizar_dias: int = 7        # re-categorizar aunque no cambie el precio tras N días

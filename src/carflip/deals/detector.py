@@ -30,6 +30,7 @@ async def _obtener_candidatos(session: AsyncSession) -> list[CandidatoDeal]:
         {
             "umbral_pct": settings.deal_threshold_pct,
             "min_comparables": settings.deal_min_comparables,
+            "min_comparables_particular": settings.deal_min_comparables_particular,
             "max_candidatos": settings.deal_max_candidatos,
         },
     )

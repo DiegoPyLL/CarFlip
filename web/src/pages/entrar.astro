@@ -1,0 +1,151 @@
+---
+import Base from '@layouts/Base.astro';
+import { rutaInterna } from '@lib/auth/servidor';
+
+// Página utilitaria y fuera del índice: no aporta contenido rastreable y no debe
+// competir con las páginas de producto en los resultados de búsqueda.
+const volver = rutaInterna(Astro.url.searchParams.get('volver'), '/cuenta');
+
+if (Astro.locals.usuario) return Astro.redirect(volver);
+
+const enviado = Astro.url.searchParams.has('enviado');
+// Acuse de recibo del borrado de cuenta: aterriza aquí porque ya no hay sesión
+// a la que volver, y `/` descarta la querystring al redirigir a /avisos.
+const eliminada = Astro.url.searchParams.has('eliminada');
+const error = Astro.url.searchParams.get('error');
+
+const MENSAJES: Record<string, string> = {
+  credenciales: 'Email o contraseña incorrectos.',
+  'magic-link': 'No pudimos enviar el enlace. Revisa la dirección e inténtalo de nuevo.',
+  google: 'No pudimos iniciar sesión con Google. Inténtalo de nuevo.',
+  sesion: 'El enlace ya se usó o expiró. Pide uno nuevo.',
+  config: 'El inicio de sesión no está disponible en este momento.',
+};
+const mensajeError = error ? (MENSAJES[error] ?? 'No pudimos iniciar sesión. Inténtalo de nuevo.') : null;
+
+const inputCls =
+  'w-full bg-transparent border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
+---
+
+<Base titulo="Entrar" descripcion="Inicia sesión en CarFlip." noindex>
+  <div class="max-w-md mx-auto">
+    <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">Entra.</h1>
+
+    {mensajeError && (
+      <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
+        {mensajeError}
+      </div>
+    )}
+
+    {eliminada && (
+      <div class="mb-element px-6 py-2.5 border border-line-strong text-base text-ink" role="status">
+        Tu cuenta y tus publicaciones fueron eliminadas.
+      </div>
+    )}
+
+    {enviado && (
+      <div class="mb-element px-6 py-2.5 border border-line-strong text-base text-ink" role="status">
+        Si esa dirección tiene una cuenta, te enviamos un enlace para entrar. Revisa tu correo.
+      </div>
+    )}
+
+    <!--
+      Un solo formulario para los dos caminos por correo: el botón principal
+      envía a /api/auth/entrar y el secundario cambia el destino con `formaction`.
+      La contraseña no lleva `required` porque el enlace mágico no la usa; si se
+      envía vacía al primer destino, el servidor responde con el mismo error de
+      credenciales. Sin JavaScript.
+    -->
+    <form method="POST" action="/api/auth/entrar" class="space-y-element">
+      <input type="hidden" name="volver" value={volver} />
+
+      <div>
+        <label for="email" class="flex items-baseline justify-between text-base text-ink mb-2">
+          Email <span class="text-sm text-scarlet-signal">*Requerido</span>
+        </label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          required
+          maxlength="200"
+          autocomplete="email"
+          aria-describedby="err-email"
+          class={`${inputCls} campo`}
+        />
+        <p id="err-email" class="campo-error text-sm text-scarlet-signal mt-1.5">
+          Ingresa un correo electrónico válido.
+        </p>
+      </div>
+
+      <div>
+        <label for="password" class="block text-base text-ink mb-2">Contraseña</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          maxlength="72"
+          autocomplete="current-password"
+          class={inputCls}
+        />
+      </div>
+
+      <div class="flex flex-wrap items-center gap-element pt-2">
+        <button
+          type="submit"
+          class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150"
+        >
+          Entrar
+          <span aria-hidden="true">→</span>
+        </button>
+
+        <button
+          type="submit"
+          formaction="/api/auth/magic-link"
+          class="text-base text-ink underline underline-offset-4 hover:opacity-70 transition-opacity duration-150 cursor-pointer"
+        >
+          Enviarme un enlace por correo
+        </button>
+      </div>
+    </form>
+
+    <div class="flex items-center gap-4 my-block" aria-hidden="true">
+      <span class="flex-1 border-t border-line"></span>
+      <span class="text-sm">o</span>
+      <span class="flex-1 border-t border-line"></span>
+    </div>
+
+    <a
+      href={`/api/auth/google?volver=${encodeURIComponent(volver)}`}
+      rel="nofollow"
+      class="w-full inline-flex items-center justify-center gap-3 text-base text-ink border border-line-strong px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150"
+    >
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+        <path fill="currentColor" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" opacity=".9"/>
+        <path fill="currentColor" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" opacity=".7"/>
+        <path fill="currentColor" d="M3.97 10.72a5.41 5.41 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z" opacity=".5"/>
+        <path fill="currentColor" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" opacity=".85"/>
+      </svg>
+      Continuar con Google
+    </a>
+
+    <p class="mt-block text-base ">
+      ¿No tienes cuenta?
+      <a href="/registro" class="text-ink underline underline-offset-4">Crea una</a>.
+    </p>
+
+    <style>
+      /* Misma validación en vivo sin JS que /contacto: el error aparece cuando
+         el campo queda mal, no en la carga inicial. */
+      .campo-error {
+        display: none;
+      }
+      .campo:user-invalid {
+        border-color: var(--color-scarlet-signal);
+      }
+      .campo:user-invalid ~ .campo-error {
+        display: block;
+      }
+    </style>
+  </div>
+</Base>

@@ -1,20 +1,15 @@
 import { supabase } from './client';
+import { FUENTES_SCRAPEADAS, TABLA_POR_FUENTE } from './fuentes';
 import type {
-  Aviso,
   CategoriaDeal,
   CorridaScrape,
   MetricasOperacion,
   MetricasVehiculos,
 } from '../tipos';
 
-const TABLA_POR_FUENTE: Record<Aviso['fuente'], string> = {
-  autocosmos: 'autocosmos_listings',
-  yapo: 'yapo_listings',
-  autosusados: 'autosusados_listings',
-  checkeados: 'checkeados_listings',
-};
-
-const FUENTES = Object.keys(TABLA_POR_FUENTE) as Aviso['fuente'][];
+// Este dashboard mide el pipeline de scraping: corridas, fallas y fotos. Un
+// aviso de particular no pasa por ahí, así que se queda fuera de sus KPIs.
+const FUENTES = FUENTES_SCRAPEADAS;
 
 const MAX_CORRIDAS = 60;
 const MAX_FALLAS = 10000;

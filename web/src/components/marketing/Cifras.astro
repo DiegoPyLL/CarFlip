@@ -1,0 +1,23 @@
+---
+// Grilla de cifras destacadas, compartida por /como-funciona y /quienes-somos.
+// Números en tabular-nums para que la columna quede alineada.
+interface Cifra {
+  valor: string;
+  label: string;
+}
+
+interface Props {
+  cifras: Cifra[];
+}
+
+const { cifras } = Astro.props;
+---
+
+<div class="grid grid-cols-2 sm:grid-cols-3 gap-element sm:gap-block">
+  {cifras.map(({ valor, label }) => (
+    <div class="min-w-0">
+      <p class="text-2xl sm:text-3xl text-ink tabular-nums leading-none break-words">{valor}</p>
+      <p class="text-base  mt-2">{label}</p>
+    </div>
+  ))}
+</div>

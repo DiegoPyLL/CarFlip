@@ -1,4 +1,5 @@
 import { supabase, POR_PAGINA } from './client';
+import { FUENTES, FUENTES_SCRAPEADAS, TABLA_POR_FUENTE, soloPublicados } from './fuentes';
 import type { Aviso, FiltrosAviso, PaginaResultado, FiltrosDisponibles } from '../tipos';
 
 type RawAviso = {
@@ -23,15 +24,6 @@ type RawAviso = {
   ultima_vez_visto: string | null;
 };
 
-const TABLA_POR_FUENTE: Record<Aviso['fuente'], string> = {
-  autocosmos: 'autocosmos_listings',
-  yapo: 'yapo_listings',
-  autosusados: 'autosusados_listings',
-  checkeados: 'checkeados_listings',
-};
-
-const FUENTES = Object.keys(TABLA_POR_FUENTE) as Aviso['fuente'][];
-
 function mapearAviso(row: RawAviso, fuente: Aviso['fuente']): Aviso {
   return {
     ...row,
@@ -41,6 +33,15 @@ function mapearAviso(row: RawAviso, fuente: Aviso['fuente']): Aviso {
     primera_vez_visto: row.primera_vez_visto ? new Date(row.primera_vez_visto) : null,
     ultima_vez_visto: row.ultima_vez_visto ? new Date(row.ultima_vez_visto) : null,
   } as unknown as Aviso;
+}
+
+/**
+ * Query base de una fuente, ya con el filtro de estado que piden los
+ * particulares. Devuelve `any` igual que el resto de los constructores de este
+ * módulo: con la columna en una variable, supabase-js no puede inferir la fila.
+ */
+function desde(fuente: Aviso['fuente'], columnas: string, opciones?: { count: 'exact' }): any {
+  return soloPublicados(supabase.from(TABLA_POR_FUENTE[fuente]).select(columnas, opciones), fuente);
 }
 
 function aplicarFiltros(query: any, filtros: FiltrosAviso) {
@@ -87,13 +88,13 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
 
   if (filtros.fuente) {
     const fuente = filtros.fuente;
-    let q = supabase.from(TABLA_POR_FUENTE[fuente]).select('*', { count: 'exact' });
+    let q = desde(fuente, '*', { count: 'exact' });
     q = aplicarFiltros(q, filtros);
     q = aplicarOrden(q, filtros.orden);
     q = q.range(offset, offset + POR_PAGINA - 1);
     const { data, count, error } = await q;
     if (error) throw error;
-    const items = (data ?? []).map((r) => mapearAviso(r as RawAviso, fuente));
+    const items = (data ?? []).map((r: RawAviso) => mapearAviso(r, fuente));
     const total = count ?? 0;
     return { items, total, pagina, total_paginas: Math.ceil(total / POR_PAGINA), por_pagina: POR_PAGINA };
   }
@@ -101,7 +102,7 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
   // Todas las fuentes: una query por tabla en paralelo, mezcladas y ordenadas en memoria
   const resultados = await Promise.all(
     FUENTES.map((fuente) => {
-      let q = supabase.from(TABLA_POR_FUENTE[fuente]).select('*');
+      let q = desde(fuente, '*');
       q = aplicarFiltros(q, filtros);
       q = aplicarOrden(q, filtros.orden);
       return q;
@@ -111,7 +112,7 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
   const combined: Aviso[] = [];
   resultados.forEach(({ data, error }, i) => {
     if (error) throw error;
-    combined.push(...(data ?? []).map((r) => mapearAviso(r as RawAviso, FUENTES[i])));
+    combined.push(...(data ?? []).map((r: RawAviso) => mapearAviso(r, FUENTES[i])));
   });
 
   const ordenado = ordenarCombinado(combined, filtros.orden);
@@ -120,8 +121,13 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
   return { items, total, pagina, total_paginas: Math.ceil(total / POR_PAGINA), por_pagina: POR_PAGINA };
 }
 
+/**
+ * Escaneo por id sobre las tablas scrapeadas. Los particulares quedan fuera a
+ * propósito: las secuencias son independientes por tabla, así que dos fuentes
+ * pueden compartir id, y por eso tienen su propia ruta `/auto/p/[id]`.
+ */
 export async function obtenerAviso(id: number): Promise<Aviso | null> {
-  for (const fuente of FUENTES) {
+  for (const fuente of FUENTES_SCRAPEADAS) {
     const { data } = await supabase.from(TABLA_POR_FUENTE[fuente]).select('*').eq('id', id).maybeSingle();
     if (data) return mapearAviso(data as RawAviso, fuente);
   }
@@ -129,18 +135,13 @@ export async function obtenerAviso(id: number): Promise<Aviso | null> {
 }
 
 export async function obtenerFiltrosDisponibles(): Promise<FiltrosDisponibles> {
+  const columnaDeCadaFuente = (columna: string) =>
+    Promise.all(FUENTES.map((fuente) => desde(fuente, columna).not(columna, 'is', null)));
+
   const [resMarca, resAnio, resCombustible] = await Promise.all([
-    Promise.all(
-      FUENTES.map((fuente) => supabase.from(TABLA_POR_FUENTE[fuente]).select('marca').not('marca', 'is', null))
-    ),
-    Promise.all(
-      FUENTES.map((fuente) => supabase.from(TABLA_POR_FUENTE[fuente]).select('anio').not('anio', 'is', null))
-    ),
-    Promise.all(
-      FUENTES.map((fuente) =>
-        supabase.from(TABLA_POR_FUENTE[fuente]).select('combustible').not('combustible', 'is', null)
-      )
-    ),
+    columnaDeCadaFuente('marca'),
+    columnaDeCadaFuente('anio'),
+    columnaDeCadaFuente('combustible'),
   ]);
 
   const marcas = new Set<string>();

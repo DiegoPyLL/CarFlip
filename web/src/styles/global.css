@@ -1,1 +1,146 @@
 @import "tailwindcss";
+
+/*
+  Sistema visual de DESIGN.md en dos temas. El claro es el principal; el oscuro
+  es la lectura original de "galería nocturna". Los nombres son semánticos
+  (canvas/ink/muted) y no cromáticos: el mismo token cambia de valor por tema.
+
+  Contrastes verificados sobre su propio fondo:
+    claro  → ink 21:1 · muted 6.39:1 · line-strong 4.54:1 · scarlet 4.85:1
+    oscuro → ink 21:1 · muted 8.03:1 · line-strong 8.03:1 · scarlet 4.33:1
+  El escarlata solo alcanza AA de texto normal en claro; en oscuro queda
+  restringido a elementos gráficos y display (ver uso del punto de 6px).
+*/
+:root {
+  color-scheme: light;
+
+  --c-canvas: #ffffff;
+  --c-surface: #f4f4f4;
+  --c-ink: #000000;
+  --c-muted: #5f5f5f;
+  --c-line: #dcdcdc;
+  --c-line-strong: #767676;
+  --c-scarlet: #e4002b;
+
+  /* Acentos editoriales: solo válidos como fondo de bloque (footer,
+     /quienes-somos), nunca como texto sobre canvas — ver DESIGN.md. El mismo
+     valor en ambos temas, igual que scarlet; el texto que va encima usa
+     --c-ink-on-tint (blanco fijo) en vez de --c-ink, que en tema claro sería
+     negro y perdería contraste sobre este azul.
+     --c-blue se profundizó desde el azul pedido originalmente (#43a8ee, solo
+     2.6:1 con blanco) para que el texto blanco llegue a AA (5.07:1). */
+  --c-blue: #1873b3;
+  --c-green: #71db4c;
+  --c-ink-on-tint: #ffffff;
+
+  /* Único par cromático del chrome: el toggle de tema, que muestra el tema
+     activo (sol en claro, luna en oscuro). Valor fijo en ambos temas porque
+     cada icono solo se dibuja sobre un fondo.
+     El amarillo puro rinde 1.85:1 sobre blanco, bajo el 3:1 que pide AA para
+     objetos gráficos, así que el sol se contornea en ámbar (4.07:1) y guarda
+     el amarillo para el relleno del disco. La luna va sobre negro, donde un
+     morado claro rinde 7.7:1 sin necesidad de contorno. */
+  --c-sun: #f5b301;
+  --c-sun-line: #a67500;
+  --c-moon: #a78bfa;
+
+  /* Negro de marca de GitHub (brand.github.com), fijo en ambos temas: es el
+     color del ícono, no un token de nuestro sistema. Sobre blue-signal rinde
+     4.14:1 — bajo el 4.5:1 de texto, pero de sobra sobre el 3:1 que pide AA
+     para objetos gráficos como un ícono. */
+  --c-github: #181717;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --c-canvas: #000000;
+  --c-surface: #101010;
+  --c-ink: #ffffff;
+  --c-muted: #a0a0a0;
+  --c-line: #484848;
+  --c-line-strong: #a0a0a0;
+  --c-scarlet: #e4002b;
+}
+
+/*
+  `inline` hace que las utilidades emitan `var(--c-*)` en vez del valor
+  resuelto, que es lo que permite que sigan la cascada al cambiar de tema.
+*/
+/* Habilita `dark:` sobre nuestro atributo en vez del media query del sistema:
+   el tema lo manda la preferencia guardada, no el SO. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme inline {
+  --color-canvas: var(--c-canvas);
+  --color-surface: var(--c-surface);
+  --color-ink: var(--c-ink);
+  --color-muted: var(--c-muted);
+  --color-line: var(--c-line);
+  --color-line-strong: var(--c-line-strong);
+  --color-scarlet-signal: var(--c-scarlet);
+  --color-blue-signal: var(--c-blue);
+  --color-green-signal: var(--c-green);
+  --color-ink-on-tint: var(--c-ink-on-tint);
+  --color-sun-signal: var(--c-sun);
+  --color-sun-line: var(--c-sun-line);
+  --color-moon-signal: var(--c-moon);
+  --color-github-signal: var(--c-github);
+}
+
+@theme {
+  /* Ritmo vertical adaptado al producto: 120/240px son de portafolio y hundirían
+     un grid de 24 avisos bajo el fold. 120 se reserva a páginas de marketing. */
+  --spacing-element: 16px;
+  --spacing-block: 48px;
+  --spacing-section: 80px;
+  --spacing-editorial: 120px;
+
+  /* Radio 0 en todas las variantes: si sobrevive algún `rounded-*`, queda inerte. */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
+}
+
+/* El peso whisper es el default para no repetirlo en cada elemento.
+   El tracking se aprieta a medida que crece el tamaño. */
+body {
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  /* La banda de deals destacados usa el truco de w-screen/50vw para salirse
+     del contenedor y llegar al borde real de la página. Sin esto, el 100vw
+     (que incluye el ancho de la scrollbar) generaría un scroll horizontal
+     fantasma de unos pocos píxeles. */
+  overflow-x: hidden;
+}
+
+/* Piso de 400px para la vista de escritorio: por debajo de ese ancho el layout
+   deja de comprimirse y la ventana scrollea. Se limita a `pointer: fine` para
+   no imponerlo a los teléfonos de 360-375px, donde generaría scroll horizontal
+   y Lighthouse lo marcaría como "content wider than screen". */
+@media (pointer: fine) {
+  body {
+    min-width: 400px;
+  }
+}
+
+/* El `overflow-x: hidden` de arriba recortaría ese sobrante en vez de dejarlo
+   scrollear, así que se levanta justo en el rango donde el piso actúa. Sobre
+   400px el clip sigue vigente y el scroll fantasma del marquee no reaparece. */
+@media (pointer: fine) and (max-width: 400px) {
+  body {
+    overflow-x: auto;
+  }
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}

@@ -25,6 +25,7 @@ const fuenteLabels: Record<string, string> = {
   yapo: 'Yapo.cl',
   autosusados: 'Autosusados.cl',
   checkeados: 'Checkeados.cl',
+  particular: 'Particular',
 };
 const fuenteLabel = fuenteLabels[aviso.fuente] || aviso.fuente.toUpperCase();
 
@@ -66,19 +67,19 @@ const jsonLd = {
     <!-- Volver -->
     <a
       href={urlVolver}
-      class="inline-flex items-center gap-1.5 text-sm text-zinc-600 hover:text-zinc-300 mb-5 transition-colors"
+      class="inline-flex items-center gap-2 text-base  hover:text-ink mb-block transition-colors"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M19 12H5M12 5l-7 7 7 7"/>
       </svg>
       Volver a avisos
     </a>
 
-    <div class="bg-zinc-900 rounded-xl border border-zinc-800/60 overflow-hidden">
+    <div>
 
-      <!-- Imagen -->
+      <!-- Imagen: obra a sangre, sin radio ni recorte -->
       {urlImagen ? (
-        <div class="aspect-[16/9] bg-zinc-800">
+        <div class="aspect-[16/9] bg-surface">
           <img
             src={urlImagen}
             alt={aviso.titulo}
@@ -90,83 +91,84 @@ const jsonLd = {
           />
         </div>
       ) : (
-        <div class="aspect-[16/9] bg-zinc-800 flex items-center justify-center text-zinc-700 text-sm">
+        <div class="aspect-[16/9] bg-surface flex items-center justify-center  text-base">
           Sin imagen
         </div>
       )}
 
-      <div class="p-6 sm:p-8">
+      <div class="pt-block">
 
         <!-- Badges -->
-        <div class="flex flex-wrap gap-2 mb-4">
-          <span class="text-xs font-semibold px-2.5 py-1 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+        <div class="flex flex-wrap gap-2 mb-element">
+          <span class="text-base px-3 py-1  border border-line">
             {fuenteLabel}
           </span>
           {delta && (
-            <span class={`text-xs font-semibold px-2.5 py-1 rounded ${delta.clases}`}>
+            <span class={`text-base px-3 py-1 border border-line tabular-nums ${delta.clases}`}>
               {delta.texto}
             </span>
           )}
           {aviso.disponible === false && (
-            <span class="text-xs font-semibold px-2.5 py-1 rounded bg-red-950/60 text-red-400 border border-red-900/40">
+            <span class="text-base px-3 py-1  border border-line line-through">
               No disponible
             </span>
           )}
         </div>
 
         <!-- Título y precio -->
-        <h1 class="text-xl sm:text-2xl font-bold text-zinc-100 leading-snug mb-4">
+        <!-- El título es subtítulo; el precio es el display. Separarlos evita que
+             compitan, sobre todo cuando el título del portal ya incluye el precio. -->
+        <h1 class="text-2xl sm:text-3xl  leading-snug mb-element">
           {aviso.titulo}
         </h1>
 
-        <div class="flex flex-wrap items-baseline gap-3 mb-6 pb-6 border-b border-zinc-800/60">
-          <span class="text-3xl sm:text-4xl font-black text-amber-400 tabular-nums">
+        <div class="flex flex-wrap items-baseline gap-element mb-block pb-block border-b border-line">
+          <span class="text-5xl sm:text-7xl text-ink tabular-nums leading-none">
             {aviso.precio ? formatearPrecio(aviso.precio, aviso.moneda) : 'Precio a consultar'}
           </span>
           {aviso.precio_anterior && delta && (
-            <span class="text-sm text-zinc-600 line-through tabular-nums">
+            <span class="text-base  line-through tabular-nums">
               {formatearPrecio(aviso.precio_anterior, aviso.moneda)}
             </span>
           )}
         </div>
 
         <!-- Layout: ficha + CTA -->
-        <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-8">
+        <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-block">
 
-          <!-- Ficha técnica -->
-          <dl class="grid grid-cols-2 gap-x-8 gap-y-4">
+          <!-- Ficha técnica: pares label/valor apilados, sin cajas -->
+          <dl class="grid grid-cols-2 gap-x-block gap-y-element">
             {ficha.map(({ label, valor }) => (
               <div>
-                <dt class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider mb-0.5">
-                  {label}
-                </dt>
-                <dd class="text-sm font-semibold text-zinc-200">{valor}</dd>
+                <dt class="text-base ">{label}</dt>
+                <dd class="text-base text-ink">{valor}</dd>
               </div>
             ))}
           </dl>
 
-          <!-- CTA + fechas -->
-          <div class="flex flex-col gap-4 sm:items-end">
+          <!-- CTA + fechas: el punto escarlata es el único color de esta pantalla -->
+          <div class="flex flex-col gap-element sm:items-end">
             <a
               href={aviso.url}
               rel="noopener noreferrer"
               target="_blank"
-              class="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-zinc-900 text-sm font-bold px-6 py-3 rounded-xl transition-colors duration-150 shrink-0"
+              class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-3 hover:bg-ink hover:text-canvas transition-colors duration-150 shrink-0"
             >
+              <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
               Ver aviso original
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
                 <polyline points="15 3 21 3 21 9"/>
                 <line x1="10" y1="14" x2="21" y2="3"/>
               </svg>
             </a>
 
-            <div class="text-xs text-zinc-600 sm:text-right space-y-1">
+            <div class="text-base  sm:text-right space-y-1">
               {aviso.primera_vez_visto && (
-                <p>Visto por primera vez: <span class="text-zinc-500">{formatearFecha(aviso.primera_vez_visto)}</span></p>
+                <p>Visto por primera vez: <span class="text-ink">{formatearFecha(aviso.primera_vez_visto)}</span></p>
               )}
               {aviso.ultima_vez_visto && (
-                <p>Última actualización: <span class="text-zinc-500">{formatearFecha(aviso.ultima_vez_visto)}</span></p>
+                <p>Última actualización: <span class="text-ink">{formatearFecha(aviso.ultima_vez_visto)}</span></p>
               )}
             </div>
           </div>
@@ -174,9 +176,9 @@ const jsonLd = {
 
         <!-- Descripción -->
         {aviso.descripcion && (
-          <div class="mt-8 pt-6 border-t border-zinc-800/60">
-            <h2 class="text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-3">Descripción</h2>
-            <p class="text-sm text-zinc-400 whitespace-pre-line leading-relaxed max-w-2xl">
+          <div class="mt-section pt-block border-t border-line">
+            <h2 class="text-base  uppercase tracking-wider mb-element">Descripción</h2>
+            <p class="text-base text-ink whitespace-pre-line leading-relaxed max-w-2xl">
               {aviso.descripcion}
             </p>
           </div>

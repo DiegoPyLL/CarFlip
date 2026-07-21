@@ -1,183 +1,173 @@
 ---
 import Base from '@layouts/Base.astro';
-import CardAviso from '@components/avisos/CardAviso.astro';
-import FiltrosBarra from '@components/avisos/FiltrosBarra.astro';
-import FiltrosSidebar from '@components/avisos/FiltrosSidebar.astro';
-import Paginacion from '@components/avisos/Paginacion.astro';
-import { obtenerAvisos, obtenerFiltrosDisponibles, obtenerEstadisticas } from '@lib/db';
-import { parsearFiltrosUrl } from '@lib/filtros';
+import CardDeal from '@components/deals/CardDeal.astro';
+import { obtenerDeals, obtenerEstadisticas } from '@lib/db';
 import { formatearPrecio, formatearFecha } from '@lib/formato';
-import { normalizarBusqueda } from '@lib/busqueda';
 
-const params = Astro.url.searchParams;
-const filtros = parsearFiltrosUrl(params);
-
-// Obtenemos las marcas disponibles primero para poder normalizar el término de búsqueda.
-// Así "peugot" → "Peugeot" antes de hacer la query a la BD.
-const [disponibles, estadisticas] = await Promise.all([
-  obtenerFiltrosDisponibles(),
-  obtenerEstadisticas(),
-]);
-
-if (filtros.modelo) {
-  filtros.modelo = normalizarBusqueda(filtros.modelo, disponibles.marcas);
+// Antes `/` era el listado: los enlaces y backlinks con filtros siguen llegando
+// aquí. Se preservan redirigiendo a /avisos con los mismos parámetros.
+if (Astro.url.search) {
+  return Astro.redirect('/avisos' + Astro.url.search, 301);
 }
 
-const resultado = await obtenerAvisos(filtros);
+const [estadisticas, destacados] = await Promise.all([
+  obtenerEstadisticas(),
+  obtenerDeals(undefined, undefined, 10),
+]);
 
-const ordenOptions = [
-  { value: 'reciente',    label: 'Más reciente' },
-  { value: 'precio_asc',  label: 'Precio: menor a mayor' },
-  { value: 'precio_desc', label: 'Precio: mayor a menor' },
-  { value: 'km_asc',      label: 'Menor kilometraje' },
+const cifras = [
+  {
+    label: 'Precio promedio',
+    valor: estadisticas.precio_promedio
+      ? formatearPrecio(Math.round(estadisticas.precio_promedio))
+      : '—',
+  },
+  { label: 'Autocosmos',  valor: estadisticas.total_autocosmos.toLocaleString('es-CL') },
+  { label: 'Yapo',        valor: estadisticas.total_yapo.toLocaleString('es-CL') },
+  { label: 'AutosUsados', valor: estadisticas.total_autosusados.toLocaleString('es-CL') },
+  { label: 'Checkeados',  valor: estadisticas.total_checkeados.toLocaleString('es-CL') },
 ];
 ---
 
-<Base titulo="CarFlip — Autos en venta en Chile">
+<Base
+  titulo="CarFlip — Compara precios de autos usados en Chile"
+  descripcion="CarFlip reúne los avisos de autos usados de Autocosmos, Yapo, AutosUsados y Checkeados en un solo lugar, y detecta cuáles están publicados bajo su precio de mercado."
+>
 
-  <!-- Stats strip -->
-  <div class="flex flex-wrap items-baseline gap-x-5 gap-y-1.5 mb-6">
-    <span class="flex items-baseline gap-2">
-      <span class="text-2xl font-black text-zinc-100 tabular-nums">
-        {estadisticas.total_avisos.toLocaleString('es-CL')}
-      </span>
-      <span class="text-sm text-zinc-600">avisos</span>
-    </span>
+  <!-- Hero -->
+  <section class="mb-section lg:mb-editorial">
+    <p class="text-base  uppercase tracking-widest mb-element">Comparador de autos · Chile</p>
+    <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance max-w-4xl">
+      Todos los autos en venta de Chile, en un solo lugar.
+    </h1>
+    <p class="text-base  leading-relaxed max-w-xl mb-block">
+      CarFlip recopila a diario los avisos de los principales portales del país, los normaliza
+      y detecta cuáles están publicados bajo su precio de mercado. No vendemos autos:
+      te mostramos dónde están y cuánto cuestan.
+    </p>
+  </section>
 
-    <span class="text-zinc-800 hidden sm:block">·</span>
+  <!-- Cifra de portada: el número manda, el resto son pares label/valor -->
+  <section class="mb-section lg:mb-editorial">
+    <p class="text-5xl sm:text-7xl text-ink tabular-nums leading-none">
+      {estadisticas.total_avisos.toLocaleString('es-CL')}
+    </p>
+    <p class="text-base  mt-2">avisos activos en seguimiento</p>
 
-    <span class="flex items-baseline gap-2">
-      <span class="text-lg font-bold text-amber-400 tabular-nums">
-        {estadisticas.precio_promedio
-          ? formatearPrecio(Math.round(estadisticas.precio_promedio))
-          : '—'}
-      </span>
-      <span class="text-sm text-zinc-600">promedio</span>
-    </span>
-
-    <span class="text-zinc-800 hidden sm:block">·</span>
-
-    <span class="text-sm text-zinc-500">
-      Autocosmos
-      <span class="text-zinc-300 font-semibold ml-1">
-        {estadisticas.total_autocosmos.toLocaleString('es-CL')}
-      </span>
-    </span>
-
-    <span class="text-zinc-800 hidden sm:block">·</span>
-
-    <span class="text-sm text-zinc-500">
-      Yapo
-      <span class="text-zinc-300 font-semibold ml-1">
-        {estadisticas.total_yapo.toLocaleString('es-CL')}
-      </span>
-    </span>
-
-    <span class="text-zinc-800 hidden sm:block">·</span>
-
-    <span class="text-sm text-zinc-500">
-      AutosUsados
-      <span class="text-zinc-300 font-semibold ml-1">
-        {estadisticas.total_autosusados.toLocaleString('es-CL')}
-      </span>
-    </span>
-
-    <span class="text-zinc-800 hidden sm:block">·</span>
-
-    <span class="text-sm text-zinc-500">
-      Checkeados
-      <span class="text-zinc-300 font-semibold ml-1">
-        {estadisticas.total_checkeados.toLocaleString('es-CL')}
-      </span>
-    </span>
-
-    {estadisticas.ultima_actualizacion && (
-      <>
-        <span class="text-zinc-800 hidden sm:block">·</span>
-        <span class="text-sm text-zinc-600">
-          {formatearFecha(estadisticas.ultima_actualizacion)}
-        </span>
-      </>
-    )}
-  </div>
-
-  <!-- Único form que engloba todos los filtros -->
-  <form method="GET" action="/" id="filtros-form">
-
-    <!-- Barra superior: fuente + marca + año -->
-    <FiltrosBarra filtros={filtros} disponibles={disponibles} />
-
-    <!-- Layout de dos columnas (en mobile se apila verticalmente) -->
-    <div class="flex flex-col lg:flex-row gap-5 items-start">
-
-      <!-- Sidebar izquierdo (filtros avanzados) -->
-      <FiltrosSidebar filtros={filtros} disponibles={disponibles} />
-
-      <!-- Contenido principal -->
-      <div class="flex-1 min-w-0">
-
-        <!-- Barra: ordenar + contador -->
-        <div class="flex items-center justify-between mb-4">
-          <p class="text-sm text-zinc-500">
-            {resultado.total === 0
-              ? 'Sin resultados'
-              : <><span class="text-zinc-200 font-semibold">{resultado.total.toLocaleString('es-CL')}</span> {resultado.total === 1 ? 'aviso' : 'avisos'}</>
-            }
-          </p>
-          <div class="flex items-center gap-2">
-            <label for="orden" class="text-xs text-zinc-600 hidden sm:block shrink-0">
-              Ordenar por
-            </label>
-            <select
-              id="orden"
-              name="orden"
-              aria-label="Ordenar por"
-              onchange="document.getElementById('filtros-form').submit()"
-              class="text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-zinc-300 appearance-none cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-amber-400/50 transition-colors"
-            >
-              {ordenOptions.map(({ value, label }) => (
-                <option
-                  value={value}
-                  selected={filtros.orden === value || (!filtros.orden && value === 'reciente')}
-                >
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
+    <div class="flex flex-wrap gap-x-block gap-y-element mt-block">
+      {cifras.map(({ label, valor }) => (
+        <div>
+          <p class="text-base ">{label}</p>
+          <p class="text-base text-ink tabular-nums">{valor}</p>
         </div>
+      ))}
+      {estadisticas.ultima_actualizacion && (
+        <div>
+          <p class="text-base ">Actualizado</p>
+          <p class="text-base text-ink">{formatearFecha(estadisticas.ultima_actualizacion)}</p>
+        </div>
+      )}
+    </div>
+  </section>
 
-        <!-- Grid de avisos -->
-        {resultado.items.length > 0 ? (
-          <div
-            id="listings-grid"
-            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4"
-          >
-            {resultado.items.map((aviso) => (
-              <CardAviso aviso={aviso} />
+  <!-- Deals destacados: banda en loop continuo. Se desacelera con suavidad al
+       recibir cursor o foco, en vez de detenerse en seco (ver script abajo). -->
+  {destacados.length > 0 && (
+    <section>
+      <div class="flex flex-wrap items-baseline justify-between gap-element mb-block">
+        <h2 class="text-2xl text-ink">Deals destacados</h2>
+        <a href="/deals" class="text-base text-ink hover: transition-colors">
+          Ver todos →
+        </a>
+      </div>
+
+      <div
+        id="deals-marquee"
+        class="relative left-1/2 w-screen -ml-[50vw] overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_5%,black_95%,transparent)]"
+      >
+        <div id="deals-marquee-track" class="flex gap-element w-max will-change-transform">
+          <div id="deals-marquee-grupo" class="flex gap-element">
+            {destacados.map((deal) => (
+              <div class="w-[280px] sm:w-[320px] shrink-0"><CardDeal deal={deal} /></div>
             ))}
           </div>
-        ) : (
-          <div class="text-center py-24">
-            <p class="text-zinc-500 font-medium">Sin resultados para estos filtros</p>
-            <a
-              href="/"
-              class="mt-3 inline-block text-sm text-amber-400 hover:text-amber-300 transition-colors"
-            >
-              Ver todos los avisos
-            </a>
+          <div id="deals-marquee-duplicado" class="flex gap-element" inert>
+            {destacados.map((deal) => (
+              <div class="w-[280px] sm:w-[320px] shrink-0"><CardDeal deal={deal} /></div>
+            ))}
           </div>
-        )}
-
-        <!-- Paginación -->
-        <Paginacion
-          pagina={resultado.pagina}
-          total_paginas={resultado.total_paginas}
-          params={params}
-        />
-
+        </div>
       </div>
-    </div>
-  </form>
+    </section>
+  )}
 
 </Base>
+
+<style>
+  /* Sin JS o con animaciones reducidas: banda estática y navegable con scroll
+     nativo en vez de loop infinito. El grupo duplicado no aporta nada aquí. */
+  @media (prefers-reduced-motion: reduce) {
+    #deals-marquee { overflow-x: auto; }
+    #deals-marquee-track { transform: none !important; }
+    #deals-marquee-duplicado { display: none; }
+  }
+</style>
+
+<script>
+  const contenedor = document.getElementById('deals-marquee');
+  const pista = document.getElementById('deals-marquee-track');
+  const grupo = document.getElementById('deals-marquee-grupo');
+
+  if (contenedor && pista && grupo && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const VELOCIDAD_BASE = 40; // px/s
+    const SUAVIZADO = 0.06;    // fracción de la brecha hacia la velocidad objetivo que se recorre por frame
+    const GAP = 16;            // debe calzar con gap-element
+
+    let posicion = 0;
+    let velocidad = 0;
+    let objetivo = VELOCIDAD_BASE;
+    let anchoLoop = 0;
+    let ultimoFrame = 0;
+    let frameId: number | null = null;
+    let visible = false;
+
+    const medir = () => { anchoLoop = grupo.getBoundingClientRect().width + GAP; };
+
+    const tick = (ahora: number) => {
+      const dt = ultimoFrame ? Math.min((ahora - ultimoFrame) / 1000, 0.05) : 0;
+      ultimoFrame = ahora;
+
+      velocidad += (objetivo - velocidad) * SUAVIZADO;
+      posicion -= velocidad * dt;
+      if (anchoLoop && posicion <= -anchoLoop) posicion += anchoLoop;
+
+      pista.style.transform = `translate3d(${posicion}px, 0, 0)`;
+      frameId = requestAnimationFrame(tick);
+    };
+
+    const iniciar = () => {
+      if (frameId === null) {
+        ultimoFrame = 0;
+        frameId = requestAnimationFrame(tick);
+      }
+    };
+    const detener = () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+        frameId = null;
+      }
+    };
+    const actualizarEstado = () => { if (visible && !document.hidden) iniciar(); else detener(); };
+
+    medir();
+    window.addEventListener('resize', medir);
+
+    contenedor.addEventListener('pointerenter', () => { objetivo = 0; });
+    contenedor.addEventListener('pointerleave', () => { objetivo = VELOCIDAD_BASE; });
+    contenedor.addEventListener('focusin', () => { objetivo = 0; });
+    contenedor.addEventListener('focusout', () => { objetivo = VELOCIDAD_BASE; });
+
+    document.addEventListener('visibilitychange', actualizarEstado);
+    new IntersectionObserver(([entrada]) => { visible = entrada.isIntersecting; actualizarEstado(); }).observe(contenedor);
+  }
+</script>

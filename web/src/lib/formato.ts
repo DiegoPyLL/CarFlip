@@ -32,10 +32,12 @@ export function formatearFechaHora(fecha: Date | null): string {
   }).format(fecha);
 }
 
+// La dirección la comunica el glifo ▲▼, no el color: la paleta es acromática.
+// Una baja de precio es la información relevante, así que va en blanco pleno.
 export function signosDelta(delta: number | null): { texto: string; clases: string } | null {
   if (delta === null || delta === 0) return null;
   if (delta < 0) {
-    return { texto: `▼ ${Math.abs(delta).toFixed(1)}%`, clases: 'bg-green-100 text-green-700' };
+    return { texto: `▼ ${Math.abs(delta).toFixed(1)}%`, clases: 'bg-canvas/75 text-ink' };
   }
-  return { texto: `▲ ${delta.toFixed(1)}%`, clases: 'bg-red-100 text-red-700' };
+  return { texto: `▲ ${delta.toFixed(1)}%`, clases: 'bg-canvas/75 ' };
 }
