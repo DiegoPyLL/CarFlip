@@ -5,6 +5,28 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [Unreleased]
+
+### Added
+
+- **Avisos de particulares**: CarFlip deja de ser solo un agregador y aloja avisos publicados directamente por personas
+  - Cuentas y sesión con Supabase Auth por tres caminos —enlace mágico, Google y email/contraseña— con cookie `httpOnly` y middleware que resuelve la sesión y protege `/cuenta` y `/dashboard`
+  - Migración `0010`: `perfiles`, `particulares_listings`, `particulares_fotos`, `contacto_revelaciones` y `reportes_aviso`, las cinco con RLS, GRANT explícitos y un trigger que crea el perfil al registrarse. `particulares_listings` reproduce `ListingMixin` tal cual, así que la web y `candidatos.sql` la tratan como una fuente más
+  - Publicar, editar, pausar, marcar vendido y eliminar avisos con hasta 10 fotos en Supabase Storage; el formulario completo funciona sin JavaScript
+  - Topes anti-abuso: 5 avisos activos, 3 creaciones por 24 h, 10 fotos de 2 MB, 20 revelaciones de contacto al día, más correo confirmado y perfil completo para publicar
+  - Detalle público `/auto/p/[id]` con galería de scroll-snap sin JS, JSON-LD `Car` + `Offer` y `sitemap-avisos.xml`
+  - El teléfono del vendedor solo se muestra a un usuario con sesión que lo pide explícitamente, y nunca llega al HTML anónimo ni al JSON-LD
+  - Quinta fuente integrada en `/avisos`, `/mercado`, `/estadisticas` y `/deals`, con `deal_min_comparables_particular = 12` y un prompt que prefiere `revisar` ante un precio muy bajo sin explicación
+- **Moderación**: bandeja de reportes en `/dashboard` con acciones de despublicar y descartar, apoyada en las políticas de administrador de la migración `0011`. El rol vive en `app_metadata` del JWT
+- **Eliminación de cuenta** en `/cuenta`: borra perfil, avisos, fotos, revelaciones y reportes, y vacía la carpeta del bucket (Ley 21.719)
+- `PUBLIC_SUPABASE_URL` y `PUBLIC_SUPABASE_ANON_KEY`: segundo cliente de Supabase, sujeto a RLS, por el que pasan todas las escrituras del usuario
+
+### Changed
+
+- `TABLA_POR_FUENTE` centralizado en `web/src/lib/db/fuentes.ts`; se elimina la copia que tenían `avisos.ts`, `mercado.ts`, `estadisticas.ts` y `metricas.ts`
+- Textos legales reescritos: `condiciones-de-uso`, `privacidad` y `legal` dejan de describir a CarFlip como agregador sin contenido de terceros y cubren reglas de publicación, moderación, responsabilidad sobre contenido ajeno y derechos de la Ley 21.719
+- `/estadisticas` y el total de "avisos indexados" pasan a contar las cinco fuentes; el dashboard de scraping sigue midiendo solo las cuatro scrapeadas
+
 ## [0.6.0] - 2026-07-19
 
 ### Changed

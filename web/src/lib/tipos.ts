@@ -1,6 +1,8 @@
+export type Fuente = 'autocosmos' | 'yapo' | 'autosusados' | 'checkeados' | 'particular';
+
 export interface Aviso {
   id: number;
-  fuente: 'autocosmos' | 'yapo' | 'autosusados' | 'checkeados';
+  fuente: Fuente;
   id_externo: string;
   url: string;
   titulo: string;
@@ -23,7 +25,8 @@ export interface Aviso {
 
 export type CategoriaDeal = 'oportunidad_clara' | 'buen_precio' | 'revisar' | 'descartar';
 
-export type FuenteDeal = 'autocosmos' | 'yapo' | 'mercadolibre';
+/** La tabla `deals` incluye MercadoLibre, que no tiene scraper ni listado propio. */
+export type FuenteDeal = 'autocosmos' | 'yapo' | 'mercadolibre' | 'particular';
 
 /** Fila de la tabla `deals`: snapshot del aviso + contexto de mercado + evaluación IA. */
 export interface Deal {
@@ -53,7 +56,7 @@ export interface Deal {
 }
 
 export interface FiltrosAviso {
-  fuente?: 'autocosmos' | 'yapo' | 'autosusados' | 'checkeados';
+  fuente?: Fuente;
   marca?: string;
   modelo?: string;
   anio?: number;

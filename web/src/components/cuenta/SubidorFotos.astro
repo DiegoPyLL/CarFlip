@@ -1,0 +1,135 @@
+---
+import type { FotoAviso } from '@lib/publicaciones/consultas';
+import { LIMITES } from '@lib/publicaciones/limites';
+
+interface Props {
+  avisoId: number;
+  fotos: FotoAviso[];
+}
+
+const { avisoId, fotos } = Astro.props;
+const restantes = LIMITES.fotosPorAviso - fotos.length;
+---
+
+<section>
+  <h2 class="text-2xl text-ink mb-element">Fotos</h2>
+  <p class="text-base leading-relaxed mb-element">
+    Hasta {LIMITES.fotosPorAviso} fotos, 2 MB cada una. La primera es la portada, la que se ve en el
+    listado. {restantes > 0 ? `Puedes subir ${restantes} más.` : 'Alcanzaste el máximo.'}
+  </p>
+
+  {fotos.length > 0 && (
+    <ul class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-element mb-element">
+      {fotos.map((foto, indice) => (
+        <li class="border border-line">
+          <img
+            src={foto.url}
+            alt={indice === 0 ? 'Foto de portada del aviso' : `Foto ${indice + 1} del aviso`}
+            width="400"
+            height="300"
+            loading="lazy"
+            decoding="async"
+            class="w-full aspect-[4/3] object-cover bg-surface"
+          />
+          <div class="flex items-center justify-between gap-2 p-2">
+            <span class="text-sm">{indice === 0 ? 'Portada' : `Foto ${indice + 1}`}</span>
+            <form method="POST" action={`/api/publicacion/${avisoId}/fotos`}>
+              <input type="hidden" name="accion" value="eliminar" />
+              <input type="hidden" name="foto_id" value={foto.id} />
+              <button
+                type="submit"
+                class="text-sm underline underline-offset-4 hover:text-ink transition-colors duration-150 cursor-pointer"
+              >
+                Eliminar
+              </button>
+            </form>
+          </div>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  {restantes > 0 && (
+    <form
+      method="POST"
+      action={`/api/publicacion/${avisoId}/fotos`}
+      enctype="multipart/form-data"
+      id="form-fotos"
+      class="flex flex-wrap items-center gap-element"
+    >
+      <input
+        type="file"
+        id="foto"
+        name="foto"
+        multiple
+        accept="image/webp,image/jpeg,image/png"
+        aria-label="Seleccionar fotos"
+        class="text-base file:mr-4 file:border file:border-line-strong file:bg-transparent file:px-4 file:py-2 file:text-base file:text-ink file:cursor-pointer"
+      />
+      <button
+        type="submit"
+        class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150"
+      >
+        Subir fotos
+        <span aria-hidden="true">→</span>
+      </button>
+      <p id="estado-subida" class="text-sm w-full" role="status" aria-live="polite"></p>
+    </form>
+  )}
+</section>
+
+<script>
+  // Única mejora con JavaScript del proyecto, y vive en una página autenticada y
+  // `noindex`, fuera de la superficie SEO. Sin ella el formulario funciona igual:
+  // sube los archivos tal cual, con el límite de 2 MB por foto del bucket.
+  // Con ella, las fotos se reducen a 1600px y se convierten a WebP en el
+  // navegador, lo que protege el rendimiento de las páginas públicas que
+  // después las muestran.
+  const LADO_MAXIMO = 1600;
+  const CALIDAD = 0.82;
+
+  const formulario = document.getElementById('form-fotos') as HTMLFormElement | null;
+  const entrada = document.getElementById('foto') as HTMLInputElement | null;
+  const estado = document.getElementById('estado-subida');
+
+  async function aWebp(archivo: File): Promise<File> {
+    const bitmap = await createImageBitmap(archivo);
+    const escala = Math.min(1, LADO_MAXIMO / Math.max(bitmap.width, bitmap.height));
+    const lienzo = document.createElement('canvas');
+    lienzo.width = Math.round(bitmap.width * escala);
+    lienzo.height = Math.round(bitmap.height * escala);
+    lienzo.getContext('2d')?.drawImage(bitmap, 0, 0, lienzo.width, lienzo.height);
+    bitmap.close();
+
+    const blob = await new Promise<Blob | null>((resolver) =>
+      lienzo.toBlob(resolver, 'image/webp', CALIDAD),
+    );
+    // Si el navegador no sabe exportar WebP, se sube el archivo original.
+    if (!blob) return archivo;
+    return new File([blob], archivo.name.replace(/\.[^.]+$/, '') + '.webp', { type: 'image/webp' });
+  }
+
+  formulario?.addEventListener('submit', async (evento) => {
+    const archivos = Array.from(entrada?.files ?? []);
+    if (!archivos.length || typeof createImageBitmap !== 'function') return;
+
+    evento.preventDefault();
+    const boton = formulario.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    if (boton) boton.disabled = true;
+    if (estado) estado.textContent = 'Optimizando fotos…';
+
+    try {
+      const datos = new FormData();
+      for (const archivo of archivos) datos.append('foto', await aWebp(archivo));
+
+      if (estado) estado.textContent = 'Subiendo…';
+      const respuesta = await fetch(formulario.action, { method: 'POST', body: datos });
+      window.location.href = respuesta.url || window.location.href;
+    } catch (error) {
+      // Ante cualquier fallo se cae al envío normal del formulario.
+      console.error('Falló la optimización de fotos, se sube el original:', error);
+      if (boton) boton.disabled = false;
+      formulario.submit();
+    }
+  });
+</script>

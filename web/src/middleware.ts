@@ -3,7 +3,7 @@ import { AUTH_CONFIGURADA, crearClienteUsuario, tieneCookieSesion, urlEntrar } f
 
 // Rutas que exigen sesión, y las que además exigen rol de administrador.
 const PRIVADAS = ['/cuenta'];
-const SOLO_ADMIN = ['/dashboard'];
+const SOLO_ADMIN = ['/dashboard', '/api/moderacion'];
 
 function cuelgaDe(ruta: string, prefijos: string[]): boolean {
   return prefijos.some((p) => ruta === p || ruta.startsWith(`${p}/`));
@@ -23,6 +23,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
       context.locals.usuario = {
         id: data.user.id,
         email: data.user.email ?? '',
+        // Publicar exige correo confirmado. Google llega confirmado de origen.
+        emailConfirmado: Boolean(data.user.email_confirmed_at),
         // El rol vive en `app_metadata`, que solo se escribe desde el servidor
         // de Supabase: el usuario no puede modificarlo y viaja en el JWT, así
         // que no cuesta una consulta por request.

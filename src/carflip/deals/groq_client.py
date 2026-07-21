@@ -33,6 +33,12 @@ Categorías:
 - "descartar": el precio bajo se explica por daño grave, falta de papeles, chocado, \
 motor fundido, no prende, prenda/embargo, solo repuestos, leasing impago, etc.
 
+Cada aviso trae su "fuente". Si la fuente es "particular", el aviso lo publicó una persona \
+directamente en CarFlip y no pasó por la validación de ningún portal: el precio puede ser \
+irreal, estar mal tipeado o corresponder a un pie o a una cuota. Ante un precio muy bajo de \
+esa fuente sin una explicación clara en la descripción, prefiere "revisar" antes que \
+"oportunidad_clara".
+
 Para cada aviso responde:
 - puntaje: entero 0-100 (100 = compra inmediata para reventa).
 - riesgos: lista corta de riesgos concretos detectados en el texto ("motor fundido", \
@@ -56,6 +62,7 @@ def _mensaje_usuario(candidatos: list[CandidatoDeal]) -> str:
         avisos.append(
             {
                 "id": c.id_ia,
+                "fuente": c.fuente,
                 "titulo": c.titulo,
                 "anio": c.anio,
                 "km": c.km,

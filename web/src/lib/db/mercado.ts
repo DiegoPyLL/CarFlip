@@ -1,15 +1,6 @@
 import { supabase } from './client';
+import { FUENTES, TABLA_POR_FUENTE, soloPublicados } from './fuentes';
 import type { Aviso } from '../tipos';
-
-const TABLA_POR_FUENTE: Record<Aviso['fuente'], string> = {
-  autocosmos: 'autocosmos_listings',
-  yapo: 'yapo_listings',
-  autosusados: 'autosusados_listings',
-  checkeados: 'checkeados_listings',
-};
-
-const FUENTES = Object.keys(TABLA_POR_FUENTE) as Aviso['fuente'][];
-const TABLAS = FUENTES.map((f) => TABLA_POR_FUENTE[f]);
 
 export interface EstadisticaMarca {
   marca: string;
@@ -36,10 +27,11 @@ export interface DatosMercado {
 export async function obtenerDatosMercado(fuente?: Aviso['fuente']): Promise<DatosMercado> {
   type Fila = { marca: string | null; modelo: string | null; precio: string | null };
 
-  async function fetchTabla(tabla: string): Promise<Fila[]> {
-    const { data } = await supabase
-      .from(tabla)
-      .select('marca, modelo, precio')
+  async function fetchFuente(f: Aviso['fuente']): Promise<Fila[]> {
+    const { data } = await soloPublicados(
+      supabase.from(TABLA_POR_FUENTE[f]).select('marca, modelo, precio'),
+      f,
+    )
       .not('marca', 'is', null)
       .limit(10000);
     return (data ?? []) as Fila[];
@@ -47,9 +39,9 @@ export async function obtenerDatosMercado(fuente?: Aviso['fuente']): Promise<Dat
 
   let rows: Fila[];
   if (fuente) {
-    rows = await fetchTabla(TABLA_POR_FUENTE[fuente]);
+    rows = await fetchFuente(fuente);
   } else {
-    const resultados = await Promise.all(TABLAS.map((tabla) => fetchTabla(tabla)));
+    const resultados = await Promise.all(FUENTES.map((f) => fetchFuente(f)));
     rows = resultados.flat();
   }
 
@@ -126,16 +118,17 @@ export async function obtenerDatosMarca(marca: string): Promise<{
 }> {
   type Fila = { modelo: string | null; precio: string | null; anio: number | null };
 
-  async function fetchTabla(tabla: string): Promise<Fila[]> {
-    const { data } = await supabase
-      .from(tabla)
-      .select('modelo, precio, anio')
+  async function fetchFuente(f: Aviso['fuente']): Promise<Fila[]> {
+    const { data } = await soloPublicados(
+      supabase.from(TABLA_POR_FUENTE[f]).select('modelo, precio, anio'),
+      f,
+    )
       .ilike('marca', marca)
       .limit(5000);
     return (data ?? []) as Fila[];
   }
 
-  const resultados = await Promise.all(TABLAS.map((tabla) => fetchTabla(tabla)));
+  const resultados = await Promise.all(FUENTES.map((f) => fetchFuente(f)));
   const rows = resultados.flat();
 
   // Modelos

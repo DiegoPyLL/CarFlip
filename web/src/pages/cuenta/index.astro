@@ -1,20 +1,36 @@
 ---
 import Base from '@layouts/Base.astro';
+import { obtenerPerfil } from '@lib/publicaciones/consultas';
+import { PALABRA_ELIMINAR, mensajeDeError, perfilCompleto } from '@lib/publicaciones/limites';
+import { REGIONES } from '@lib/publicaciones/opciones';
 
 // El middleware ya redirige a /entrar si no hay sesión; la comprobación se
 // repite aquí para que el tipo de `usuario` sea no nulo en el template.
 const usuario = Astro.locals.usuario;
-if (!usuario) return Astro.redirect('/entrar?volver=/cuenta');
+if (!usuario || !Astro.locals.supabase) return Astro.redirect('/entrar?volver=/cuenta');
+
+const perfil = await obtenerPerfil(Astro.locals.supabase, usuario.id);
+const completo = perfilCompleto(perfil);
+
+const guardado = Astro.url.searchParams.has('guardado');
+const mensajeError = mensajeDeError(Astro.url.searchParams.get('error'));
+
+const inputCls =
+  'w-full bg-transparent border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
 ---
 
 <Base titulo="Mi cuenta" descripcion="Tu cuenta en CarFlip." noindex>
-  <div class="max-w-md mx-auto">
+  <div class="max-w-xl mx-auto">
     <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">Tu cuenta.</h1>
 
-    <dl class="divide-y divide-line border-y border-line">
+    <dl class="divide-y divide-line border-y border-line mb-block">
       <div class="flex items-baseline justify-between gap-4 py-2.5">
         <dt class="text-base">Email</dt>
         <dd class="text-base text-ink text-right break-all">{usuario.email}</dd>
+      </div>
+      <div class="flex items-baseline justify-between gap-4 py-2.5">
+        <dt class="text-base">Correo confirmado</dt>
+        <dd class="text-base text-ink text-right">{usuario.emailConfirmado ? 'Sí' : 'No'}</dd>
       </div>
       {usuario.rol === 'admin' && (
         <div class="flex items-baseline justify-between gap-4 py-2.5">
@@ -24,14 +40,170 @@ if (!usuario) return Astro.redirect('/entrar?volver=/cuenta');
       )}
     </dl>
 
-    <form method="POST" action="/api/auth/salir" class="mt-block">
+    <h2 class="text-2xl text-ink mb-element">Datos de contacto</h2>
+    <p class="text-base leading-relaxed mb-element">
+      Tu teléfono solo lo ven los compradores que hayan iniciado sesión, y únicamente en tus
+      publicaciones. Nunca aparece en el HTML público ni se comparte con terceros.
+    </p>
+
+    {guardado && (
+      <div class="mb-element px-6 py-2.5 border border-line-strong text-base text-ink" role="status">
+        Datos guardados.
+      </div>
+    )}
+
+    {mensajeError && (
+      <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
+        {mensajeError}
+      </div>
+    )}
+
+    {!completo && (
+      <div class="mb-element px-6 py-2.5 border border-line-strong text-base text-ink" role="status">
+        Completa tu nombre y teléfono para poder publicar avisos.
+      </div>
+    )}
+
+    <form method="POST" action="/api/cuenta/perfil" class="space-y-element">
+      <div class="grid gap-element sm:grid-cols-2">
+        <div>
+          <label for="nombre" class="flex items-baseline justify-between text-base text-ink mb-2">
+            Nombre <span class="text-sm text-scarlet-signal">*Requerido</span>
+          </label>
+          <input
+            type="text"
+            id="nombre"
+            name="nombre"
+            required
+            maxlength="100"
+            pattern="[\p{L}\s]+"
+            title="Solo letras y espacios, sin números ni signos."
+            autocomplete="name"
+            value={perfil?.nombre ?? ''}
+            aria-describedby="err-nombre"
+            class={`${inputCls} campo`}
+          />
+          <p id="err-nombre" class="campo-error text-sm text-scarlet-signal mt-1.5">
+            Ingresa tu nombre: solo letras y espacios.
+          </p>
+        </div>
+
+        <div>
+          <label for="telefono" class="flex items-baseline justify-between text-base text-ink mb-2">
+            Teléfono <span class="text-sm text-scarlet-signal">*Requerido</span>
+          </label>
+          <input
+            type="tel"
+            id="telefono"
+            name="telefono"
+            required
+            maxlength="20"
+            pattern="(\+?56)?\s?9\s?\d{4}\s?\d{4}"
+            title="Un móvil chileno: 9 seguido de 8 dígitos."
+            autocomplete="tel"
+            placeholder="+56 9 1234 5678"
+            value={perfil?.telefono ?? ''}
+            aria-describedby="err-telefono"
+            class={`${inputCls} campo tabular-nums`}
+          />
+          <p id="err-telefono" class="campo-error text-sm text-scarlet-signal mt-1.5">
+            Ingresa un móvil chileno válido.
+          </p>
+        </div>
+
+        <div>
+          <label for="region" class="flex items-baseline justify-between text-base text-ink mb-2">
+            Región <span class="text-sm text-scarlet-signal">*Requerido</span>
+          </label>
+          <select id="region" name="region" required class={inputCls}>
+            <option value="">Selecciona…</option>
+            {REGIONES.map((r) => (
+              <option value={r} selected={perfil?.region === r}>{r}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label for="comuna" class="flex items-baseline justify-between text-base text-ink mb-2">
+            Comuna <span class="text-sm text-scarlet-signal">*Requerido</span>
+          </label>
+          <input
+            type="text"
+            id="comuna"
+            name="comuna"
+            required
+            maxlength="100"
+            value={perfil?.comuna ?? ''}
+            class={inputCls}
+          />
+        </div>
+      </div>
+
       <button
         type="submit"
         class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150"
       >
-        <span aria-hidden="true">←</span>
-        Cerrar sesión
+        Guardar datos
+        <span aria-hidden="true">→</span>
       </button>
     </form>
+
+    <div class="mt-block pt-element border-t border-line flex flex-wrap items-center justify-between gap-element">
+      <a href="/cuenta/avisos" class="text-base text-ink underline underline-offset-4">
+        Mis publicaciones →
+      </a>
+      <form method="POST" action="/api/auth/salir">
+        <button type="submit" class="text-base underline underline-offset-4 hover:text-ink transition-colors duration-150 cursor-pointer">
+          Cerrar sesión
+        </button>
+      </form>
+    </div>
+
+    <!-- Derecho de supresión (Ley 21.719). Sin diálogo de confirmación en JS:
+         escribir la palabra es la barrera, y funciona sin JavaScript. -->
+    <section class="mt-block pt-element border-t border-line">
+      <h2 class="text-2xl text-ink mb-element">Eliminar tu cuenta</h2>
+      <p class="text-base leading-relaxed mb-element">
+        Se borran tu perfil, tus publicaciones, sus fotos y el registro de contactos revelados.
+        Es inmediato y no se puede deshacer. Para confirmar, escribe {PALABRA_ELIMINAR}.
+      </p>
+
+      <form method="POST" action="/api/cuenta/eliminar" class="flex flex-wrap items-end gap-element">
+        <div class="w-full sm:w-64">
+          <label for="confirmacion" class="block text-base text-ink mb-2">Confirmación</label>
+          <input
+            type="text"
+            id="confirmacion"
+            name="confirmacion"
+            required
+            maxlength="20"
+            autocomplete="off"
+            pattern={PALABRA_ELIMINAR}
+            title={`Escribe ${PALABRA_ELIMINAR} en mayúsculas.`}
+            placeholder={PALABRA_ELIMINAR}
+            class={`${inputCls} campo`}
+          />
+        </div>
+        <button
+          type="submit"
+          class="text-base text-ink border border-scarlet-signal px-6 py-2.5 hover:bg-scarlet-signal hover:text-ink-on-tint transition-colors duration-150 cursor-pointer"
+        >
+          Eliminar mi cuenta
+        </button>
+      </form>
+    </section>
+
+    <style>
+      /* Misma validación en vivo sin JS que /contacto. */
+      .campo-error {
+        display: none;
+      }
+      .campo:user-invalid {
+        border-color: var(--color-scarlet-signal);
+      }
+      .campo:user-invalid ~ .campo-error {
+        display: block;
+      }
+    </style>
   </div>
 </Base>

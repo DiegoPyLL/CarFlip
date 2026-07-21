@@ -120,10 +120,12 @@ describe('POST /api/contacto', () => {
   it('escapa HTML en los campos del formulario', async () => {
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ id: 'abc' }), { status: 200 }));
     const POST = await importarPOST();
+    // El payload va en el mensaje: un nombre con `<` lo rechaza NOMBRE_RE antes
+    // de llegar al escape, así que ahí no probaría nada.
     const request = crearRequest({
-      nombre: '<script>alert(1)</script>',
+      nombre: 'Ana',
       email: 'ana@example.com',
-      mensaje: 'hola',
+      mensaje: '<script>alert(1)</script>',
     });
 
     await POST({ request, url: new URL(`${ORIGIN}/contacto`) } as any);

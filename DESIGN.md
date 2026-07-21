@@ -118,7 +118,8 @@ A 320px no caben cinco enlaces de nav más el logo y el toggle. Se ocultan por o
 | ------------------ | ------------------------------------------------------------------------- |
 | `/`                | Portada: hero + CTA, cifra de portada con pares label/valor, últimos avisos, lista "Explorar". Con querystring redirige 301 a `/avisos` (preserva backlinks del listado antiguo) |
 | `/avisos`          | Listado completo: `FiltrosBarra` + `FiltrosSidebar` + grid de `CardAviso` + `Paginacion` |
-| `/auto/[id]`       | Detalle del aviso; recibe `?back=` para volver al listado con sus filtros  |
+| `/auto/[id]`       | Detalle del aviso recopilado; recibe `?back=` para volver al listado con sus filtros |
+| `/auto/p/[id]`     | Detalle de un aviso de particular: galería, ficha y bloque de contacto. Admite sufijo de slug (`/auto/p/123-toyota-yaris-2018`), con canónica siempre a la forma corta |
 | `/deals`           | Autos bajo precio de mercado, evaluados por IA: grid de `CardDeal`         |
 | `/mercado`         | Precios promedio, marcas y modelos más listados                           |
 | `/marcas/[marca]`  | Corte de mercado por marca                                                |
@@ -128,7 +129,11 @@ A 320px no caben cinco enlaces de nav más el logo y el toggle. Se ocultan por o
 | `/condiciones-de-uso` | Página utilitaria: términos de uso del sitio                           |
 | `/privacidad`      | Página utilitaria: tratamiento de datos y analítica                       |
 | `/legal`           | Página utilitaria: aviso legal (identificación, responsabilidad)          |
-| `/dashboard`       | Métricas operacionales internas                                           |
+| `/entrar`, `/registro` | Páginas utilitarias de sesión, `noindex`. Un solo formulario sin JS con tres caminos: contraseña, enlace mágico y Google |
+| `/cuenta`          | Página utilitaria `noindex`: datos de contacto, enlace a las publicaciones y eliminación de cuenta |
+| `/cuenta/avisos`   | "Mis publicaciones": filas `divide-y` con estado y acciones en línea      |
+| `/cuenta/avisos/nuevo`, `/cuenta/avisos/[id]/editar` | Formulario de publicación (`FormularioAviso` + `SubidorFotos`) |
+| `/dashboard`       | Métricas operacionales internas y bandeja de moderación de reportes       |
 
 ---
 
@@ -160,6 +165,26 @@ Misma anatomía, imagen `aspect-[16/10]`. La diferencia es el badge de categorí
 
 La etiqueta de texto siempre acompaña, así que no se pierde información sin el color. Debajo del precio conviven el puntaje IA (`n/100`), el % vs mercado, la bajada propia del aviso, hasta 3 chips de riesgo con `+n` de overflow, y el resumen de la IA en `line-clamp-2`.
 
+### Badge "Particular"
+
+Los avisos publicados en el sitio llevan el mismo badge de fuente que los recopilados, con la etiqueta `Particular`, y comparten card, grid, filtros y señales de precio. La decisión de diseño es que **no se distinguen visualmente**: son una fuente más del listado, y darles un tratamiento propio sugeriría una jerarquía que el producto no tiene. Lo único distinto es el destino del enlace, que resuelve `enlaceAviso()`: `/auto/p/<id>` en vez de `/auto/<id>`.
+
+### Galería del aviso de particular
+
+Carrusel horizontal de `scroll-snap` (`snap-x snap-mandatory`) con las fotos a `aspect-[16/9] object-cover`, y miniaturas debajo que son `<a href="#foto-n">` sobre los `<li>` del carrusel. **Cero JavaScript y cero layout shift**: cada foto lleva `width`/`height` explícitos y la caja no depende de la imagen. La primera va `loading="eager"` + `fetchpriority="high"` + `decoding="sync"` porque es el LCP; el resto, `lazy`. El desplazamiento suave va tras `motion-safe:`.
+
+### Bloque de contacto
+
+Cierra el detalle de un aviso de particular, tras `border-t border-line`. Tiene tres estados y el servidor decide cuál pinta:
+
+| Estado             | Qué se ve                                                                 |
+| ------------------ | ------------------------------------------------------------------------- |
+| Anónimo            | CTA que lleva a `/entrar?volver=…`. El teléfono no está en el HTML         |
+| Con sesión         | CTA "Ver el teléfono del vendedor" (POST) y el aviso de que el vendedor verá el interés |
+| Ya revelado        | Nombre en `text-2xl`, número en `text-3xl sm:text-5xl tabular-nums`, y los botones Llamar y WhatsApp |
+
+El número escala recién en `sm:` porque sus 14 caracteres a `text-5xl` se salen de una pantalla de 320px. El teléfono nunca se renderiza oculto: si no corresponde mostrarlo, no llega al HTML — tampoco al JSON-LD, cuyo `seller` va sin nombre ni número.
+
 ### Señales de variación de precio
 
 `signosDelta()` devuelve glifo + token, nunca verde ni rojo: bajada → `▼ n%` en `text-ink` (gana peso porque es la buena noticia), alza → `▲ n%` en ``. El glifo carga el significado; el color solo el énfasis.
@@ -187,6 +212,10 @@ Pares label/valor sin bordes ni cajas: label en `text-base `, valor justo debajo
 ### CTA primario
 
 `inline-flex` con borde `ink`, `px-6 py-3`, hover que invierte a `bg-ink text-canvas`. Lo precede un cuadrado de 6px en `bg-scarlet-signal` marcado `aria-hidden`. Es el único botón con presencia; el resto de acciones son enlaces o botones con borde.
+
+### Bandeja de reportes
+
+Primera sección de `/dashboard`, anclada en `#reportes` y **fuera** del bloque de métricas: los reportes deben verse aunque no haya ninguna corrida de scraping registrada. Caja `border border-line` con cabecera, filas `divide-y divide-line` y las acciones en línea como enlaces subrayados, igual que en "Mis publicaciones" — despublicar es reversible (el autor puede republicar), así que no merece el peso visual de un botón. Los reportes ya revisados se pliegan en un `<details>` nativo, sin JS.
 
 ### Footer
 

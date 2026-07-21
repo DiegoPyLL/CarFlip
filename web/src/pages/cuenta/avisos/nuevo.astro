@@ -1,0 +1,50 @@
+---
+import FormularioAviso from '@components/cuenta/FormularioAviso.astro';
+import Base from '@layouts/Base.astro';
+import { obtenerPerfil } from '@lib/publicaciones/consultas';
+import { mensajeDeError, perfilCompleto } from '@lib/publicaciones/limites';
+
+const usuario = Astro.locals.usuario;
+if (!usuario || !Astro.locals.supabase) return Astro.redirect('/entrar?volver=/cuenta/avisos/nuevo');
+
+const perfil = await obtenerPerfil(Astro.locals.supabase, usuario.id);
+const listoParaPublicar = usuario.emailConfirmado && perfilCompleto(perfil);
+const mensajeError = mensajeDeError(Astro.url.searchParams.get('error'));
+---
+
+<Base titulo="Publicar un auto" descripcion="Publica tu auto en CarFlip." noindex>
+  <div class="max-w-3xl mx-auto">
+    <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">Publica tu auto.</h1>
+
+    {mensajeError && (
+      <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
+        {mensajeError}
+      </div>
+    )}
+
+    {listoParaPublicar ? (
+      <>
+        <p class="text-base leading-relaxed max-w-xl mb-block">
+          Tu aviso se publica de inmediato. Después de guardarlo podrás agregarle hasta 10 fotos.
+        </p>
+        <FormularioAviso accion="/api/publicacion" textoBoton="Publicar aviso" />
+      </>
+    ) : (
+      <div class="border-y border-line py-block">
+        <p class="text-2xl text-ink mb-element">Falta un paso antes de publicar.</p>
+        <ul class="space-y-2 text-base leading-relaxed max-w-xl">
+          {!usuario.emailConfirmado && (
+            <li>Confirma tu correo: te enviamos un mensaje con el enlace de activación.</li>
+          )}
+          {!perfilCompleto(perfil) && (
+            <li>
+              Completa tu nombre y teléfono en
+              <a href="/cuenta" class="text-ink underline underline-offset-4">tu cuenta</a>. El
+              teléfono es el que verán los compradores con sesión iniciada.
+            </li>
+          )}
+        </ul>
+      </div>
+    )}
+  </div>
+</Base>

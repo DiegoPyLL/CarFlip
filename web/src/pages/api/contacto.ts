@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { escaparHtml, normalizar } from '@lib/sanitizar';
 
 export const prerender = false;
 
@@ -12,35 +13,6 @@ const REMITENTE = 'CarFlip <onboarding@resend.dev>';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // El nombre solo admite letras (de cualquier idioma) y espacios: sin números ni signos.
 const NOMBRE_RE = /^[\p{L}\s]+$/u;
-
-// Normaliza cada campo antes de validarlo: unifica la forma Unicode (NFC),
-// elimina caracteres de control invisibles y colapsa espacios. `preservarSaltos`
-// conserva los saltos de línea del mensaje; el resto queda en una sola línea.
-function normalizar(
-  valor: FormDataEntryValue | null,
-  opciones: { max: number; preservarSaltos?: boolean },
-): string {
-  let texto = String(valor ?? '').normalize('NFC');
-  // Elimina caracteres de control salvo tabulador (\t) y salto de línea (\n).
-  texto = texto.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-  texto = opciones.preservarSaltos
-    ? texto
-        .replace(/\r\n?/g, '\n')
-        .replace(/[^\S\n]+/g, ' ')
-        .replace(/ *\n */g, '\n')
-        .replace(/\n{3,}/g, '\n\n')
-    : texto.replace(/\s+/g, ' ');
-  return texto.trim().slice(0, opciones.max);
-}
-
-function escaparHtml(texto: string): string {
-  return texto
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 function redirigir(origin: string, parametro: 'enviado' | 'error'): Response {
   const destino = new URL('/contacto', origin);

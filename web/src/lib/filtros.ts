@@ -1,18 +1,14 @@
+import { esFuente } from './db/fuentes';
 import type { FiltrosAviso } from './tipos';
 
 export function parsearFiltrosUrl(params: URLSearchParams): FiltrosAviso {
   const filtros: FiltrosAviso = {};
   const anioActual = new Date().getFullYear();
 
+  // La lista válida sale de `TABLA_POR_FUENTE`: una fuente nueva se acepta sola
+  // y cualquier otro valor se descarta en vez de llegar a la consulta.
   const fuente = params.get('fuente');
-  if (
-    fuente === 'autocosmos' ||
-    fuente === 'yapo' ||
-    fuente === 'autosusados' ||
-    fuente === 'checkeados'
-  ) {
-    filtros.fuente = fuente;
-  }
+  if (esFuente(fuente)) filtros.fuente = fuente;
 
   const marca = params.get('marca')?.trim().slice(0, 100);
   if (marca) filtros.marca = marca;

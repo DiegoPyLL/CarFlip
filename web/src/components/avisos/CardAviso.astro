@@ -1,6 +1,7 @@
 ---
 import type { Aviso } from '@lib/tipos';
 import { resolverUrlImagen } from '@lib/cdn';
+import { enlaceAviso } from '@lib/enlaces';
 import { formatearPrecio, formatearKm, signosDelta } from '@lib/formato';
 
 interface Props {
@@ -16,6 +17,7 @@ const fuenteLabels: Record<string, string> = {
   yapo: 'Yapo',
   autosusados: 'Autosusados',
   checkeados: 'Checkeados',
+  particular: 'Particular',
 };
 const fuenteLabel = fuenteLabels[aviso.fuente] || aviso.fuente.toUpperCase();
 
@@ -29,7 +31,7 @@ const metaItems = [
 <!-- La foto es el borde de la card: sin radio, sin sombra, sin transformaciones. -->
 <article class="group border border-line hover:border-ink transition-colors duration-200">
   <a
-    href={`/auto/${aviso.id}?back=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`}
+    href={enlaceAviso(aviso, Astro.url.pathname + Astro.url.search)}
     aria-label={`Ver ${aviso.titulo}`}
     class="block"
   >

@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from decimal import Decimal
 
@@ -14,7 +15,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -104,6 +105,8 @@ class Deal(Base):
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true", index=True)
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class AutosusadosListing(ListingMixin, Base):
     __tablename__ = "autosusados_listings"
 
@@ -161,3 +164,135 @@ class RunFailLog(Base):
     motivo: Mapped[str] = mapped_column(Text, nullable=False)
     id_externo: Mapped[str | None] = mapped_column(String(200), nullable=True)
     timestamp: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+# --- Avisos de particulares -------------------------------------------------
+# Tablas escritas desde la web (Astro) con la anon key y protegidas por RLS, no
+# por el pipeline Python. Viven aquí para que Alembic siga siendo la única
+# fuente del esquema. La FK de perfiles.id contra auth.users la pone la
+# migración: auth es un esquema de Supabase, fuera de este metadata.
+
+
+class Perfil(Base):
+    """Datos públicos y de contacto del usuario, 1:1 con auth.users.
+
+    Las filas las crea un trigger AFTER INSERT sobre auth.users, así que un
+    usuario recién registrado siempre tiene perfil. El rol de administrador NO
+    vive aquí: está en app_metadata del JWT, que solo escribe el servidor de
+    Supabase y no cuesta una consulta por request.
+    """
+
+    __tablename__ = "perfiles"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    nombre: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    telefono: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    region: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    comuna: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ParticularListing(ListingMixin, Base):
+    """Aviso publicado por un particular: quinta fuente de avisos.
+
+    Reproduce ListingMixin tal cual para que la capa de lectura de la web
+    (mapearAviso, aplicarFiltros, aplicarOrden) y candidatos.sql funcionen sin
+    adaptadores. Las convenciones que lo hacen posible:
+
+    - id_externo        uuid generado, cumple el unique heredado
+    - url               URL canónica propia (https://carflip.cl/auto/p/<id>)
+    - url_imagen        foto de portada
+    - disponible        estado == 'publicado'
+    - primera_vez_visto publicado_en
+    - ultima_vez_visto  actualizado_en
+    """
+
+    __tablename__ = "particulares_listings"
+
+    usuario_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("perfiles.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    estado: Mapped[str] = mapped_column(String(20), nullable=False, server_default="publicado", index=True)
+    transmision: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    version: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    vistas: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    publicado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ParticularFoto(Base):
+    """Foto de un aviso de particular, almacenada en Supabase Storage.
+
+    `ruta` es la clave dentro del bucket (<usuario_id>/<aviso_id>/<uuid>.webp):
+    se guarda aparte de la URL pública para poder borrar el objeto. `orden` 0
+    es la portada, que se copia a listings.url_imagen.
+    """
+
+    __tablename__ = "particulares_fotos"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    aviso_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("particulares_listings.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    ruta: Mapped[str] = mapped_column(Text, nullable=False)
+    orden: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ContactoRevelacion(Base):
+    """Auditoría de cada vez que un usuario con sesión ve el teléfono de un aviso.
+
+    Sostiene el tope anti-scraping de revelaciones por usuario y día, y le
+    muestra al dueño del aviso cuánto interés recibió.
+    """
+
+    __tablename__ = "contacto_revelaciones"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    aviso_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("particulares_listings.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    usuario_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("perfiles.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    creado_en: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
+class ReporteAviso(Base):
+    """Denuncia de un aviso: la moderación es reactiva, no hay revisión previa."""
+
+    __tablename__ = "reportes_aviso"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    aviso_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("particulares_listings.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    usuario_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("perfiles.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    motivo: Mapped[str] = mapped_column(String(50), nullable=False)
+    detalle: Mapped[str | None] = mapped_column(Text, nullable=True)
+    estado: Mapped[str] = mapped_column(String(20), nullable=False, server_default="pendiente", index=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

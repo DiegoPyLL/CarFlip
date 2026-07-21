@@ -4,7 +4,7 @@
 
 # CarFlip
 
-Plataforma que agrega avisos de autos en venta desde portales chilenos, normaliza los datos, los almacena en PostgreSQL y detecta oportunidades de compra (deals) comparando cada aviso contra su mercado y evaluándolo con IA.
+Plataforma que agrega avisos de autos en venta desde portales chilenos, normaliza los datos, los almacena en PostgreSQL y detecta oportunidades de compra (deals) comparando cada aviso contra su mercado y evaluándolo con IA. Los particulares también publican sus autos directamente en el sitio, y esos avisos se integran como una fuente más.
 
 **Stack actual:** Python 3.12 + httpx/Playwright · PostgreSQL (Supabase) · Cloudflare R2 · Groq (evaluación IA de deals) · Astro 7 + Vercel
 
@@ -26,7 +26,11 @@ Vercel  (web)
   └─ Astro 7 SSR
        ├─ Consulta PostgreSQL vía Supabase JS client
        ├─ Página /deals con evaluación IA
-       └─ Imágenes desde R2
+       ├─ Imágenes desde R2
+       └─ Avisos de particulares (cuentas, publicación y moderación)
+            ├─ Auth de Supabase  →  cliente anon sujeto a RLS
+            ├─ Fotos  →  Supabase Storage
+            └─ `particulares_listings` — quinta fuente de /avisos, /mercado y /deals
 ```
 
 Cada scraper implementa el pipeline completo dentro de `scrape()`:
@@ -58,6 +62,28 @@ Al final de cada ciclo corre la **detección de deals** (`src/carflip/deals/`): 
 > Existe la tabla `mercadolibre_listings` reservada para un scraper futuro vía la API oficial, pero aún no está implementado ni registrado.
 >
 > Económicos (`economicos.cl`) fue descartado: el sitio bloquea el scraping (anti-bot). Su scraper, modelo y tabla fueron eliminados (migración Alembic 0007).
+
+---
+
+## Avisos de particulares
+
+La quinta fuente no la alimenta ningún scraper: son avisos que publican personas con una cuenta en el sitio. `particulares_listings` reproduce `ListingMixin` tal cual, así que la capa de lectura de la web y `candidatos.sql` la tratan como una fuente más, sin código especial.
+
+| Tabla                    | Contenido                                                       |
+| ------------------------ | --------------------------------------------------------------- |
+| `perfiles`               | Nombre, teléfono, región y comuna. 1:1 con `auth.users`         |
+| `particulares_listings`  | El aviso, con `estado` (`publicado`/`pausado`/`vendido`)        |
+| `particulares_fotos`     | Hasta 10 fotos por aviso, en el bucket `avisos-particulares`     |
+| `contacto_revelaciones`  | Auditoría de qué cuenta pidió el teléfono de qué aviso           |
+| `reportes_aviso`         | Denuncias, con `estado` (`pendiente`/`resuelto`/`descartado`)   |
+
+**La autorización vive en la base, no en el código.** Estas cinco tablas las escribe la web con la *anon key* del usuario, sujeta a las políticas RLS de las migraciones `0010` (usuario) y `0011` (administrador). El cliente de `SUPABASE_SERVICE_KEY` sigue existiendo solo para las lecturas públicas —que llevan el filtro de estado explícito— y para eliminar cuentas, que exige la API de administración.
+
+El **rol de administrador** no es una columna: viaja en `app_metadata` del JWT, que solo escribe el servidor de Supabase. Se otorga en **Supabase → Authentication → Users → *usuario* → `app_metadata` = `{"rol":"admin"}`**. Sin él, `/dashboard` redirige a la home y las políticas `*_admin` no devuelven nada.
+
+**Anti-abuso** (la publicación es inmediata, sin cola de revisión): correo confirmado y perfil completo para publicar, 5 avisos activos, 3 creaciones por 24 h, 10 fotos de 2 MB por aviso y 20 revelaciones de contacto al día. Los topes están en `web/src/lib/publicaciones/limites.ts`. La defensa reactiva es la bandeja de reportes de `/dashboard`, desde donde se despublica un aviso.
+
+**El teléfono nunca sale en el HTML público:** se muestra solo a un usuario con sesión que lo pide explícitamente, y cada revelación queda registrada.
 
 ---
 
@@ -197,7 +223,14 @@ SUPABASE_SERVICE_KEY=<service_role key desde Supabase → Settings → API>
 CDN_BASE_URL=https://<tu-dominio-r2>
 RESEND_API_KEY=<API key desde https://resend.com/api-keys>
 CONTACT_EMAIL=<correo donde llegan los mensajes de /contacto>
+
+# Autenticación y avisos de particulares. Sin ellas el sitio público sigue en
+# pie y solo se desactiva el inicio de sesión.
+PUBLIC_SUPABASE_URL=https://<tu-proyecto>.supabase.co
+PUBLIC_SUPABASE_ANON_KEY=<anon/publishable key desde Supabase → Settings → API>
 ```
+
+> El prefijo `PUBLIC_` es deliberado: la *anon key* está pensada para viajar al cliente y toda su autoridad la acotan las políticas RLS. `SUPABASE_SERVICE_KEY` **nunca** debe llevarlo.
 
 ```bash
 # 4. Levantar servidor de desarrollo
@@ -210,13 +243,19 @@ Abrir: http://localhost:4321
 
 ### Variables de entorno en Vercel
 
-Configurar como variables de servidor las mismas tres claves:
+Configurar como variables de servidor, en Production y Preview:
 
 ```env
 SUPABASE_URL=https://<tu-proyecto>.supabase.co
 SUPABASE_SERVICE_KEY=<service_role key>
 CDN_BASE_URL=https://<tu-dominio-r2>
+RESEND_API_KEY=<API key de Resend>
+CONTACT_EMAIL=<correo donde llegan los mensajes de /contacto>
+PUBLIC_SUPABASE_URL=https://<tu-proyecto>.supabase.co
+PUBLIC_SUPABASE_ANON_KEY=<anon/publishable key>
 ```
+
+Además, en **Supabase → Authentication → URL Configuration**, `https://carflip.cl/api/auth/callback` y `http://localhost:4321/api/auth/callback` deben estar en *Redirect URLs*, o el login por enlace mágico y por Google vuelve con error.
 
 ---
 

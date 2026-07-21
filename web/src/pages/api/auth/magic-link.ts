@@ -21,9 +21,11 @@ export const POST: APIRoute = async ({ request, url, locals, redirect }) => {
     // un acto explícito en /registro, con confirmación de correo.
     options: { emailRedirectTo: destino.href, shouldCreateUser: false },
   });
-  if (error) return redirect(urlEntrar(volver, 'magic-link'), 303);
 
-  // Se confirma el envío pase lo que pase con la dirección: decir "esa cuenta no
-  // existe" convertiría el formulario en un detector de usuarios registrados.
+  // La respuesta es la misma exista o no la cuenta. Con shouldCreateUser=false
+  // Supabase devuelve error cuando el correo no está registrado; propagarlo
+  // convertiría este formulario en un detector de usuarios. Queda en el log.
+  if (error) console.error('Enlace mágico no enviado:', error.message);
+
   return redirect(`${urlEntrar(volver)}&enviado=1`, 303);
 };

@@ -5,3 +5,4 @@ Disallow: /registro
 Disallow: /cuenta
 Disallow: /api/
 Sitemap: https://carflip.cl/sitemap-index.xml
+Sitemap: https://carflip.cl/sitemap-avisos.xml

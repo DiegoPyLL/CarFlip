@@ -8,7 +8,7 @@ const params = Astro.url.searchParams;
 
 // Filtros propios de esta página (la tabla deals incluye mercadolibre,
 // a diferencia de FiltrosAviso del listado general).
-const fuentesValidas: FuenteDeal[] = ['autocosmos', 'yapo', 'mercadolibre'];
+const fuentesValidas: FuenteDeal[] = ['autocosmos', 'yapo', 'mercadolibre', 'particular'];
 const categoriasValidas: CategoriaDeal[] = ['oportunidad_clara', 'buen_precio', 'revisar'];
 
 const fuenteParam = params.get('fuente') ?? '';
@@ -42,6 +42,7 @@ const gruposFiltro = [
       { value: 'autocosmos', label: 'Autocosmos' },
       { value: 'yapo', label: 'Yapo' },
       { value: 'mercadolibre', label: 'MercadoLibre' },
+      { value: 'particular', label: 'Particulares' },
     ],
   },
   {

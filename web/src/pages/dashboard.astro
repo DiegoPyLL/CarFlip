@@ -2,12 +2,33 @@
 import Base from '@layouts/Base.astro';
 import { obtenerMetricasOperacion, obtenerMetricasVehiculos } from '@lib/db';
 import { formatearDuracion, formatearFechaHora } from '@lib/formato';
+import { mensajeDeError } from '@lib/publicaciones/limites';
+import { listarReportes } from '@lib/publicaciones/moderacion';
+import { ETIQUETA_ESTADO, ETIQUETA_REPORTE } from '@lib/publicaciones/opciones';
 import type { CorridaScrape } from '@lib/tipos';
 
-const [op, veh] = await Promise.all([
+// El middleware ya exige rol de administrador para llegar hasta aquí.
+const [op, veh, reportes] = await Promise.all([
   obtenerMetricasOperacion(),
   obtenerMetricasVehiculos(),
+  Astro.locals.supabase ? listarReportes(Astro.locals.supabase) : [],
 ]);
+
+const pendientes = reportes.filter((r) => r.estado === 'pendiente');
+const cerrados = reportes.filter((r) => r.estado !== 'pendiente');
+
+// El resultado viaja como código, igual que en /cuenta: la página elige el
+// texto y nadie puede inyectar uno por querystring.
+const moderado = Astro.url.searchParams.get('moderado');
+const AVISO_MODERACION: Record<string, string> = {
+  despublicar: 'Aviso despublicado y reportes marcados como resueltos.',
+  descartar: 'Reportes descartados. El aviso sigue publicado.',
+};
+const mensajeModeracion = moderado ? AVISO_MODERACION[moderado] : undefined;
+const errorModeracion = mensajeDeError(Astro.url.searchParams.get('error'));
+
+const accionCls =
+  'text-base underline underline-offset-4 hover:text-ink transition-colors duration-150 cursor-pointer';
 
 // Identidad fija por fuente — rampa acromática de blanco, diferenciada por opacidad.
 // La etiqueta de texto siempre acompaña, nunca se codifica solo por tono (CVD floor).
@@ -113,6 +134,88 @@ function avisosPorMinuto(r: CorridaScrape): string {
       )}
     </p>
   </div>
+
+  <!-- Moderación. Fuera del bloque de métricas a propósito: los reportes deben
+       verse aunque todavía no haya ninguna corrida de scraping registrada. -->
+  <section id="reportes" class="border border-line mb-element">
+    <div class="p-element border-b border-line flex flex-wrap items-baseline justify-between gap-3">
+      <div>
+        <h2 class="text-base text-ink">Reportes de avisos</h2>
+        <p class="text-base mt-0.5">Denuncias sobre publicaciones de particulares</p>
+      </div>
+      <span class="text-base tabular-nums shrink-0">
+        {pendientes.length} {pendientes.length === 1 ? 'pendiente' : 'pendientes'}
+      </span>
+    </div>
+
+    {errorModeracion && (
+      <p class="px-5 py-2.5 border-b border-scarlet-signal text-base text-ink" role="alert">
+        {errorModeracion}
+      </p>
+    )}
+
+    {mensajeModeracion && (
+      <p class="px-5 py-2.5 border-b border-line text-base text-ink" role="status">
+        {mensajeModeracion}
+      </p>
+    )}
+
+    {pendientes.length === 0 ? (
+      <p class="p-element text-base">Sin reportes pendientes.</p>
+    ) : (
+      <ul class="divide-y divide-line">
+        {pendientes.map((r) => (
+          <li class="p-element flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div class="min-w-0">
+              <div class="flex items-baseline gap-3 flex-wrap">
+                <span class="text-base text-ink">{r.motivo}</span>
+                <span class="text-base tabular-nums">{formatearFechaHora(new Date(r.creado_en))}</span>
+                <span class="text-sm border border-line-strong px-2 py-0.5">
+                  {ETIQUETA_ESTADO[r.estadoAviso]}
+                </span>
+              </div>
+              <a
+                href={`/auto/p/${r.aviso_id}`}
+                class="block text-base text-ink underline underline-offset-4 mt-1 truncate"
+              >
+                {r.titulo}
+              </a>
+              {r.detalle && <p class="text-base leading-relaxed mt-1">{r.detalle}</p>}
+            </div>
+
+            <div class="flex items-center gap-element shrink-0">
+              {r.estadoAviso === 'publicado' && (
+                <form method="POST" action={`/api/moderacion/${r.id}`}>
+                  <input type="hidden" name="accion" value="despublicar" />
+                  <button type="submit" class={accionCls}>Despublicar</button>
+                </form>
+              )}
+              <form method="POST" action={`/api/moderacion/${r.id}`}>
+                <input type="hidden" name="accion" value="descartar" />
+                <button type="submit" class={accionCls}>Descartar</button>
+              </form>
+            </div>
+          </li>
+        ))}
+      </ul>
+    )}
+
+    {cerrados.length > 0 && (
+      <details class="border-t border-line">
+        <summary class="p-element text-base cursor-pointer">
+          {cerrados.length} {cerrados.length === 1 ? 'reporte ya revisado' : 'reportes ya revisados'}
+        </summary>
+        <ul class="divide-y divide-line border-t border-line">
+          {cerrados.map((r) => (
+            <li class="px-5 py-2.5 flex flex-wrap items-baseline justify-between gap-3">
+              <span class="text-base truncate">{r.motivo} · {r.titulo}</span>
+              <span class="text-base shrink-0">{ETIQUETA_REPORTE[r.estado]}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
+    )}
+  </section>
 
   {ultimas.length === 0 ? (
     <section class="border border-line p-element">

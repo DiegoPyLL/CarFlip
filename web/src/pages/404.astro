@@ -1,0 +1,28 @@
+---
+import Base from '@layouts/Base.astro';
+
+// Astro sirve esta página tanto en las rutas sin coincidencia como cuando otra
+// página la reescribe con `Astro.rewrite('/404')`. El estado se fija a mano
+// para que un aviso despublicado responda 404 de verdad y no un 200 vacío.
+Astro.response.status = 404;
+---
+
+<Base titulo="Página no encontrada" descripcion="La página que buscas no existe o dejó de estar disponible." noindex>
+  <div class="max-w-2xl py-block">
+    <p class="text-base mb-element tabular-nums">Error 404</p>
+    <h1 class="text-5xl sm:text-7xl text-ink leading-none text-balance mb-element">
+      Esta página ya no está.
+    </h1>
+    <p class="text-base leading-relaxed mb-block">
+      El enlace puede estar mal escrito, o el aviso se vendió y su publicación se dio de baja.
+    </p>
+    <a
+      href="/avisos"
+      class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-3 hover:bg-ink hover:text-canvas transition-colors duration-150"
+    >
+      <span class="w-1.5 h-1.5 bg-scarlet-signal" aria-hidden="true"></span>
+      Ver todos los avisos
+      <span aria-hidden="true">→</span>
+    </a>
+  </div>
+</Base>

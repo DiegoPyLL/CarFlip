@@ -9,6 +9,9 @@ const volver = rutaInterna(Astro.url.searchParams.get('volver'), '/cuenta');
 if (Astro.locals.usuario) return Astro.redirect(volver);
 
 const enviado = Astro.url.searchParams.has('enviado');
+// Acuse de recibo del borrado de cuenta: aterriza aquí porque ya no hay sesión
+// a la que volver, y `/` descarta la querystring al redirigir a /avisos.
+const eliminada = Astro.url.searchParams.has('eliminada');
 const error = Astro.url.searchParams.get('error');
 
 const MENSAJES: Record<string, string> = {
@@ -31,6 +34,12 @@ const inputCls =
     {mensajeError && (
       <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
         {mensajeError}
+      </div>
+    )}
+
+    {eliminada && (
+      <div class="mb-element px-6 py-2.5 border border-line-strong text-base text-ink" role="status">
+        Tu cuenta y tus publicaciones fueron eliminadas.
       </div>
     )}
 

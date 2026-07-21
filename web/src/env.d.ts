@@ -12,6 +12,11 @@ declare namespace App {
     // `null` solo si faltan las variables públicas de Supabase: el sitio
     // público sigue funcionando y la autenticación queda deshabilitada.
     supabase: import('@supabase/supabase-js').SupabaseClient | null;
-    usuario: { id: string; email: string; rol: 'admin' | 'usuario' } | null;
+    usuario: {
+      id: string;
+      email: string;
+      emailConfirmado: boolean;
+      rol: 'admin' | 'usuario';
+    } | null;
   }
 }
