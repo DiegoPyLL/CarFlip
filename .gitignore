@@ -16,3 +16,4 @@ reports/
 .env*
 .diagrama-er.html
 reports/auditoria_imagen.json
+/tests

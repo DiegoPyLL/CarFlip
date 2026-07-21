@@ -145,8 +145,9 @@ const rubroCls   = 'text-base text-muted uppercase tracking-widest mb-block';
       </div>
     </section>
 
-    <!-- Preguntas frecuentes -->
-    <section class={seccionCls}>
+    <!-- Preguntas frecuentes: `scroll-mt` compensa el header sticky (h-12)
+         cuando se llega por el enlace "Preguntas Frecuentes" del footer. -->
+    <section id="preguntas-frecuentes" class={`${seccionCls} scroll-mt-20`}>
       <h2 class={rubroCls}>Preguntas frecuentes</h2>
 
       <div class="divide-y divide-line border-y border-line">

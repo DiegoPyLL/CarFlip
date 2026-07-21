@@ -21,6 +21,34 @@
   --c-line: #dcdcdc;
   --c-line-strong: #767676;
   --c-scarlet: #e4002b;
+
+  /* Acentos editoriales: solo válidos como fondo de bloque (footer,
+     /quienes-somos), nunca como texto sobre canvas — ver DESIGN.md. El mismo
+     valor en ambos temas, igual que scarlet; el texto que va encima usa
+     --c-ink-on-tint (blanco fijo) en vez de --c-ink, que en tema claro sería
+     negro y perdería contraste sobre este azul.
+     --c-blue se profundizó desde el azul pedido originalmente (#43a8ee, solo
+     2.6:1 con blanco) para que el texto blanco llegue a AA (5.07:1). */
+  --c-blue: #1873b3;
+  --c-green: #71db4c;
+  --c-ink-on-tint: #ffffff;
+
+  /* Único par cromático del chrome: el toggle de tema, que muestra el tema
+     activo (sol en claro, luna en oscuro). Valor fijo en ambos temas porque
+     cada icono solo se dibuja sobre un fondo.
+     El amarillo puro rinde 1.85:1 sobre blanco, bajo el 3:1 que pide AA para
+     objetos gráficos, así que el sol se contornea en ámbar (4.07:1) y guarda
+     el amarillo para el relleno del disco. La luna va sobre negro, donde un
+     morado claro rinde 7.7:1 sin necesidad de contorno. */
+  --c-sun: #f5b301;
+  --c-sun-line: #a67500;
+  --c-moon: #a78bfa;
+
+  /* Negro de marca de GitHub (brand.github.com), fijo en ambos temas: es el
+     color del ícono, no un token de nuestro sistema. Sobre blue-signal rinde
+     4.14:1 — bajo el 4.5:1 de texto, pero de sobra sobre el 3:1 que pide AA
+     para objetos gráficos como un ícono. */
+  --c-github: #181717;
 }
 
 :root[data-theme="dark"] {
@@ -51,6 +79,13 @@
   --color-line: var(--c-line);
   --color-line-strong: var(--c-line-strong);
   --color-scarlet-signal: var(--c-scarlet);
+  --color-blue-signal: var(--c-blue);
+  --color-green-signal: var(--c-green);
+  --color-ink-on-tint: var(--c-ink-on-tint);
+  --color-sun-signal: var(--c-sun);
+  --color-sun-line: var(--c-sun-line);
+  --color-moon-signal: var(--c-moon);
+  --color-github-signal: var(--c-github);
 }
 
 @theme {
@@ -77,6 +112,11 @@
 body {
   font-weight: 300;
   letter-spacing: -0.01em;
+  /* La banda de deals destacados usa el truco de w-screen/50vw para salirse
+     del contenedor y llegar al borde real de la página. Sin esto, el 100vw
+     (que incluye el ancho de la scrollbar) generaría un scroll horizontal
+     fantasma de unos pocos píxeles. */
+  overflow-x: hidden;
 }
 
 h1,

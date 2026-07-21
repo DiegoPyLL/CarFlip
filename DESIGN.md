@@ -23,6 +23,10 @@ Los nombres son **semánticos**, no cromáticos: el mismo token cambia de valor 
 | `--c-line`        | `line`            | `#dcdcdc` | `#484848` | Bordes de card, divisores, paginación deshabilitada             |
 | `--c-line-strong` | `line-strong`     | `#767676` | `#a0a0a0` | Bordes de inputs y selects (necesitan 3:1 de contraste)         |
 | `--c-scarlet`     | `scarlet-signal`  | `#e4002b` | `#e4002b` | Punto del CTA primario, borde de foco, indicador de filtros activos |
+| `--c-blue`        | `blue-signal`     | `#1873b3` | `#1873b3` | Acento editorial: fondo de bloques de marca (footer, `/quienes-somos`) |
+| `--c-green`       | `green-signal`    | `#71db4c` | `#71db4c` | Acento editorial secundario, mismo régimen que `blue-signal`; reservado, sin implementación asignada |
+| `--c-ink-on-tint` | `ink-on-tint`     | `#ffffff` | `#ffffff` | Blanco fijo para texto sobre `blue-signal`/`green-signal`; no invierte con el tema |
+| `--c-github`      | `github-signal`   | `#181717` | `#181717` | Negro de marca de GitHub, solo para el ícono del footer; no es un acento del sistema |
 
 **Contraste verificado sobre su propio canvas:**
 
@@ -32,6 +36,17 @@ Los nombres son **semánticos**, no cromáticos: el mismo token cambia de valor 
 | oscuro | 21:1  | 8.03:1 | 8.03:1      | 4.33:1  |
 
 El escarlata solo alcanza AA de texto normal en tema claro. En oscuro queda restringido a elementos gráficos (el cuadrado de 6px, el borde de foco) y nunca a texto de párrafo.
+
+### Acentos de fondo (`blue-signal` / `green-signal`)
+
+`blue-signal` y `green-signal` solo se usan como **fondo de bloque** (footer, hero de `/quienes-somos`), nunca como color de texto sobre `canvas`, y el texto que va encima siempre es blanco (`ink-on-tint`), no `ink`: `ink` es negro en tema claro y perdería contraste sobre estos fondos.
+
+| Fondo                              | Contraste con blanco |
+| ----------------------------------- | --------------------- |
+| `blue-signal` (`#1873b3`)           | 5.07:1 — pasa AA      |
+| `green-signal` (`#71db4c`, sin implementar) | 1.76:1 — fallaría AA  |
+
+`blue-signal` se profundizó a propósito desde el azul pedido originalmente (`#43a8ee`): ese tono solo daba 2.6:1 con blanco, bajo el 4.5:1 que exige AA. `#1873b3` conserva la misma familia de azul pero con luminancia suficiente para que el texto blanco cumpla. Si `green-signal` llega a implementarse con texto encima, necesita el mismo ajuste antes de usarse — el `#71db4c` documentado es el tono pedido, no uno ya verificado para texto.
 
 ### Cambio de tema
 
@@ -107,7 +122,12 @@ A 320px no caben cinco enlaces de nav más el logo y el toggle. Se ocultan por o
 | `/deals`           | Autos bajo precio de mercado, evaluados por IA: grid de `CardDeal`         |
 | `/mercado`         | Precios promedio, marcas y modelos más listados                           |
 | `/marcas/[marca]`  | Corte de mercado por marca                                                |
-| `/como-funciona`   | Página editorial: de dónde salen los datos y cómo se detectan oportunidades |
+| `/como-funciona`   | Página editorial: de dónde salen los datos y cómo se detectan oportunidades, con FAQ ancladas en `#preguntas-frecuentes` |
+| `/quienes-somos`   | Página editorial: la misión del equipo detrás de CarFlip                  |
+| `/contacto`        | Página utilitaria: formulario de contacto (POST a `/api/contacto`, sin JS) |
+| `/condiciones-de-uso` | Página utilitaria: términos de uso del sitio                           |
+| `/privacidad`      | Página utilitaria: tratamiento de datos y analítica                       |
+| `/legal`           | Página utilitaria: aviso legal (identificación, responsabilidad)          |
 | `/dashboard`       | Métricas operacionales internas                                           |
 
 ---
@@ -170,7 +190,7 @@ Pares label/valor sin bordes ni cajas: label en `text-base text-muted`, valor ju
 
 ### Footer
 
-`border-t border-line`, `mt-section`, `py-element`. Wordmark en `ink`, copyright y descriptor en `muted`. Sin CTAs.
+`mt-section`, fondo `bg-blue-signal` (el único bloque del sitio con este acento). Todo el texto encima usa `ink-on-tint`, no `ink`. Tres zonas en `py-block`: wordmark + tagline + una línea de misión que enlaza a `/quienes-somos`; tres columnas de navegación (Producto: Avisos/Deals/Mercado; Compañía: Quiénes somos/Cómo funciona/Preguntas Frecuentes/Contáctanos/Github, con el ícono de Github inline en `github-signal` — el único color de marca ajeno al sistema, ver Tokens — Color; Legal: Condiciones de Uso/Términos de privacidad/Legales); barra inferior con `border-t border-ink-on-tint/15` y el copyright. Sin CTAs.
 
 ---
 
@@ -194,13 +214,15 @@ Las fotos vienen de los portales de origen vía CDN, resueltas por `resolverUrlI
 
 ## Racionamiento del color
 
-El sistema opera con una ración estricta: ~95% acromático, ~5% escarlata. Como máximo un elemento escarlata por pantalla. Cuando varios elementos compiten por atención, la respuesta es más espacio negativo, tipografía más chica o peso más liviano — nunca más color.
+El sistema sigue siendo mayormente acromático. Hay tres acentos cromáticos y cada uno tiene un rol fijo — no son intercambiables ni conviven en una misma pantalla:
 
-Los tres usos legítimos del escarlata son:
+| Acento           | Rol                                                                       | Dónde                                                      |
+| ---------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `scarlet-signal` | Transaccional: la única señal en las páginas de producto.                  | CTA primario, borde de foco, indicador de filtros activos    |
+| `blue-signal`    | Editorial/institucional: identifica los bloques de marca, no de producto.  | Fondo del footer, hero de `/quienes-somos`                   |
+| `green-signal`   | Editorial secundario, mismo régimen que `blue-signal`.                     | Reservado — sin implementación asignada todavía              |
 
-1. El cuadrado de 6px del CTA primario.
-2. El borde de foco de inputs, selects y botones.
-3. El indicador de "filtros avanzados activos".
+Las páginas de producto (`/avisos`, `/deals`, `/mercado`, `/auto/[id]`, cards) mantienen la ración original: ~95% acromático, ~5% escarlata, un elemento como máximo por pantalla. `blue-signal`/`green-signal` no aparecen ahí — quedan reservados a los bloques editoriales/de marca.
 
 ---
 
@@ -214,11 +236,13 @@ Los tres usos legítimos del escarlata son:
 - Usar `element` para densidad, `block`/`section` para respiro de producto, y `editorial` solo en páginas de marketing.
 - Bordes de inputs con `line-strong` (3:1); `line` es demasiado sutil para un control interactivo.
 - Dar a los targets táctiles al menos 40px de alto.
+- Usar `ink-on-tint` (no `ink`) para el texto sobre `blue-signal`/`green-signal`: `ink` es negro en tema claro y perdería contraste sobre estos fondos.
 
 ## Don'ts
 
-- No introducir verde ni rojo semántico. Las bajadas de precio, las buenas oportunidades y los riesgos se resuelven con glifo, peso y relleno acromático.
-- No agregar un segundo color de acento. El escarlata es la única señal cromática del sistema.
+- No usar `blue-signal` ni `green-signal` como color de texto sobre `canvas`: están calibrados como fondo de bloque con `ink-on-tint` encima, no como color de texto suelto.
+- No usar `blue-signal`/`green-signal` fuera de bloques editoriales/de marca (footer, `/quienes-somos`). Las páginas de producto y las señales de precio (`signosDelta()`) se resuelven solo con glifo, peso y relleno acromático — no se les asigna color.
+- No agregar un cuarto acento cromático sin actualizar este documento.
 - No usar sombras, glows ni gradientes en elementos de UI.
 - No usar pesos 600+.
 - No agregar webfonts sin justificar el costo en Core Web Vitals.
@@ -239,6 +263,7 @@ superficie/hover    → bg-surface
 borde/divisor       → border-line
 borde de control    → border-line-strong
 acento (escaso)     → bg-scarlet-signal / focus:border-scarlet-signal
+acento editorial    → bg-blue-signal + text-ink-on-tint (footer, /quienes-somos)
 radio               → 0
 peso                → 300 (400 solo para el wordmark)
 gutter de grid      → gap-element (16px)

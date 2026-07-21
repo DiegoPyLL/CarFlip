@@ -1,0 +1,74 @@
+---
+import Base from '@layouts/Base.astro';
+
+const rubroCls = 'text-2xl text-ink mb-element';
+const parrafoCls = 'text-base text-muted leading-relaxed';
+---
+
+<Base
+  titulo="Legales"
+  descripcion="Aviso legal de CarFlip: quién mantiene el sitio y bajo qué responsabilidad opera."
+>
+  <div class="max-w-3xl">
+    <div class="mb-section">
+      <p class="text-base text-muted uppercase tracking-widest mb-element">Legal</p>
+      <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">Legales</h1>
+      <p class="text-base text-muted">Última actualización: 20 de julio de 2026.</p>
+    </div>
+
+    <div class="space-y-block mb-section">
+      <section>
+        <h2 class={rubroCls}>Identificación</h2>
+        <p class={parrafoCls}>
+          CarFlip (carflip.cl) es un proyecto sin fines de lucro desarrollado y mantenido por
+          VolutusDevGroup. No es una inmobiliaria de autos ni una plataforma de venta: es una
+          herramienta de comparación de precios sobre avisos publicados en portales de terceros.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Naturaleza del servicio</h2>
+        <p class={parrafoCls}>
+          CarFlip no interviene en la relación entre comprador y vendedor, no procesa pagos y no
+          garantiza la disponibilidad, exactitud ni legalidad de los avisos que agrega. Toda
+          transacción ocurre fuera de CarFlip, directamente en el portal de origen.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Limitación de responsabilidad</h2>
+        <p class={parrafoCls}>
+          En la medida permitida por la ley, CarFlip no se hace responsable de pérdidas o
+          perjuicios derivados del uso del sitio, de información desactualizada de terceros, o de
+          transacciones acordadas fuera de nuestra plataforma.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Propiedad intelectual</h2>
+        <p class={parrafoCls}>
+          El código, diseño y marca de CarFlip son propiedad de VolutusDevGroup. El contenido de
+          cada aviso pertenece a su portal de origen o al vendedor que lo publicó.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Legislación aplicable</h2>
+        <p class={parrafoCls}>Este aviso legal se rige por las leyes de la República de Chile.</p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Contacto</h2>
+        <p class={parrafoCls}>
+          Para consultas legales o cualquier otra, escribe a través de{' '}
+          <a href="/contacto" class="text-ink underline underline-offset-4">Contáctanos</a>.
+        </p>
+      </section>
+    </div>
+
+    <p class={parrafoCls}>
+      Ver también: <a href="/condiciones-de-uso" class="text-ink underline underline-offset-4">Condiciones de Uso</a>,
+      {' '}<a href="/privacidad" class="text-ink underline underline-offset-4">Términos de privacidad</a>.
+    </p>
+  </div>
+</Base>

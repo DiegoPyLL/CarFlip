@@ -132,15 +132,15 @@ function esRutaActiva(href: string): boolean {
           <button
             type="button"
             id="tema-toggle"
-            class="shrink-0 -mr-2 h-10 w-10 flex items-center justify-center text-muted hover:text-ink transition-colors cursor-pointer"
+            class="shrink-0 -mr-2 h-10 w-10 flex items-center justify-center hover:opacity-70 transition-opacity cursor-pointer"
             aria-label="Cambiar a tema oscuro"
           >
-            <svg class="dark:hidden" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-            </svg>
-            <svg class="hidden dark:block" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="4"/>
+            <svg class="text-sun-line dark:hidden" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4" class="fill-sun-signal"/>
               <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+            </svg>
+            <svg class="hidden text-moon-signal dark:block" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
             </svg>
           </button>
         </div>
@@ -151,10 +151,65 @@ function esRutaActiva(href: string): boolean {
       <slot />
     </main>
 
-    <footer class="border-t border-line mt-section">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-element flex flex-wrap gap-2 items-center justify-between">
-        <span class="text-base text-ink">CarFlip</span>
-        <span class="text-base text-muted">&copy; {new Date().getFullYear()} — Comparador de precios de autos en Chile</span>
+    <!-- Único bloque del sitio con el acento blue-signal: identifica el footer
+         como bloque de marca, no de producto. Todo el texto usa ink-on-tint
+         (blanco fijo), no ink, que en tema claro sería negro y perdería
+         contraste sobre este azul. -->
+    <footer class="mt-section bg-blue-signal">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-block">
+        <div class="flex flex-col gap-block lg:flex-row lg:justify-between">
+          <div class="max-w-sm">
+            <span class="text-base font-normal text-ink-on-tint">CarFlip</span>
+            <p class="text-base text-ink-on-tint/70 leading-relaxed mt-2">
+              Comparador de autos usados en Chile. Un proyecto sin fines de lucro que reúne
+              los avisos de los principales portales para que compares precios en un solo lugar.
+            </p>
+            <a
+              href="/quienes-somos"
+              class="inline-block text-base text-ink-on-tint underline underline-offset-4 mt-element"
+            >
+              Quiénes somos →
+            </a>
+          </div>
+
+          <div class="flex flex-wrap gap-block">
+            <nav aria-label="Producto">
+              <h2 class="text-sm text-ink-on-tint/70 uppercase tracking-widest mb-element">Producto</h2>
+              <ul class="space-y-2">
+                <li><a href="/avisos" class="text-base text-ink-on-tint hover:underline underline-offset-4">Avisos</a></li>
+                <li><a href="/deals" class="text-base text-ink-on-tint hover:underline underline-offset-4">Deals</a></li>
+                <li><a href="/mercado" class="text-base text-ink-on-tint hover:underline underline-offset-4">Mercado</a></li>
+              </ul>
+            </nav>
+
+            <nav aria-label="Compañía">
+              <h2 class="text-sm text-ink-on-tint/70 uppercase tracking-widest mb-element">Compañía</h2>
+              <ul class="space-y-2">
+                <li><a href="/como-funciona#preguntas-frecuentes" class="text-base text-ink-on-tint hover:underline underline-offset-4">Preguntas Frecuentes</a></li>
+                <li><a href="/contacto" class="text-base text-ink-on-tint hover:underline underline-offset-4">Contáctanos</a></li>
+                <li>
+                  <a
+                    href="https://github.com/VolutusDevGroup"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-2 text-base text-ink-on-tint hover:underline underline-offset-4">Github</a></li>
+              </ul>
+            </nav>
+
+            <nav aria-label="Legal">
+              <h2 class="text-sm text-ink-on-tint/70 uppercase tracking-widest mb-element">Legal</h2>
+              <ul class="space-y-2">
+                <li><a href="/condiciones-de-uso" class="text-base text-ink-on-tint hover:underline underline-offset-4">Condiciones de Uso</a></li>
+                <li><a href="/privacidad" class="text-base text-ink-on-tint hover:underline underline-offset-4">Términos de privacidad</a></li>
+                <li><a href="/legal" class="text-base text-ink-on-tint hover:underline underline-offset-4">Legales</a></li>
+              </ul>
+            </nav>
+          </div>
+        </div>
+
+        <div class="mt-block pt-element border-t border-ink-on-tint/15 flex flex-wrap gap-2 items-center justify-between">
+          <span class="text-base text-ink-on-tint/70">&copy; {new Date().getFullYear()} CarFlip. Todos los derechos reservados.</span>
+        </div>
       </div>
     </footer>
 

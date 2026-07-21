@@ -14,5 +14,8 @@ export default defineConfig({
   ],
   vite: {
     plugins: [tailwindcss()],
+    // Único .env del proyecto: vive en la raíz del repo, no en web/, para no
+    // duplicarlo con el que usa el backend Python.
+    envDir: '../',
   },
 });

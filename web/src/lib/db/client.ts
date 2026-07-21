@@ -4,7 +4,7 @@ const supabaseUrl = (import.meta.env.SUPABASE_URL as string) || (process.env.SUP
 const supabaseKey = (import.meta.env.SUPABASE_SERVICE_KEY as string) || (process.env.SUPABASE_SERVICE_KEY as string);
 
 if (!supabaseUrl || !supabaseKey) {
-  throw new Error('SUPABASE_URL y SUPABASE_SERVICE_KEY deben estar definidas en web/.env');
+  throw new Error('SUPABASE_URL y SUPABASE_SERVICE_KEY deben estar definidas en el .env de la raíz del repo');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey);

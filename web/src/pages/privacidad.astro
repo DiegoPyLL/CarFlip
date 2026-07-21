@@ -1,0 +1,70 @@
+---
+import Base from '@layouts/Base.astro';
+
+const rubroCls = 'text-2xl text-ink mb-element';
+const parrafoCls = 'text-base text-muted leading-relaxed';
+---
+
+<Base
+  titulo="Términos de privacidad"
+  descripcion="Cómo trata CarFlip los datos de quienes visitan el sitio y usan el formulario de contacto."
+>
+  <div class="max-w-3xl">
+    <div class="mb-section">
+      <p class="text-base text-muted uppercase tracking-widest mb-element">Legal</p>
+      <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">Términos de privacidad</h1>
+      <p class="text-base text-muted">Última actualización: 20 de julio de 2026.</p>
+    </div>
+
+    <div class="space-y-block mb-section">
+      <section>
+        <h2 class={rubroCls}>Sin cuentas de usuario</h2>
+        <p class={parrafoCls}>
+          CarFlip no requiere registro ni cuenta para navegar, filtrar o revisar avisos. No
+          almacenamos perfiles de visitantes.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Analítica de navegación</h2>
+        <p class={parrafoCls}>
+          Usamos Vercel Analytics para medir tráfico agregado (páginas vistas, origen, dispositivo).
+          Es un servicio sin cookies que no identifica personalmente a quien visita el sitio.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Formulario de contacto</h2>
+        <p class={parrafoCls}>
+          Si escribes a través de <a href="/contacto" class="text-ink underline underline-offset-4">Contáctanos</a>,
+          recibimos el nombre, correo y mensaje que ingresas. El envío se procesa con Resend y llega
+          directo a nuestro correo para responderte; no se usa con fines distintos ni se comparte
+          con terceros, y se conserva solo el tiempo necesario para atender la consulta.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Datos de los avisos</h2>
+        <p class={parrafoCls}>
+          Los avisos que muestra CarFlip (precio, fotos, descripción) provienen de portales
+          públicos de terceros y no contienen datos personales tratados por nosotros más allá de
+          la información que el propio vendedor publicó originalmente.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Tus derechos</h2>
+        <p class={parrafoCls}>
+          Si nos escribiste y quieres que eliminemos tu mensaje de contacto, pídelo a través del
+          mismo canal en <a href="/contacto" class="text-ink underline underline-offset-4">Contáctanos</a> y lo
+          eliminaremos.
+        </p>
+      </section>
+    </div>
+
+    <p class={parrafoCls}>
+      Ver también: <a href="/condiciones-de-uso" class="text-ink underline underline-offset-4">Condiciones de Uso</a>,
+      {' '}<a href="/legal" class="text-ink underline underline-offset-4">Legales</a>.
+    </p>
+  </div>
+</Base>

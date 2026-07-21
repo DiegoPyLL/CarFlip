@@ -1,7 +1,7 @@
 ---
 import Base from '@layouts/Base.astro';
-import CardAviso from '@components/avisos/CardAviso.astro';
-import { obtenerAvisos, obtenerEstadisticas } from '@lib/db';
+import CardDeal from '@components/deals/CardDeal.astro';
+import { obtenerDeals, obtenerEstadisticas } from '@lib/db';
 import { formatearPrecio, formatearFecha } from '@lib/formato';
 
 // Antes `/` era el listado: los enlaces y backlinks con filtros siguen llegando
@@ -10,12 +10,10 @@ if (Astro.url.search) {
   return Astro.redirect('/avisos' + Astro.url.search, 301);
 }
 
-const [estadisticas, recientes] = await Promise.all([
+const [estadisticas, destacados] = await Promise.all([
   obtenerEstadisticas(),
-  obtenerAvisos({ pagina: 1 }),
+  obtenerDeals(undefined, undefined, 10),
 ]);
-
-const destacados = recientes.items.slice(0, 6);
 
 const cifras = [
   {
@@ -28,13 +26,6 @@ const cifras = [
   { label: 'Yapo',        valor: estadisticas.total_yapo.toLocaleString('es-CL') },
   { label: 'AutosUsados', valor: estadisticas.total_autosusados.toLocaleString('es-CL') },
   { label: 'Checkeados',  valor: estadisticas.total_checkeados.toLocaleString('es-CL') },
-];
-
-const secciones = [
-  { href: '/avisos',        titulo: 'Avisos',        detalle: 'El listado completo, con filtros por marca, año, kilometraje y precio.' },
-  { href: '/deals',         titulo: 'Deals',         detalle: 'Autos bajo el precio de mercado, evaluados por IA con puntaje y riesgos.' },
-  { href: '/mercado',       titulo: 'Mercado',       detalle: 'Precios promedio, marcas y modelos más listados del país.' },
-  { href: '/como-funciona', titulo: 'Cómo funciona', detalle: 'De dónde salen los datos y cómo se detectan las oportunidades.' },
 ];
 ---
 
@@ -54,13 +45,6 @@ const secciones = [
       y detecta cuáles están publicados bajo su precio de mercado. No vendemos autos:
       te mostramos dónde están y cuánto cuestan.
     </p>
-    <a
-      href="/avisos"
-      class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-3 hover:bg-ink hover:text-canvas transition-colors duration-150"
-    >
-      <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
-      Ver los {estadisticas.total_avisos.toLocaleString('es-CL')} avisos
-    </a>
   </section>
 
   <!-- Cifra de portada: el número manda, el resto son pares label/valor -->
@@ -86,35 +70,104 @@ const secciones = [
     </div>
   </section>
 
-  <!-- Últimos avisos -->
+  <!-- Deals destacados: banda en loop continuo. Se desacelera con suavidad al
+       recibir cursor o foco, en vez de detenerse en seco (ver script abajo). -->
   {destacados.length > 0 && (
-    <section class="mb-section lg:mb-editorial">
+    <section>
       <div class="flex flex-wrap items-baseline justify-between gap-element mb-block">
-        <h2 class="text-2xl text-ink">Últimos avisos publicados</h2>
-        <a href="/avisos" class="text-base text-ink hover:text-muted transition-colors">
+        <h2 class="text-2xl text-ink">Deals destacados</h2>
+        <a href="/deals" class="text-base text-ink hover:text-muted transition-colors">
           Ver todos →
         </a>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-element">
-        {destacados.map((aviso) => <CardAviso aviso={aviso} />)}
+
+      <div
+        id="deals-marquee"
+        class="relative left-1/2 w-screen -ml-[50vw] overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_5%,black_95%,transparent)]"
+      >
+        <div id="deals-marquee-track" class="flex gap-element w-max will-change-transform">
+          <div id="deals-marquee-grupo" class="flex gap-element">
+            {destacados.map((deal) => (
+              <div class="w-[280px] sm:w-[320px] shrink-0"><CardDeal deal={deal} /></div>
+            ))}
+          </div>
+          <div id="deals-marquee-duplicado" class="flex gap-element" inert>
+            {destacados.map((deal) => (
+              <div class="w-[280px] sm:w-[320px] shrink-0"><CardDeal deal={deal} /></div>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   )}
 
-  <!-- Secciones: lista apilada, sin cajas -->
-  <section>
-    <h2 class="text-base text-muted uppercase tracking-widest mb-block">Explorar</h2>
-    <ul class="divide-y divide-line border-y border-line">
-      {secciones.map(({ href, titulo, detalle }) => (
-        <li>
-          <a href={href} class="group flex flex-wrap items-baseline gap-x-element gap-y-1 py-block hover:bg-surface transition-colors">
-            <span class="text-2xl text-ink w-40 shrink-0">{titulo}</span>
-            <span class="text-base text-muted flex-1 min-w-0">{detalle}</span>
-            <span class="text-base text-ink shrink-0" aria-hidden="true">→</span>
-          </a>
-        </li>
-      ))}
-    </ul>
-  </section>
-
 </Base>
+
+<style>
+  /* Sin JS o con animaciones reducidas: banda estática y navegable con scroll
+     nativo en vez de loop infinito. El grupo duplicado no aporta nada aquí. */
+  @media (prefers-reduced-motion: reduce) {
+    #deals-marquee { overflow-x: auto; }
+    #deals-marquee-track { transform: none !important; }
+    #deals-marquee-duplicado { display: none; }
+  }
+</style>
+
+<script>
+  const contenedor = document.getElementById('deals-marquee');
+  const pista = document.getElementById('deals-marquee-track');
+  const grupo = document.getElementById('deals-marquee-grupo');
+
+  if (contenedor && pista && grupo && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const VELOCIDAD_BASE = 40; // px/s
+    const SUAVIZADO = 0.06;    // fracción de la brecha hacia la velocidad objetivo que se recorre por frame
+    const GAP = 16;            // debe calzar con gap-element
+
+    let posicion = 0;
+    let velocidad = 0;
+    let objetivo = VELOCIDAD_BASE;
+    let anchoLoop = 0;
+    let ultimoFrame = 0;
+    let frameId: number | null = null;
+    let visible = false;
+
+    const medir = () => { anchoLoop = grupo.getBoundingClientRect().width + GAP; };
+
+    const tick = (ahora: number) => {
+      const dt = ultimoFrame ? Math.min((ahora - ultimoFrame) / 1000, 0.05) : 0;
+      ultimoFrame = ahora;
+
+      velocidad += (objetivo - velocidad) * SUAVIZADO;
+      posicion -= velocidad * dt;
+      if (anchoLoop && posicion <= -anchoLoop) posicion += anchoLoop;
+
+      pista.style.transform = `translate3d(${posicion}px, 0, 0)`;
+      frameId = requestAnimationFrame(tick);
+    };
+
+    const iniciar = () => {
+      if (frameId === null) {
+        ultimoFrame = 0;
+        frameId = requestAnimationFrame(tick);
+      }
+    };
+    const detener = () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+        frameId = null;
+      }
+    };
+    const actualizarEstado = () => { if (visible && !document.hidden) iniciar(); else detener(); };
+
+    medir();
+    window.addEventListener('resize', medir);
+
+    contenedor.addEventListener('pointerenter', () => { objetivo = 0; });
+    contenedor.addEventListener('pointerleave', () => { objetivo = VELOCIDAD_BASE; });
+    contenedor.addEventListener('focusin', () => { objetivo = 0; });
+    contenedor.addEventListener('focusout', () => { objetivo = VELOCIDAD_BASE; });
+
+    document.addEventListener('visibilitychange', actualizarEstado);
+    new IntersectionObserver(([entrada]) => { visible = entrada.isIntersecting; actualizarEstado(); }).observe(contenedor);
+  }
+</script>

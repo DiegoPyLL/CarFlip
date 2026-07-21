@@ -184,15 +184,19 @@ cd web
 # 2. Instalar dependencias
 npm install
 
-# 3. Crear web/.env con las claves de Supabase
+# 3. Usa el .env de la raíz del repo (mismo archivo que el backend Python)
 ```
 
-Contenido de `web/.env`:
+El `.env` vive en la raíz del proyecto, no en `web/` — Astro lo lee de ahí vía
+`envDir` en `astro.config.mjs`. Debe incluir, además de las variables del
+backend:
 
 ```env
 SUPABASE_URL=https://<tu-proyecto>.supabase.co
 SUPABASE_SERVICE_KEY=<service_role key desde Supabase → Settings → API>
 CDN_BASE_URL=https://<tu-dominio-r2>
+RESEND_API_KEY=<API key desde https://resend.com/api-keys>
+CONTACT_EMAIL=<correo donde llegan los mensajes de /contacto>
 ```
 
 ```bash

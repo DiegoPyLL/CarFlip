@@ -1,0 +1,88 @@
+---
+import Base from '@layouts/Base.astro';
+
+const rubroCls = 'text-2xl text-ink mb-element';
+const parrafoCls = 'text-base text-muted leading-relaxed';
+---
+
+<Base
+  titulo="Condiciones de Uso"
+  descripcion="Condiciones que rigen el uso del sitio CarFlip, comparador de avisos de autos usados en Chile."
+>
+  <div class="max-w-3xl">
+    <div class="mb-section">
+      <p class="text-base text-muted uppercase tracking-widest mb-element">Legal</p>
+      <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">Condiciones de Uso</h1>
+      <p class="text-base text-muted">Última actualización: 20 de julio de 2026.</p>
+    </div>
+
+    <div class="space-y-block mb-section">
+      <section>
+        <h2 class={rubroCls}>Qué es CarFlip</h2>
+        <p class={parrafoCls}>
+          CarFlip es un proyecto sin fines de lucro que recopila y compara avisos de autos usados
+          publicados en portales de terceros (Autocosmos, Yapo, Autosusados y Checkeados). No
+          publica avisos propios, no vende autos ni intermedia en ninguna transacción entre
+          comprador y vendedor.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Exactitud de la información</h2>
+        <p class={parrafoCls}>
+          Los datos de cada aviso (precio, kilometraje, año, fotos y descripción) provienen del
+          portal original y pueden estar desactualizados o contener errores ajenos a CarFlip. El
+          botón "Ver aviso original" lleva siempre a la fuente: verifica ahí los datos y contacta
+          al vendedor antes de tomar cualquier decisión de compra.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Uso permitido</h2>
+        <p class={parrafoCls}>
+          El sitio se ofrece para uso personal e informativo. No está permitido extraer datos de
+          forma masiva y automatizada (scraping), interferir con su funcionamiento normal, ni
+          usarlo con fines ilícitos.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Propiedad intelectual</h2>
+        <p class={parrafoCls}>
+          El nombre CarFlip, el diseño y el código del sitio pertenecen a sus desarrolladores. El
+          contenido de cada aviso (fotos, descripciones, precios) pertenece a su portal de origen o
+          al vendedor que lo publicó.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Enlaces a terceros</h2>
+        <p class={parrafoCls}>
+          CarFlip no se hace responsable del contenido, disponibilidad ni prácticas de los portales
+          externos a los que enlaza.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Cambios a estas condiciones</h2>
+        <p class={parrafoCls}>
+          Estas condiciones pueden actualizarse a medida que el sitio evoluciona. La fecha de
+          arriba indica la última revisión.
+        </p>
+      </section>
+
+      <section>
+        <h2 class={rubroCls}>Ley aplicable</h2>
+        <p class={parrafoCls}>
+          Estas condiciones se rigen por las leyes de la República de Chile.
+        </p>
+      </section>
+    </div>
+
+    <p class={parrafoCls}>
+      Ver también: <a href="/privacidad" class="text-ink underline underline-offset-4">Términos de privacidad</a>,
+      {' '}<a href="/legal" class="text-ink underline underline-offset-4">Legales</a> y
+      {' '}<a href="/contacto" class="text-ink underline underline-offset-4">Contáctanos</a>.
+    </p>
+  </div>
+</Base>

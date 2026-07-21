@@ -1,0 +1,68 @@
+---
+import Base from '@layouts/Base.astro';
+
+// Segunda página de marketing del sitio (junto a /como-funciona): mismo ritmo
+// editorial completo. El hero usa blue-signal — único bloque de contenido,
+// además del footer, con este acento — para marcarse como bloque de marca.
+const seccionCls = 'mb-section lg:mb-editorial';
+const rubroCls   = 'text-base text-muted uppercase tracking-widest mb-block';
+---
+
+<Base
+  titulo="Quiénes somos"
+  descripcion="CarFlip es un proyecto sin fines de lucro construido por un grupo de desarrolladores chilenos con una misión: democratizar el acceso a la información de precios en la reventa de autos."
+>
+  <div class="max-w-3xl">
+
+    <!-- Hero: bloque de marca, único junto al footer con blue-signal -->
+    <div class={`${seccionCls} bg-blue-signal px-6 py-block sm:px-10`}>
+      <p class="text-base text-ink-on-tint/70 uppercase tracking-widest mb-element">Quiénes somos</p>
+      <h1 class="text-5xl sm:text-7xl text-ink-on-tint leading-none mb-block text-balance">
+        Democratizar la reventa de autos en Chile.
+      </h1>
+      <p class="text-base text-ink-on-tint/80 leading-relaxed max-w-xl">
+        CarFlip nació sin fines de lucro. Somos un grupo de desarrolladores que vio un mercado
+        repartido en cinco portales distintos, sin ningún lugar donde comparar precios, y construyó
+        la herramienta que nosotros mismos necesitábamos.
+      </p>
+    </div>
+
+    <!-- La misión -->
+    <section class={seccionCls}>
+      <h2 class={rubroCls}>La misión</h2>
+      <p class="text-base text-muted leading-relaxed">
+        Comprar o vender un auto usado en Chile significa revisar Yapo, Autocosmos, AutosUsados y
+        Checkeados por separado, sin ninguna forma simple de saber si un precio es bueno o solo el
+        que puso el vendedor. CarFlip existe para cerrar esa brecha de información: reunir todos los
+        avisos en un solo lugar y mostrar, con datos, cuáles están realmente bajo el precio de mercado.
+      </p>
+    </section>
+
+    <!-- Por qué sin fines de lucro -->
+    <section class={seccionCls}>
+      <h2 class={rubroCls}>Por qué sin fines de lucro</h2>
+      <p class="text-base text-muted leading-relaxed">
+        No cobramos comisión, no vendemos autos y no tenemos ningún interés comercial en qué auto
+        compras ni a quién. CarFlip se sostiene como un proyecto independiente, mantenido por el
+        mismo grupo de desarrolladores que lo construyó. Creemos que la transparencia de precio en
+        un mercado tan grande como el de los autos usados no debería depender de un modelo de negocio.
+      </p>
+    </section>
+
+    <!-- CTA: el punto escarlata es el único color de esta pantalla fuera del hero -->
+    <div class="flex flex-wrap items-center justify-between gap-element">
+      <p class="text-base text-muted">Ver todos los avisos disponibles ahora</p>
+      <a
+        href="/avisos"
+        class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-3 hover:bg-ink hover:text-canvas transition-colors duration-150"
+      >
+        <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+        Ver avisos
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
+
+  </div>
+</Base>
