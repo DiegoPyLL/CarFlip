@@ -1,0 +1,35 @@
+---
+// Lista con numeración tipográfica (01, 02, ...), sin insignias ni conectores.
+// Compartida por el proceso de /como-funciona y los principios de /quienes-somos.
+// enlace es opcional: se anexa al final del texto como "Visible en la sección X."
+interface Item {
+  titulo: string;
+  texto: string;
+  enlace?: { href: string; texto: string };
+}
+
+interface Props {
+  items: Item[];
+}
+
+const { items } = Astro.props;
+---
+
+<ol class="space-y-block">
+  {items.map(({ titulo, texto, enlace }, i) => (
+    <li class="grid grid-cols-[3rem_1fr] gap-element">
+      <span class="text-2xl  tabular-nums leading-tight" aria-hidden="true">
+        {String(i + 1).padStart(2, '0')}
+      </span>
+      <div>
+        <h3 class="text-2xl text-ink mb-2">{titulo}</h3>
+        <p class="text-base  leading-relaxed">
+          {texto}
+          {enlace && (
+            <><a href={enlace.href} class="text-ink underline">{enlace.texto}</a>.</>
+          )}
+        </p>
+      </div>
+    </li>
+  ))}
+</ol>

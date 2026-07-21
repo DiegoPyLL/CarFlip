@@ -66,7 +66,7 @@ const jsonLd = {
     <!-- Volver -->
     <a
       href={urlVolver}
-      class="inline-flex items-center gap-2 text-base text-muted hover:text-ink mb-block transition-colors"
+      class="inline-flex items-center gap-2 text-base  hover:text-ink mb-block transition-colors"
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M19 12H5M12 5l-7 7 7 7"/>
@@ -90,7 +90,7 @@ const jsonLd = {
           />
         </div>
       ) : (
-        <div class="aspect-[16/9] bg-surface flex items-center justify-center text-muted text-base">
+        <div class="aspect-[16/9] bg-surface flex items-center justify-center  text-base">
           Sin imagen
         </div>
       )}
@@ -99,7 +99,7 @@ const jsonLd = {
 
         <!-- Badges -->
         <div class="flex flex-wrap gap-2 mb-element">
-          <span class="text-base px-3 py-1 text-muted border border-line">
+          <span class="text-base px-3 py-1  border border-line">
             {fuenteLabel}
           </span>
           {delta && (
@@ -108,7 +108,7 @@ const jsonLd = {
             </span>
           )}
           {aviso.disponible === false && (
-            <span class="text-base px-3 py-1 text-muted border border-line line-through">
+            <span class="text-base px-3 py-1  border border-line line-through">
               No disponible
             </span>
           )}
@@ -117,7 +117,7 @@ const jsonLd = {
         <!-- Título y precio -->
         <!-- El título es subtítulo; el precio es el display. Separarlos evita que
              compitan, sobre todo cuando el título del portal ya incluye el precio. -->
-        <h1 class="text-2xl sm:text-3xl text-muted leading-snug mb-element">
+        <h1 class="text-2xl sm:text-3xl  leading-snug mb-element">
           {aviso.titulo}
         </h1>
 
@@ -126,7 +126,7 @@ const jsonLd = {
             {aviso.precio ? formatearPrecio(aviso.precio, aviso.moneda) : 'Precio a consultar'}
           </span>
           {aviso.precio_anterior && delta && (
-            <span class="text-base text-muted line-through tabular-nums">
+            <span class="text-base  line-through tabular-nums">
               {formatearPrecio(aviso.precio_anterior, aviso.moneda)}
             </span>
           )}
@@ -139,7 +139,7 @@ const jsonLd = {
           <dl class="grid grid-cols-2 gap-x-block gap-y-element">
             {ficha.map(({ label, valor }) => (
               <div>
-                <dt class="text-base text-muted">{label}</dt>
+                <dt class="text-base ">{label}</dt>
                 <dd class="text-base text-ink">{valor}</dd>
               </div>
             ))}
@@ -162,7 +162,7 @@ const jsonLd = {
               </svg>
             </a>
 
-            <div class="text-base text-muted sm:text-right space-y-1">
+            <div class="text-base  sm:text-right space-y-1">
               {aviso.primera_vez_visto && (
                 <p>Visto por primera vez: <span class="text-ink">{formatearFecha(aviso.primera_vez_visto)}</span></p>
               )}
@@ -176,7 +176,7 @@ const jsonLd = {
         <!-- Descripción -->
         {aviso.descripcion && (
           <div class="mt-section pt-block border-t border-line">
-            <h2 class="text-base text-muted uppercase tracking-wider mb-element">Descripción</h2>
+            <h2 class="text-base  uppercase tracking-wider mb-element">Descripción</h2>
             <p class="text-base text-ink whitespace-pre-line leading-relaxed max-w-2xl">
               {aviso.descripcion}
             </p>

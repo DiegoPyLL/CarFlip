@@ -144,7 +144,7 @@ Botón de 40×40 (target táctil) con dos SVG inline —luna y sol— que se alt
 
 ### CardAviso
 
-`<article>` con `border border-line`, hover a `border-ink` en 200ms. Sin radio, sin sombra, sin transform. La imagen es `aspect-[4/3] object-cover` sobre `bg-surface`; su borde ES el borde de la card. Badges absolutos arriba a la izquierda sobre `bg-canvas/75`: fuente, variación de precio y, si aplica, "No disponible" tachado. Cuerpo con `p-element`: título en `text-base text-muted line-clamp-2`, precio en `text-2xl text-ink tabular-nums`, y metadatos (`año · km · ubicación`) unidos con ` · ` en una sola línea con `truncate`.
+`<article>` con `border border-line`, hover a `border-ink` en 200ms. Sin radio, sin sombra, sin transform. La imagen es `aspect-[4/3] object-cover` sobre `bg-surface`; su borde ES el borde de la card. Badges absolutos arriba a la izquierda sobre `bg-canvas/75`: fuente, variación de precio y, si aplica, "No disponible" tachado. Cuerpo con `p-element`: título en `text-base  line-clamp-2`, precio en `text-2xl text-ink tabular-nums`, y metadatos (`año · km · ubicación`) unidos con ` · ` en una sola línea con `truncate`.
 
 ### CardDeal
 
@@ -154,19 +154,19 @@ Misma anatomía, imagen `aspect-[16/10]`. La diferencia es el badge de categorí
 | ------------------- | ----------------------------------- |
 | `oportunidad_clara` | `bg-ink text-canvas`                |
 | `buen_precio`       | `bg-canvas text-ink border-ink`     |
-| `revisar`           | `bg-canvas text-muted border-muted` |
-| `descartar`         | `bg-canvas text-muted border-line`  |
-| `sin_evaluar`       | `bg-canvas text-muted border-line`  |
+| `revisar`           | `bg-canvas  border-muted` |
+| `descartar`         | `bg-canvas  border-line`  |
+| `sin_evaluar`       | `bg-canvas  border-line`  |
 
 La etiqueta de texto siempre acompaña, así que no se pierde información sin el color. Debajo del precio conviven el puntaje IA (`n/100`), el % vs mercado, la bajada propia del aviso, hasta 3 chips de riesgo con `+n` de overflow, y el resumen de la IA en `line-clamp-2`.
 
 ### Señales de variación de precio
 
-`signosDelta()` devuelve glifo + token, nunca verde ni rojo: bajada → `▼ n%` en `text-ink` (gana peso porque es la buena noticia), alza → `▲ n%` en `text-muted`. El glifo carga el significado; el color solo el énfasis.
+`signosDelta()` devuelve glifo + token, nunca verde ni rojo: bajada → `▼ n%` en `text-ink` (gana peso porque es la buena noticia), alza → `▲ n%` en ``. El glifo carga el significado; el color solo el énfasis.
 
 ### FiltrosBarra
 
-Bloque sobre el listado, cerrado con `border-b border-line`. Fuente como `fieldset` de radios ocultos (`sr-only peer`) con etiquetas tipo toggle: `border-line-strong text-muted` en reposo, `peer-checked:bg-ink peer-checked:text-canvas`. Debajo, selects de marca y año, más las acciones a la derecha: "Filtrar" con borde `ink` y el cuadrado escarlata de 6px, y "Limpiar" como enlace `muted`. A anchos chicos se apila en dos bloques.
+Bloque sobre el listado, cerrado con `border-b border-line`. Fuente como `fieldset` de radios ocultos (`sr-only peer`) con etiquetas tipo toggle: `border-line-strong ` en reposo, `peer-checked:bg-ink peer-checked:text-canvas`. Debajo, selects de marca y año, más las acciones a la derecha: "Filtrar" con borde `ink` y el cuadrado escarlata de 6px, y "Limpiar" como enlace `muted`. A anchos chicos se apila en dos bloques.
 
 ### FiltrosSidebar
 
@@ -182,7 +182,7 @@ Filas apiladas con `divide-y divide-line border-y border-line`, sin cajas. Cada 
 
 ### Bloque de cifras
 
-Pares label/valor sin bordes ni cajas: label en `text-base text-muted`, valor justo debajo en `text-base text-ink tabular-nums`. Se distribuyen con `flex flex-wrap gap-x-block gap-y-element`. La tipografía hace el trabajo de estructurar.
+Pares label/valor sin bordes ni cajas: label en `text-base `, valor justo debajo en `text-base text-ink tabular-nums`. Se distribuyen con `flex flex-wrap gap-x-block gap-y-element`. La tipografía hace el trabajo de estructurar.
 
 ### CTA primario
 
@@ -257,7 +257,7 @@ Las páginas de producto (`/avisos`, `/deals`, `/mercado`, `/auto/[id]`, cards) 
 
 ```
 texto primario      → text-ink
-texto secundario    → text-muted
+texto secundario    → 
 fondo               → bg-canvas
 superficie/hover    → bg-surface
 borde/divisor       → border-line

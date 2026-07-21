@@ -119,6 +119,25 @@ body {
   overflow-x: hidden;
 }
 
+/* Piso de 400px para la vista de escritorio: por debajo de ese ancho el layout
+   deja de comprimirse y la ventana scrollea. Se limita a `pointer: fine` para
+   no imponerlo a los teléfonos de 360-375px, donde generaría scroll horizontal
+   y Lighthouse lo marcaría como "content wider than screen". */
+@media (pointer: fine) {
+  body {
+    min-width: 400px;
+  }
+}
+
+/* El `overflow-x: hidden` de arriba recortaría ese sobrante en vez de dejarlo
+   scrollear, así que se levanta justo en el rango donde el piso actúa. Sobre
+   400px el clip sigue vigente y el scroll fantasma del marquee no reaparece. */
+@media (pointer: fine) and (max-width: 400px) {
+  body {
+    overflow-x: auto;
+  }
+}
+
 h1,
 h2,
 h3 {

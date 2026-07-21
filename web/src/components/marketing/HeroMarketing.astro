@@ -1,0 +1,38 @@
+---
+// Hero de las páginas de marketing. Dos variantes:
+//   marca=false → hero plano sobre canvas (/como-funciona)
+//   marca=true  → bloque de marca sobre blue-signal (/quienes-somos)
+// El azul solo es válido como fondo de bloque, nunca como texto sobre canvas
+// (ver global.css); por eso el texto encima usa ink-on-tint en la variante marca.
+import { seccionCls } from '@lib/marketing';
+
+// `class` deja el ritmo vertical en el call site: por defecto el salto de
+// sección, y se sobreescribe cuando el hero debe pegarse a lo que sigue.
+interface Props {
+  rubro: string;
+  titulo: string;
+  marca?: boolean;
+  class?: string;
+}
+
+const { rubro, titulo, marca = false, class: clase = seccionCls } = Astro.props;
+
+// El bloque de marca respira más adentro que afuera: el aire interior es lo que
+// lo convierte en portada en vez de una caja de color.
+const wrapperCls = marca
+  ? `${clase} bg-blue-signal px-6 py-block sm:px-10 sm:py-section`
+  : clase;
+
+const rubroCls  = marca ? 'text-base text-ink-on-tint/70 uppercase tracking-widest mb-element'
+                        : 'text-base  uppercase tracking-widest mb-element';
+const tituloCls = marca ? 'text-5xl sm:text-7xl text-ink-on-tint leading-none mb-block text-balance'
+                        : 'text-5xl sm:text-7xl text-ink leading-none mb-block text-balance';
+const cuerpoCls = marca ? 'text-base text-ink-on-tint/80 leading-relaxed max-w-xl'
+                        : 'text-base  leading-relaxed max-w-xl';
+---
+
+<div class={wrapperCls}>
+  <p class={rubroCls}>{rubro}</p>
+  <h1 class={tituloCls}>{titulo}</h1>
+  <p class={cuerpoCls}><slot /></p>
+</div>

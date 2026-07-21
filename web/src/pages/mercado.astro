@@ -24,7 +24,7 @@ const fuentes = [
 const panelCls   = 'border border-line';
 const cabeceraCls = 'p-element border-b border-line';
 const filaCls    = 'flex items-center gap-element p-element hover:bg-surface transition-colors';
-const rankCls    = 'text-base text-muted w-6 shrink-0 tabular-nums text-right';
+const rankCls    = 'text-base  w-6 shrink-0 tabular-nums text-right';
 // `w-full overflow-hidden` es necesario: sin ancho explícito, el % de la barra
 // interior queda indeterminado durante el sizing intrínseco y dispara el layout.
 const pistaCls   = 'h-px w-full bg-line overflow-hidden';
@@ -37,9 +37,9 @@ const pistaCls   = 'h-px w-full bg-line overflow-hidden';
 
   <!-- Header -->
   <div class="mb-section">
-    <p class="text-base text-muted uppercase tracking-widest mb-element">Análisis de precios</p>
+    <p class="text-base  uppercase tracking-widest mb-element">Análisis de precios</p>
     <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-element">Mercado</h1>
-    <p class="text-base text-muted max-w-xl">
+    <p class="text-base  max-w-xl">
       Estadísticas calculadas sobre {datos.total.toLocaleString('es-CL')} avisos activos.
       Se actualizan a diario junto con el resto de los datos.
     </p>
@@ -49,7 +49,7 @@ const pistaCls   = 'h-px w-full bg-line overflow-hidden';
   <form method="GET" action="/mercado" class="mb-block">
     <fieldset class="flex flex-wrap items-center gap-element">
       <legend class="sr-only">Fuente</legend>
-      <span class="text-sm text-muted uppercase tracking-wider shrink-0" aria-hidden="true">Fuente</span>
+      <span class="text-sm  uppercase tracking-wider shrink-0" aria-hidden="true">Fuente</span>
       <div class="flex flex-wrap gap-2">
         {fuentes.map(({ value, label }) => (
           <label class="cursor-pointer select-none shrink-0">
@@ -61,7 +61,7 @@ const pistaCls   = 'h-px w-full bg-line overflow-hidden';
               checked={fuente === value || (!fuente && value === '')}
               onchange="this.form.submit()"
             />
-            <span class="block px-3 py-2 text-base border border-line-strong text-muted peer-checked:bg-ink peer-checked:text-canvas peer-checked:border-ink peer-focus-visible:border-scarlet-signal hover:border-ink hover:text-ink transition-colors whitespace-nowrap">
+            <span class="block px-3 py-2 text-base border border-line-strong  peer-checked:bg-ink peer-checked:text-canvas peer-checked:border-ink peer-focus-visible:border-scarlet-signal hover:border-ink hover:text-ink transition-colors whitespace-nowrap">
               {label}
             </span>
           </label>
@@ -79,7 +79,7 @@ const pistaCls   = 'h-px w-full bg-line overflow-hidden';
       <section class={panelCls}>
         <div class={cabeceraCls}>
           <h2 class="text-base text-ink">Marcas más listadas</h2>
-          <p class="text-base text-muted">Top 20 por cantidad de avisos</p>
+          <p class="text-base ">Top 20 por cantidad de avisos</p>
         </div>
         <div class="divide-y divide-line">
           {datos.marcas.map((m, i) => (
@@ -91,11 +91,11 @@ const pistaCls   = 'h-px w-full bg-line overflow-hidden';
                 <div class="flex items-center justify-between mb-2">
                   <a
                     href={`/marcas/${encodeURIComponent(m.marca)}`}
-                    class="text-base text-ink hover:text-muted transition-colors truncate"
+                    class="text-base text-ink hover: transition-colors truncate"
                   >
                     {m.marca}
                   </a>
-                  <span class="text-base text-muted tabular-nums ml-3 shrink-0">
+                  <span class="text-base  tabular-nums ml-3 shrink-0">
                     {m.total.toLocaleString('es-CL')}
                   </span>
                 </div>
@@ -108,7 +108,7 @@ const pistaCls   = 'h-px w-full bg-line overflow-hidden';
               </div>
 
               <!-- Precio promedio -->
-              <span class="text-base tabular-nums text-muted w-28 text-right shrink-0 hidden sm:block">
+              <span class="text-base tabular-nums  w-28 text-right shrink-0 hidden sm:block">
                 {m.precio_promedio ? formatearPrecio(Math.round(m.precio_promedio)) : '—'}
               </span>
             </div>
@@ -120,7 +120,7 @@ const pistaCls   = 'h-px w-full bg-line overflow-hidden';
       <section class={panelCls}>
         <div class={cabeceraCls}>
           <h2 class="text-base text-ink">Modelos más listados</h2>
-          <p class="text-base text-muted">Top 15 por cantidad de avisos</p>
+          <p class="text-base ">Top 15 por cantidad de avisos</p>
         </div>
         <div class="divide-y divide-line">
           {datos.modelos.map((m, i) => (
@@ -132,13 +132,13 @@ const pistaCls   = 'h-px w-full bg-line overflow-hidden';
                   <div class="min-w-0">
                     <a
                       href={`/avisos?marca=${encodeURIComponent(m.marca)}&modelo=${encodeURIComponent(m.modelo)}`}
-                      class="text-base text-ink hover:text-muted transition-colors"
+                      class="text-base text-ink hover: transition-colors"
                     >
                       {m.modelo}
                     </a>
-                    <span class="text-base text-muted ml-2">{m.marca}</span>
+                    <span class="text-base  ml-2">{m.marca}</span>
                   </div>
-                  <span class="text-base text-muted tabular-nums ml-3 shrink-0">
+                  <span class="text-base  tabular-nums ml-3 shrink-0">
                     {m.total.toLocaleString('es-CL')}
                   </span>
                 </div>
@@ -150,7 +150,7 @@ const pistaCls   = 'h-px w-full bg-line overflow-hidden';
                 </div>
               </div>
 
-              <span class="text-base tabular-nums text-muted w-28 text-right shrink-0 hidden sm:block">
+              <span class="text-base tabular-nums  w-28 text-right shrink-0 hidden sm:block">
                 {m.precio_promedio ? formatearPrecio(Math.round(m.precio_promedio)) : '—'}
               </span>
             </div>
@@ -167,14 +167,14 @@ const pistaCls   = 'h-px w-full bg-line overflow-hidden';
       <section class={panelCls}>
         <div class={cabeceraCls}>
           <h2 class="text-base text-ink">Distribución de precios</h2>
-          <p class="text-base text-muted">Avisos por rango</p>
+          <p class="text-base ">Avisos por rango</p>
         </div>
         <div class="p-element space-y-element">
           {datos.distribucion.map(d => (
             <div>
               <div class="flex items-center justify-between mb-2">
                 <span class="text-base text-ink">{d.etiqueta}</span>
-                <span class="text-base tabular-nums text-muted">
+                <span class="text-base tabular-nums ">
                   {d.total.toLocaleString('es-CL')}
                 </span>
               </div>
@@ -193,19 +193,19 @@ const pistaCls   = 'h-px w-full bg-line overflow-hidden';
       <section class={panelCls}>
         <div class={cabeceraCls}>
           <h2 class="text-base text-ink">Rango de precios por marca</h2>
-          <p class="text-base text-muted">Mínimo y máximo publicados</p>
+          <p class="text-base ">Mínimo y máximo publicados</p>
         </div>
         <div class="divide-y divide-line max-h-96 overflow-y-auto">
           {datos.marcas.filter(m => m.precio_minimo && m.precio_maximo).map(m => (
             <div class="p-element">
               <div class="flex items-center justify-between mb-1">
                 <span class="text-base text-ink">{m.marca}</span>
-                <span class="text-base text-muted tabular-nums">{m.total} avisos</span>
+                <span class="text-base  tabular-nums">{m.total} avisos</span>
               </div>
               <div class="flex items-center gap-2 text-base tabular-nums">
-                <span class="text-muted">{formatearPrecio(Math.round(m.precio_minimo!))}</span>
+                <span class="">{formatearPrecio(Math.round(m.precio_minimo!))}</span>
                 <span class="flex-1 border-t border-line border-dashed mx-1" />
-                <span class="text-muted">{formatearPrecio(Math.round(m.precio_maximo!))}</span>
+                <span class="">{formatearPrecio(Math.round(m.precio_maximo!))}</span>
               </div>
             </div>
           ))}

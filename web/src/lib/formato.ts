@@ -39,5 +39,5 @@ export function signosDelta(delta: number | null): { texto: string; clases: stri
   if (delta < 0) {
     return { texto: `▼ ${Math.abs(delta).toFixed(1)}%`, clases: 'bg-canvas/75 text-ink' };
   }
-  return { texto: `▲ ${delta.toFixed(1)}%`, clases: 'bg-canvas/75 text-muted' };
+  return { texto: `▲ ${delta.toFixed(1)}%`, clases: 'bg-canvas/75 ' };
 }

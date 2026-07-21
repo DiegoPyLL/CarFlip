@@ -23,7 +23,7 @@ const selectCls = [
   'transition-colors',
 ].join(' ');
 
-const labelCls = 'text-sm text-muted uppercase tracking-wider';
+const labelCls = 'text-sm  uppercase tracking-wider';
 ---
 
 <!--
@@ -45,7 +45,7 @@ const labelCls = 'text-sm text-muted uppercase tracking-wider';
             class="sr-only peer"
             checked={filtros.fuente === value || (!filtros.fuente && value === '')}
           />
-          <span class="block px-3 py-2 text-base border border-line-strong text-muted peer-checked:bg-ink peer-checked:text-canvas peer-checked:border-ink peer-focus-visible:border-scarlet-signal hover:border-ink hover:text-ink transition-colors whitespace-nowrap">
+          <span class="block px-3 py-2 text-base border border-line-strong  peer-checked:bg-ink peer-checked:text-canvas peer-checked:border-ink peer-focus-visible:border-scarlet-signal hover:border-ink hover:text-ink transition-colors whitespace-nowrap">
             {label}
           </span>
         </label>
@@ -88,7 +88,7 @@ const labelCls = 'text-sm text-muted uppercase tracking-wider';
       </button>
       <a
         href="/avisos"
-        class="text-base text-muted hover:text-ink transition-colors py-2"
+        class="text-base  hover:text-ink transition-colors py-2"
       >
         Limpiar
       </a>

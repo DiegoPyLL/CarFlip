@@ -35,7 +35,7 @@ const ordenOptions = [
 >
 
   <div class="mb-block">
-    <p class="text-base text-muted uppercase tracking-widest mb-element">Listado completo</p>
+    <p class="text-base  uppercase tracking-widest mb-element">Listado completo</p>
     <h1 class="text-5xl sm:text-7xl text-ink leading-none">Avisos</h1>
   </div>
 
@@ -56,14 +56,14 @@ const ordenOptions = [
 
         <!-- Barra: ordenar + contador -->
         <div class="flex flex-wrap items-center justify-between gap-element mb-element">
-          <p class="text-base text-muted">
+          <p class="text-base ">
             {resultado.total === 0
               ? 'Sin resultados'
               : <><span class="text-ink tabular-nums">{resultado.total.toLocaleString('es-CL')}</span> {resultado.total === 1 ? 'aviso' : 'avisos'}</>
             }
           </p>
           <div class="flex items-center gap-2">
-            <label for="orden" class="text-base text-muted hidden sm:block shrink-0">
+            <label for="orden" class="text-base  hidden sm:block shrink-0">
               Ordenar por
             </label>
             <select
@@ -100,7 +100,7 @@ const ordenOptions = [
             <p class="text-2xl text-ink">Sin resultados para estos filtros</p>
             <a
               href="/avisos"
-              class="mt-element inline-flex items-center gap-2 text-base text-ink hover:text-muted transition-colors"
+              class="mt-element inline-flex items-center gap-2 text-base text-ink hover: transition-colors"
             >
               <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
               Ver todos los avisos

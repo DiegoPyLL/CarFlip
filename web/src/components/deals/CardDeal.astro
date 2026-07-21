@@ -21,9 +21,9 @@ const fuenteLabels: Record<Deal['fuente'], string> = {
 const categoriaEstilos: Record<CategoriaDeal | 'sin_evaluar', { label: string; clases: string }> = {
   oportunidad_clara: { label: 'Oportunidad', clases: 'bg-ink text-canvas' },
   buen_precio:       { label: 'Buen precio', clases: 'bg-canvas text-ink border border-ink' },
-  revisar:           { label: 'Revisar',     clases: 'bg-canvas text-muted border border-muted' },
-  descartar:         { label: 'Descartar',   clases: 'bg-canvas text-muted border border-line' },
-  sin_evaluar:       { label: 'Sin evaluar', clases: 'bg-canvas text-muted border border-line' },
+  revisar:           { label: 'Revisar',     clases: 'bg-canvas  border border-muted' },
+  descartar:         { label: 'Descartar',   clases: 'bg-canvas  border border-line' },
+  sin_evaluar:       { label: 'Sin evaluar', clases: 'bg-canvas  border border-line' },
 };
 
 const badge = categoriaEstilos[deal.categoria ?? 'sin_evaluar'];
@@ -59,7 +59,7 @@ const metaItems = [
           class="w-full h-full object-cover"
         />
       ) : (
-        <div class="w-full h-full flex items-center justify-center text-muted text-base">Sin imagen</div>
+        <div class="w-full h-full flex items-center justify-center  text-base">Sin imagen</div>
       )}
 
       <!-- Badge de categoría: protagonista en esta pantalla -->
@@ -71,7 +71,7 @@ const metaItems = [
 
       <!-- Fuente -->
       <div class="absolute top-element left-element">
-        <span class="text-sm px-2 py-0.5 bg-canvas/75 text-muted">
+        <span class="text-sm px-2 py-0.5 bg-canvas/75 ">
           {fuenteLabels[deal.fuente]}
         </span>
       </div>
@@ -79,7 +79,7 @@ const metaItems = [
 
     <!-- Contenido -->
     <div class="p-element">
-      <h2 class="text-base text-muted line-clamp-2 leading-snug mb-4">
+      <h2 class="text-base  line-clamp-2 leading-snug mb-4">
         {deal.titulo}
       </h2>
 
@@ -90,7 +90,7 @@ const metaItems = [
         </span>
         {deal.puntaje !== null && (
           <span class="text-base text-ink tabular-nums" title="Puntaje IA (0-100)">
-            {deal.puntaje}<span class="text-muted">/100</span>
+            {deal.puntaje}<span class="">/100</span>
           </span>
         )}
       </div>
@@ -100,14 +100,14 @@ const metaItems = [
         <p class="text-base text-ink mb-1 tabular-nums">
           ▼ {Math.abs(pctMercado).toFixed(1)}% vs mercado
           {deal.precio_mercado !== null && (
-            <span class="text-muted"> ({formatearPrecio(deal.precio_mercado, deal.moneda)})</span>
+            <span class=""> ({formatearPrecio(deal.precio_mercado, deal.moneda)})</span>
           )}
         </p>
       )}
 
       <!-- Bajada de precio propia del aviso -->
       {deal.delta_pct !== null && deal.delta_pct < 0 && (
-        <p class="text-base text-muted mb-1 tabular-nums">
+        <p class="text-base  mb-1 tabular-nums">
           Bajó {Math.abs(deal.delta_pct).toFixed(1)}% desde que lo vimos
         </p>
       )}
@@ -116,12 +116,12 @@ const metaItems = [
       {riesgosVisibles.length > 0 && (
         <div class="flex flex-wrap gap-2 mt-3 mb-1">
           {riesgosVisibles.map((riesgo) => (
-            <span class="text-sm px-2 py-0.5 text-muted border border-line">
+            <span class="text-sm px-2 py-0.5  border border-line">
               {riesgo}
             </span>
           ))}
           {riesgosExtra > 0 && (
-            <span class="text-sm px-2 py-0.5 text-muted border border-line">
+            <span class="text-sm px-2 py-0.5  border border-line">
               +{riesgosExtra}
             </span>
           )}
@@ -130,11 +130,11 @@ const metaItems = [
 
       <!-- Resumen IA -->
       {deal.resumen && (
-        <p class="text-base text-muted line-clamp-2 mt-3 mb-1">{deal.resumen}</p>
+        <p class="text-base  line-clamp-2 mt-3 mb-1">{deal.resumen}</p>
       )}
 
       {metaItems.length > 0 && (
-        <p class="text-base text-muted truncate mt-3">{metaItems.join(' · ')}</p>
+        <p class="text-base  truncate mt-3">{metaItems.join(' · ')}</p>
       )}
     </div>
   </a>

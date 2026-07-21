@@ -1,0 +1,122 @@
+---
+import Base from '@layouts/Base.astro';
+
+if (Astro.locals.usuario) return Astro.redirect('/cuenta');
+
+const enviado = Astro.url.searchParams.has('enviado');
+const error = Astro.url.searchParams.get('error');
+const mensajeError =
+  error === 'config'
+    ? 'El registro no está disponible en este momento.'
+    : error
+      ? 'No pudimos crear la cuenta. Revisa los datos e inténtalo de nuevo.'
+      : null;
+
+const inputCls =
+  'w-full bg-transparent border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
+---
+
+<Base titulo="Crear cuenta" descripcion="Crea tu cuenta en CarFlip." noindex>
+  <div class="max-w-md mx-auto">
+    <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">Crea tu cuenta.</h1>
+
+    {enviado ? (
+      <div role="status">
+        <p class="text-lg leading-relaxed mb-element">
+          Te enviamos un correo para confirmar tu dirección. Ábrelo y sigue el enlace para activar
+          la cuenta.
+        </p>
+        <p class="text-base ">
+          ¿Ya la confirmaste? <a href="/entrar" class="text-ink underline underline-offset-4">Entra aquí</a>.
+        </p>
+      </div>
+    ) : (
+      <>
+        {mensajeError && (
+          <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
+            {mensajeError}
+          </div>
+        )}
+
+        <form method="POST" action="/api/auth/registro" class="space-y-element">
+          <div>
+            <label for="email" class="flex items-baseline justify-between text-base text-ink mb-2">
+              Email <span class="text-sm text-scarlet-signal">*Requerido</span>
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              required
+              maxlength="200"
+              autocomplete="email"
+              aria-describedby="err-email"
+              class={`${inputCls} campo`}
+            />
+            <p id="err-email" class="campo-error text-sm text-scarlet-signal mt-1.5">
+              Ingresa un correo electrónico válido.
+            </p>
+          </div>
+
+          <div>
+            <label for="password" class="flex items-baseline justify-between text-base text-ink mb-2">
+              Contraseña <span class="text-sm text-scarlet-signal">*Requerido</span>
+            </label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              required
+              minlength="8"
+              maxlength="72"
+              autocomplete="new-password"
+              aria-describedby="err-password"
+              class={`${inputCls} campo`}
+            />
+            <p id="err-password" class="campo-error text-sm text-scarlet-signal mt-1.5">
+              Usa al menos 8 caracteres.
+            </p>
+          </div>
+
+          <!-- Honeypot: invisible para personas, un bot que autocompleta todo lo llena. -->
+          <div class="hidden" aria-hidden="true">
+            <label for="web">No completar este campo</label>
+            <input type="text" id="web" name="web" tabindex="-1" autocomplete="off" />
+          </div>
+
+          <button
+            type="submit"
+            class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150"
+          >
+            Crear cuenta
+            <span aria-hidden="true">→</span>
+          </button>
+        </form>
+
+        <p class="mt-block text-base ">
+          ¿Ya tienes cuenta?
+          <a href="/entrar" class="text-ink underline underline-offset-4">Entra</a>.
+        </p>
+
+        <p class="mt-element text-sm leading-relaxed">
+          Al crear una cuenta aceptas las
+          <a href="/condiciones-de-uso" class="text-ink underline underline-offset-4">condiciones de uso</a>
+          y la
+          <a href="/privacidad" class="text-ink underline underline-offset-4">política de privacidad</a>.
+        </p>
+
+        <style>
+          .campo-error {
+            display: none;
+          }
+          .campo:user-invalid {
+            border-color: var(--color-scarlet-signal);
+          }
+          .campo:user-invalid ~ .campo-error {
+            display: block;
+          }
+        </style>
+      </>
+    )}
+  </div>
+</Base>

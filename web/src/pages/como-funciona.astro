@@ -1,7 +1,12 @@
 ---
 import Base from '@layouts/Base.astro';
+import HeroMarketing from '@components/marketing/HeroMarketing.astro';
+import Cifras from '@components/marketing/Cifras.astro';
+import ListaNumerada from '@components/marketing/ListaNumerada.astro';
+import CtaAvisos from '@components/marketing/CtaAvisos.astro';
 import { obtenerEstadisticas } from '@lib/db';
 import { formatearPrecio } from '@lib/formato';
+import { seccionCls, rubroCls } from '@lib/marketing';
 
 const stats = await obtenerEstadisticas();
 
@@ -68,10 +73,9 @@ const faq = [
   },
 ];
 
-// Única página de marketing del sitio: se permite el ritmo editorial completo
-// (títulos grandes, 120px entre secciones) que un grid de datos no toleraría.
-const seccionCls = 'mb-section lg:mb-editorial';
-const rubroCls   = 'text-base text-muted uppercase tracking-widest mb-block';
+// Página de marketing del sitio (junto a /quienes-somos): ritmo editorial
+// completo (títulos grandes, 120px entre secciones) que un grid de datos no
+// toleraría. seccionCls/rubroCls viven en @lib/marketing.
 ---
 
 <Base
@@ -81,39 +85,15 @@ const rubroCls   = 'text-base text-muted uppercase tracking-widest mb-block';
   <div class="max-w-3xl">
 
     <!-- Hero -->
-    <div class={seccionCls}>
-      <p class="text-base text-muted uppercase tracking-widest mb-element">Cómo funciona</p>
-      <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">
-        Un comparador de precios, no un portal de autos.
-      </h1>
-      <p class="text-base text-muted leading-relaxed max-w-xl">
-        CarFlip no publica avisos propios. Recopila automáticamente lo que otros portales publican,
-        lo normaliza y lo deja en un solo lugar para que puedas comparar precios sin abrir cinco pestañas.
-      </p>
-    </div>
+    <HeroMarketing rubro="Cómo funciona" titulo="Un comparador de precios, no un portal de autos.">
+      CarFlip no publica avisos propios. Recopila automáticamente lo que otros portales publican,
+      lo normaliza y lo deja en un solo lugar para que puedas comparar precios sin abrir cinco pestañas.
+    </HeroMarketing>
 
     <!-- Proceso: numeración tipográfica, sin insignias ni conectores -->
     <section class={seccionCls}>
       <h2 class={rubroCls}>El proceso</h2>
-
-      <ol class="space-y-block">
-        {pasos.map(({ titulo, texto, enlace }, i) => (
-          <li class="grid grid-cols-[3rem_1fr] gap-element">
-            <span class="text-2xl text-muted tabular-nums leading-tight" aria-hidden="true">
-              {String(i + 1).padStart(2, '0')}
-            </span>
-            <div>
-              <h3 class="text-2xl text-ink mb-2">{titulo}</h3>
-              <p class="text-base text-muted leading-relaxed">
-                {texto}
-                {enlace && (
-                  <> Visible en la sección <a href={enlace.href} class="text-ink underline">{enlace.texto}</a>.</>
-                )}
-              </p>
-            </div>
-          </li>
-        ))}
-      </ol>
+      <ListaNumerada items={pasos} />
     </section>
 
     <!-- Fuentes activas -->
@@ -123,10 +103,10 @@ const rubroCls   = 'text-base text-muted uppercase tracking-widest mb-block';
       <ul class="divide-y divide-line border-y border-line">
         {fuentes.map(({ nombre, detalle, activa }) => (
           <li class="flex items-baseline justify-between gap-element py-element">
-            <span class={activa ? 'text-base text-ink' : 'text-base text-muted'}>
+            <span class={activa ? 'text-base text-ink' : 'text-base '}>
               {nombre}
             </span>
-            <span class="text-base text-muted text-right">{detalle}</span>
+            <span class="text-base  text-right">{detalle}</span>
           </li>
         ))}
       </ul>
@@ -135,14 +115,7 @@ const rubroCls   = 'text-base text-muted uppercase tracking-widest mb-block';
     <!-- Stats en vivo -->
     <section class={seccionCls}>
       <h2 class={rubroCls}>En este momento</h2>
-      <div class="grid grid-cols-2 sm:grid-cols-3 gap-element sm:gap-block">
-        {cifras.map(({ valor, label }) => (
-          <div class="min-w-0">
-            <p class="text-2xl sm:text-3xl text-ink tabular-nums leading-none break-words">{valor}</p>
-            <p class="text-base text-muted mt-2">{label}</p>
-          </div>
-        ))}
-      </div>
+      <Cifras cifras={cifras} />
     </section>
 
     <!-- Preguntas frecuentes: `scroll-mt` compensa el header sticky (h-12)
@@ -154,26 +127,14 @@ const rubroCls   = 'text-base text-muted uppercase tracking-widest mb-block';
         {faq.map(({ pregunta, respuesta }) => (
           <div class="py-block">
             <h3 class="text-2xl text-ink mb-element">{pregunta}</h3>
-            <p class="text-base text-muted leading-relaxed">{respuesta}</p>
+            <p class="text-base  leading-relaxed">{respuesta}</p>
           </div>
         ))}
       </div>
     </section>
 
-    <!-- CTA: el punto escarlata es el único color de esta pantalla -->
-    <div class="flex flex-wrap items-center justify-between gap-element">
-      <p class="text-base text-muted">Ver todos los avisos disponibles ahora</p>
-      <a
-        href="/avisos"
-        class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-3 hover:bg-ink hover:text-canvas transition-colors duration-150"
-      >
-        <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
-        Ver avisos
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M5 12h14M12 5l7 7-7 7"/>
-        </svg>
-      </a>
-    </div>
+    <!-- CTA -->
+    <CtaAvisos />
 
   </div>
 </Base>

@@ -30,7 +30,7 @@ const filaCls     = 'flex items-center gap-element p-element hover:bg-surface tr
 // `w-full overflow-hidden` es necesario: sin ancho explícito, el % de la barra
 // interior queda indeterminado durante el sizing intrínseco y dispara el layout.
 const pistaCls    = 'h-px w-full bg-line overflow-hidden';
-const enlaceCls   = 'text-base text-ink hover:text-muted transition-colors';
+const enlaceCls   = 'text-base text-ink hover: transition-colors';
 ---
 
 <Base
@@ -39,7 +39,7 @@ const enlaceCls   = 'text-base text-ink hover:text-muted transition-colors';
 >
 
   <!-- Breadcrumb -->
-  <nav class="text-base text-muted mb-block flex items-center gap-2">
+  <nav class="text-base  mb-block flex items-center gap-2">
     <a href="/avisos" class="hover:text-ink transition-colors">Avisos</a>
     <span aria-hidden="true">/</span>
     <a href="/mercado" class="hover:text-ink transition-colors">Mercado</a>
@@ -49,18 +49,18 @@ const enlaceCls   = 'text-base text-ink hover:text-muted transition-colors';
 
   <!-- Header -->
   <div class="mb-section">
-    <p class="text-base text-muted uppercase tracking-widest mb-element">Marca</p>
+    <p class="text-base  uppercase tracking-widest mb-element">Marca</p>
     <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block">{marcaDecoded}</h1>
 
     <!-- Stats: pares label/valor apilados -->
     <div class="flex flex-wrap gap-x-block gap-y-element">
       <div>
-        <p class="text-base text-muted">Avisos activos</p>
+        <p class="text-base ">Avisos activos</p>
         <p class="text-base text-ink tabular-nums">{datos.total.toLocaleString('es-CL')}</p>
       </div>
       {datos.precio_promedio && (
         <div>
-          <p class="text-base text-muted">Precio promedio</p>
+          <p class="text-base ">Precio promedio</p>
           <p class="text-base text-ink tabular-nums">
             {formatearPrecio(Math.round(datos.precio_promedio))}
           </p>
@@ -68,7 +68,7 @@ const enlaceCls   = 'text-base text-ink hover:text-muted transition-colors';
       )}
       {datos.precio_minimo && datos.precio_maximo && (
         <div>
-          <p class="text-base text-muted">Rango publicado</p>
+          <p class="text-base ">Rango publicado</p>
           <p class="text-base text-ink tabular-nums">
             {formatearPrecio(Math.round(datos.precio_minimo))} — {formatearPrecio(Math.round(datos.precio_maximo))}
           </p>
@@ -86,12 +86,12 @@ const enlaceCls   = 'text-base text-ink hover:text-muted transition-colors';
       <section class={panelCls}>
         <div class={cabeceraCls}>
           <h2 class="text-base text-ink">Modelos más listados</h2>
-          <p class="text-base text-muted">Top {datos.modelos.length} por cantidad de avisos</p>
+          <p class="text-base ">Top {datos.modelos.length} por cantidad de avisos</p>
         </div>
         <div class="divide-y divide-line">
           {datos.modelos.map((m, i) => (
             <div class={filaCls}>
-              <span class="text-base text-muted w-6 shrink-0 tabular-nums text-right">
+              <span class="text-base  w-6 shrink-0 tabular-nums text-right">
                 {i + 1}
               </span>
               <div class="flex-1 min-w-0">
@@ -102,7 +102,7 @@ const enlaceCls   = 'text-base text-ink hover:text-muted transition-colors';
                   >
                     {m.modelo}
                   </a>
-                  <span class="text-base text-muted tabular-nums ml-3 shrink-0">
+                  <span class="text-base  tabular-nums ml-3 shrink-0">
                     {m.total.toLocaleString('es-CL')}
                   </span>
                 </div>
@@ -113,7 +113,7 @@ const enlaceCls   = 'text-base text-ink hover:text-muted transition-colors';
                   />
                 </div>
               </div>
-              <span class="text-base tabular-nums text-muted w-28 text-right shrink-0 hidden sm:block">
+              <span class="text-base tabular-nums  w-28 text-right shrink-0 hidden sm:block">
                 {m.precio_promedio ? formatearPrecio(Math.round(m.precio_promedio)) : '—'}
               </span>
             </div>
@@ -135,7 +135,7 @@ const enlaceCls   = 'text-base text-ink hover:text-muted transition-colors';
         <section class={panelCls}>
           <div class={cabeceraCls}>
             <h2 class="text-base text-ink">Avisos por año</h2>
-            <p class="text-base text-muted">Últimos {datos.anios.length} años con stock</p>
+            <p class="text-base ">Últimos {datos.anios.length} años con stock</p>
           </div>
           <div class="divide-y divide-line">
             {datos.anios.map(a => (
@@ -154,10 +154,10 @@ const enlaceCls   = 'text-base text-ink hover:text-muted transition-colors';
                     />
                   </div>
                 </div>
-                <span class="text-base text-muted tabular-nums w-10 text-right shrink-0">
+                <span class="text-base  tabular-nums w-10 text-right shrink-0">
                   {a.total}
                 </span>
-                <span class="text-base tabular-nums text-muted w-28 text-right shrink-0 hidden sm:block">
+                <span class="text-base tabular-nums  w-28 text-right shrink-0 hidden sm:block">
                   {a.precio_promedio ? formatearPrecio(Math.round(a.precio_promedio)) : '—'}
                 </span>
               </div>
@@ -173,14 +173,14 @@ const enlaceCls   = 'text-base text-ink hover:text-muted transition-colors';
       <section class={panelCls}>
         <div class={cabeceraCls}>
           <h2 class="text-base text-ink">Distribución de precios</h2>
-          <p class="text-base text-muted">Avisos por rango</p>
+          <p class="text-base ">Avisos por rango</p>
         </div>
         <div class="p-element space-y-element">
           {datos.distribucion.map(d => (
             <div>
               <div class="flex items-center justify-between mb-2">
                 <span class="text-base text-ink">{d.etiqueta}</span>
-                <span class="text-base tabular-nums text-muted">
+                <span class="text-base tabular-nums ">
                   {d.total.toLocaleString('es-CL')}
                 </span>
               </div>
@@ -197,7 +197,7 @@ const enlaceCls   = 'text-base text-ink hover:text-muted transition-colors';
 
       <!-- Links a otras marcas del mercado -->
       <div class={`${panelCls} p-element`}>
-        <p class="text-sm text-muted uppercase tracking-wider mb-element">Explorar</p>
+        <p class="text-sm  uppercase tracking-wider mb-element">Explorar</p>
         <div class="flex flex-col gap-2">
           <a
             href={`/avisos?marca=${encodeURIComponent(marcaDecoded)}`}

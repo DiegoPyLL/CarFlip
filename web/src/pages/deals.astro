@@ -65,9 +65,9 @@ const gruposFiltro = [
 
   <!-- Header de sección -->
   <div class="mb-section">
-    <p class="text-base text-muted uppercase tracking-widest mb-element">Oportunidades de compra</p>
+    <p class="text-base  uppercase tracking-widest mb-element">Oportunidades de compra</p>
     <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-element">Deals</h1>
-    <p class="text-base text-muted max-w-xl">
+    <p class="text-base  max-w-xl">
       Autos publicados bajo su precio de mercado (comparados contra avisos similares de la misma
       marca, modelo y año). Cada deal es evaluado por IA, que lee el aviso para detectar riesgos.
     </p>
@@ -77,16 +77,16 @@ const gruposFiltro = [
   {totalDeals > 0 && (
     <div class="flex flex-wrap gap-x-block gap-y-element mb-block pb-block border-b border-line">
       <div>
-        <p class="text-base text-muted">Deals activos</p>
+        <p class="text-base ">Deals activos</p>
         <p class="text-base text-ink tabular-nums">{totalDeals}</p>
       </div>
       <div>
-        <p class="text-base text-muted">Oportunidades claras</p>
+        <p class="text-base ">Oportunidades claras</p>
         <p class="text-base text-ink tabular-nums">{totalOportunidades}</p>
       </div>
       {puntajePromedio !== null && (
         <div>
-          <p class="text-base text-muted">Puntaje promedio</p>
+          <p class="text-base ">Puntaje promedio</p>
           <p class="text-base text-ink tabular-nums">{puntajePromedio.toFixed(0)}/100</p>
         </div>
       )}
@@ -98,7 +98,7 @@ const gruposFiltro = [
     {gruposFiltro.map(({ name, label, activo, opciones }) => (
       <fieldset class="flex flex-wrap items-center gap-element">
         <legend class="sr-only">{label}</legend>
-        <span class="text-sm text-muted uppercase tracking-wider shrink-0 w-full sm:w-24" aria-hidden="true">{label}</span>
+        <span class="text-sm  uppercase tracking-wider shrink-0 w-full sm:w-24" aria-hidden="true">{label}</span>
         <div class="flex flex-wrap gap-2">
           {opciones.map(({ value, label: opcion }) => (
             <label class="cursor-pointer select-none shrink-0">
@@ -110,7 +110,7 @@ const gruposFiltro = [
                 checked={activo === value}
                 onchange="this.form.submit()"
               />
-              <span class="block px-3 py-2 text-base border border-line-strong text-muted peer-checked:bg-ink peer-checked:text-canvas peer-checked:border-ink peer-focus-visible:border-scarlet-signal hover:border-ink hover:text-ink transition-colors whitespace-nowrap">
+              <span class="block px-3 py-2 text-base border border-line-strong  peer-checked:bg-ink peer-checked:text-canvas peer-checked:border-ink peer-focus-visible:border-scarlet-signal hover:border-ink hover:text-ink transition-colors whitespace-nowrap">
                 {opcion}
               </span>
             </label>
@@ -133,11 +133,11 @@ const gruposFiltro = [
   ) : (
     <div class="py-section border border-line p-element">
       <p class="text-2xl text-ink">Sin deals disponibles ahora</p>
-      <p class="text-base text-muted mt-element max-w-md">
+      <p class="text-base  mt-element max-w-md">
         Los deals aparecen cuando detectamos un aviso publicado bajo el precio de mercado
         de vehículos comparables. Vuelve a revisar después de la próxima actualización.
       </p>
-      <a href="/avisos" class="mt-block inline-flex items-center gap-2 text-base text-ink hover:text-muted transition-colors">
+      <a href="/avisos" class="mt-block inline-flex items-center gap-2 text-base text-ink hover: transition-colors">
         <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
         Ver todos los avisos
       </a>

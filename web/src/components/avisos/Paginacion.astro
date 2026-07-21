@@ -45,7 +45,7 @@ const ventana = calcularVentana(pagina, total_paginas);
         {pagina > 1 ? (
           <a
             href={urlPagina(pagina - 1)}
-            class="px-3 py-2 text-base text-muted hover:text-ink transition-colors"
+            class="px-3 py-2 text-base  hover:text-ink transition-colors"
             aria-label="Página anterior"
           >
             ‹
@@ -76,7 +76,7 @@ const ventana = calcularVentana(pagina, total_paginas);
           ) : (
             <a
               href={urlPagina(item)}
-              class="px-3 py-2 text-base text-muted hover:text-ink transition-colors"
+              class="px-3 py-2 text-base  hover:text-ink transition-colors"
               aria-label={`Página ${item}`}
             >
               {item}
@@ -90,7 +90,7 @@ const ventana = calcularVentana(pagina, total_paginas);
         {pagina < total_paginas ? (
           <a
             href={urlPagina(pagina + 1)}
-            class="px-3 py-2 text-base text-muted hover:text-ink transition-colors"
+            class="px-3 py-2 text-base  hover:text-ink transition-colors"
             aria-label="Página siguiente"
           >
             ›

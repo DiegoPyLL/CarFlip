@@ -36,11 +36,11 @@ const cifras = [
 
   <!-- Hero -->
   <section class="mb-section lg:mb-editorial">
-    <p class="text-base text-muted uppercase tracking-widest mb-element">Comparador de autos · Chile</p>
+    <p class="text-base  uppercase tracking-widest mb-element">Comparador de autos · Chile</p>
     <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance max-w-4xl">
       Todos los autos en venta de Chile, en un solo lugar.
     </h1>
-    <p class="text-base text-muted leading-relaxed max-w-xl mb-block">
+    <p class="text-base  leading-relaxed max-w-xl mb-block">
       CarFlip recopila a diario los avisos de los principales portales del país, los normaliza
       y detecta cuáles están publicados bajo su precio de mercado. No vendemos autos:
       te mostramos dónde están y cuánto cuestan.
@@ -52,18 +52,18 @@ const cifras = [
     <p class="text-5xl sm:text-7xl text-ink tabular-nums leading-none">
       {estadisticas.total_avisos.toLocaleString('es-CL')}
     </p>
-    <p class="text-base text-muted mt-2">avisos activos en seguimiento</p>
+    <p class="text-base  mt-2">avisos activos en seguimiento</p>
 
     <div class="flex flex-wrap gap-x-block gap-y-element mt-block">
       {cifras.map(({ label, valor }) => (
         <div>
-          <p class="text-base text-muted">{label}</p>
+          <p class="text-base ">{label}</p>
           <p class="text-base text-ink tabular-nums">{valor}</p>
         </div>
       ))}
       {estadisticas.ultima_actualizacion && (
         <div>
-          <p class="text-base text-muted">Actualizado</p>
+          <p class="text-base ">Actualizado</p>
           <p class="text-base text-ink">{formatearFecha(estadisticas.ultima_actualizacion)}</p>
         </div>
       )}
@@ -76,7 +76,7 @@ const cifras = [
     <section>
       <div class="flex flex-wrap items-baseline justify-between gap-element mb-block">
         <h2 class="text-2xl text-ink">Deals destacados</h2>
-        <a href="/deals" class="text-base text-ink hover:text-muted transition-colors">
+        <a href="/deals" class="text-base text-ink hover: transition-colors">
           Ver todos →
         </a>
       </div>

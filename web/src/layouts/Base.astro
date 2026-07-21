@@ -34,12 +34,19 @@ const urlImagenAbs = new URL(urlImagen, origenCanonico).href;
 // A 320px no caben cinco enlaces más el logo y el toggle. Se ocultan por orden
 // de redundancia: "Home" porque el logo ya lleva ahí, y "Cómo funciona" por ser
 // la sección menos transaccional. Ninguna queda inalcanzable.
+// El enlace de sesión también se oculta bajo sm: a 320px no cabe un sexto
+// enlace. No queda inalcanzable — el footer lo repite sin condición de ancho.
+const enlaceSesion = Astro.locals.usuario
+  ? { href: '/cuenta', texto: 'Mi cuenta', visible: 'hidden sm:block' }
+  : { href: '/entrar', texto: 'Entrar', visible: 'hidden sm:block' };
+
 const enlacesNav = [
   { href: '/',              texto: 'Home',          visible: 'hidden sm:block' },
   { href: '/avisos',        texto: 'Avisos',        visible: '' },
   { href: '/deals',         texto: 'Deals',         visible: '' },
   { href: '/mercado',       texto: 'Mercado',       visible: '' },
   { href: '/como-funciona', texto: 'Cómo funciona', visible: 'hidden md:block' },
+  enlaceSesion,
 ];
 
 // `/` solo marca activo en coincidencia exacta; el resto también en sus subrutas
@@ -48,6 +55,7 @@ const rutaActual = Astro.url.pathname.replace(/\/+$/, '') || '/';
 const prefijosPorSeccion: Record<string, string[]> = {
   '/avisos': ['/auto'],
   '/mercado': ['/marcas'],
+  '/cuenta': ['/cuenta'],
 };
 function esRutaActiva(href: string): boolean {
   if (href === '/') return rutaActual === '/';
@@ -106,7 +114,7 @@ function esRutaActiva(href: string): boolean {
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-12 flex items-center justify-between gap-4">
         <a href="/" class="flex items-center gap-4 shrink-0">
           <span class="text-base font-normal text-ink">CarFlip</span>
-          <span class="hidden lg:block text-base text-muted">Comparador de autos Chile</span>
+          <span class="hidden lg:block text-base ">Comparador de autos Chile</span>
         </a>
 
         <div class="flex items-center gap-3 sm:gap-4">
@@ -119,7 +127,7 @@ function esRutaActiva(href: string): boolean {
                     aria-current={esRutaActiva(href) ? 'page' : undefined}
                     class={esRutaActiva(href)
                       ? 'text-ink underline underline-offset-4'
-                      : 'text-muted hover:text-ink transition-colors duration-150'}
+                      : ' hover:text-ink transition-colors duration-150'}
                   >
                     {texto}
                   </a>
@@ -159,8 +167,8 @@ function esRutaActiva(href: string): boolean {
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-block">
         <div class="flex flex-col gap-block lg:flex-row lg:justify-between">
           <div class="max-w-sm">
-            <span class="text-base font-normal text-ink-on-tint">CarFlip</span>
-            <p class="text-base text-ink-on-tint/70 leading-relaxed mt-2">
+            <span class="text-2xl font-semibold text-ink-on-tint">CarFlip</span>
+            <p class="text-sm text-ink-on-tint leading-relaxed mt-2">
               Comparador de autos usados en Chile. Un proyecto sin fines de lucro que reúne
               los avisos de los principales portales para que compares precios en un solo lugar.
             </p>
@@ -174,16 +182,21 @@ function esRutaActiva(href: string): boolean {
 
           <div class="flex flex-wrap gap-block">
             <nav aria-label="Producto">
-              <h2 class="text-sm text-ink-on-tint/70 uppercase tracking-widest mb-element">Producto</h2>
+              <h2 class="text-sm font-semibold text-ink-on-tint uppercase tracking-widest mb-element">Producto</h2>
               <ul class="space-y-2">
                 <li><a href="/avisos" class="text-base text-ink-on-tint hover:underline underline-offset-4">Avisos</a></li>
                 <li><a href="/deals" class="text-base text-ink-on-tint hover:underline underline-offset-4">Deals</a></li>
                 <li><a href="/mercado" class="text-base text-ink-on-tint hover:underline underline-offset-4">Mercado</a></li>
+                <li>
+                  <a href={enlaceSesion.href} rel="nofollow" class="text-base text-ink-on-tint hover:underline underline-offset-4">
+                    {enlaceSesion.texto}
+                  </a>
+                </li>
               </ul>
             </nav>
 
             <nav aria-label="Compañía">
-              <h2 class="text-sm text-ink-on-tint/70 uppercase tracking-widest mb-element">Compañía</h2>
+              <h2 class="text-sm font-semibold text-ink-on-tint uppercase tracking-widest mb-element">Compañía</h2>
               <ul class="space-y-2">
                 <li><a href="/como-funciona#preguntas-frecuentes" class="text-base text-ink-on-tint hover:underline underline-offset-4">Preguntas Frecuentes</a></li>
                 <li><a href="/contacto" class="text-base text-ink-on-tint hover:underline underline-offset-4">Contáctanos</a></li>
@@ -193,11 +206,17 @@ function esRutaActiva(href: string): boolean {
                     target="_blank"
                     rel="noopener noreferrer"
                     class="inline-flex items-center gap-2 text-base text-ink-on-tint hover:underline underline-offset-4">Github</a></li>
+                <li>
+                  <a
+                    href="https://volutus.cl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-2 text-base text-ink-on-tint hover:underline underline-offset-4">Volutus</a></li>
               </ul>
             </nav>
 
             <nav aria-label="Legal">
-              <h2 class="text-sm text-ink-on-tint/70 uppercase tracking-widest mb-element">Legal</h2>
+              <h2 class="text-sm font-semibold text-ink-on-tint uppercase tracking-widest mb-element">Legal</h2>
               <ul class="space-y-2">
                 <li><a href="/condiciones-de-uso" class="text-base text-ink-on-tint hover:underline underline-offset-4">Condiciones de Uso</a></li>
                 <li><a href="/privacidad" class="text-base text-ink-on-tint hover:underline underline-offset-4">Términos de privacidad</a></li>
@@ -208,7 +227,7 @@ function esRutaActiva(href: string): boolean {
         </div>
 
         <div class="mt-block pt-element border-t border-ink-on-tint/15 flex flex-wrap gap-2 items-center justify-between">
-          <span class="text-base text-ink-on-tint/70">&copy; {new Date().getFullYear()} CarFlip. Todos los derechos reservados.</span>
+          <span class="text-sm text-ink-on-tint">&copy; {new Date().getFullYear()} CarFlip. Todos los derechos reservados.</span>
         </div>
       </div>
     </footer>

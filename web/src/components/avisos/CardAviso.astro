@@ -46,13 +46,13 @@ const metaItems = [
         />
       ) : (
         <div class="w-full h-full flex items-center justify-center">
-          <span class="text-muted text-base">Sin imagen</span>
+          <span class=" text-base">Sin imagen</span>
         </div>
       )}
 
       <!-- Badges sobre la imagen -->
       <div class="absolute top-element left-element flex flex-wrap gap-2">
-        <span class="text-sm px-2 py-0.5 bg-canvas/75 text-muted">
+        <span class="text-sm px-2 py-0.5 bg-canvas/75 ">
           {fuenteLabel}
         </span>
         {delta && (
@@ -61,7 +61,7 @@ const metaItems = [
           </span>
         )}
         {aviso.disponible === false && (
-          <span class="text-sm px-2 py-0.5 bg-canvas/75 text-muted line-through">
+          <span class="text-sm px-2 py-0.5 bg-canvas/75  line-through">
             No disponible
           </span>
         )}
@@ -70,19 +70,19 @@ const metaItems = [
 
     <!-- Contenido -->
     <div class="p-element">
-      <h2 class="text-base text-muted line-clamp-2 leading-snug mb-3">
+      <h2 class="text-base  line-clamp-2 leading-snug mb-3">
         {aviso.titulo}
       </h2>
 
       <p class="text-2xl mb-2 tabular-nums">
         {aviso.precio
           ? <span class="text-ink">{formatearPrecio(aviso.precio, aviso.moneda)}</span>
-          : <span class="text-muted text-base">Precio a consultar</span>
+          : <span class=" text-base">Precio a consultar</span>
         }
       </p>
 
       {metaItems.length > 0 && (
-        <p class="text-base text-muted truncate">
+        <p class="text-base  truncate">
           {metaItems.join(' · ')}
         </p>
       )}

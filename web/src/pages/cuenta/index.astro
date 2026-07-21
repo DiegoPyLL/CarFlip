@@ -1,0 +1,37 @@
+---
+import Base from '@layouts/Base.astro';
+
+// El middleware ya redirige a /entrar si no hay sesión; la comprobación se
+// repite aquí para que el tipo de `usuario` sea no nulo en el template.
+const usuario = Astro.locals.usuario;
+if (!usuario) return Astro.redirect('/entrar?volver=/cuenta');
+---
+
+<Base titulo="Mi cuenta" descripcion="Tu cuenta en CarFlip." noindex>
+  <div class="max-w-md mx-auto">
+    <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">Tu cuenta.</h1>
+
+    <dl class="divide-y divide-line border-y border-line">
+      <div class="flex items-baseline justify-between gap-4 py-2.5">
+        <dt class="text-base">Email</dt>
+        <dd class="text-base text-ink text-right break-all">{usuario.email}</dd>
+      </div>
+      {usuario.rol === 'admin' && (
+        <div class="flex items-baseline justify-between gap-4 py-2.5">
+          <dt class="text-base">Rol</dt>
+          <dd class="text-base text-ink text-right">Administrador</dd>
+        </div>
+      )}
+    </dl>
+
+    <form method="POST" action="/api/auth/salir" class="mt-block">
+      <button
+        type="submit"
+        class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150"
+      >
+        <span aria-hidden="true">←</span>
+        Cerrar sesión
+      </button>
+    </form>
+  </div>
+</Base>

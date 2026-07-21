@@ -104,9 +104,9 @@ function avisosPorMinuto(r: CorridaScrape): string {
 >
   <!-- Header -->
   <div class="mb-section">
-    <p class="text-base text-muted uppercase tracking-widest mb-2">Sala de máquinas</p>
+    <p class="text-base  uppercase tracking-widest mb-2">Sala de máquinas</p>
     <h1 class="text-3xl text-ink mb-3">Dashboard</h1>
-    <p class="text-base text-muted max-w-xl">
+    <p class="text-base  max-w-xl">
       Salud operativa del pipeline de ingesta y métricas del mercado.
       {ultimaActualizacion && (
         <span>Última corrida registrada: {formatearFechaHora(ultimaActualizacion)}</span>
@@ -117,8 +117,8 @@ function avisosPorMinuto(r: CorridaScrape): string {
   {ultimas.length === 0 ? (
     <section class="border border-line p-element">
       <p class="text-base text-ink mb-1">Sin corridas registradas</p>
-      <p class="text-base text-muted">
-        Ejecuta <code class="text-muted">cargar_reports_s3.py</code> para poblar scrape_runs desde los run_reports de S3.
+      <p class="text-base ">
+        Ejecuta <code class="">cargar_reports_s3.py</code> para poblar scrape_runs desde los run_reports de S3.
       </p>
     </section>
   ) : (
@@ -128,13 +128,13 @@ function avisosPorMinuto(r: CorridaScrape): string {
 
         <!-- Éxito de extracción -->
         <div class="border border-line p-element">
-          <p class="text-base text-muted uppercase tracking-widest">Éxito de extracción</p>
+          <p class="text-base  uppercase tracking-widest">Éxito de extracción</p>
           <p class="text-3xl text-ink mt-2">
             {exito !== null ? `${exito.toFixed(1)}%` : '—'}
           </p>
           <div class="flex items-center gap-1.5 mt-2">
             <span class="w-2 h-2 shrink-0" style={`background:${COLOR_ESTADO[estadoExito]}`}></span>
-            <span class="text-base text-muted">{TEXTO_ESTADO[estadoExito]} · meta &gt; 95%</span>
+            <span class="text-base ">{TEXTO_ESTADO[estadoExito]} · meta &gt; 95%</span>
           </div>
           <div class="relative h-1.5 bg-line mt-3" title={`${validos.toLocaleString('es-CL')} válidos de ${encontrados.toLocaleString('es-CL')} encontrados`}>
             <div class="h-full" style={`width:${exito ?? 0}%;background:${COLOR_ESTADO[estadoExito]}`}></div>
@@ -144,13 +144,13 @@ function avisosPorMinuto(r: CorridaScrape): string {
 
         <!-- Fotos fallidas -->
         <div class="border border-line p-element">
-          <p class="text-base text-muted uppercase tracking-widest">Fotos fallidas</p>
+          <p class="text-base  uppercase tracking-widest">Fotos fallidas</p>
           <p class="text-3xl text-ink mt-2">
             {fotosPct !== null ? `${fotosPct.toFixed(1)}%` : '—'}
           </p>
           <div class="flex items-center gap-1.5 mt-2">
             <span class="w-2 h-2 shrink-0" style={`background:${COLOR_ESTADO[estadoFotos]}`}></span>
-            <span class="text-base text-muted">{TEXTO_ESTADO[estadoFotos]} · meta &lt; 2%</span>
+            <span class="text-base ">{TEXTO_ESTADO[estadoFotos]} · meta &lt; 2%</span>
           </div>
           <div class="relative h-1.5 bg-line mt-3" title={`${op.fotosFallidasUltimoCiclo.toLocaleString('es-CL')} descargas de foto fallidas sobre ${encontrados.toLocaleString('es-CL')} avisos`}>
             <div class="h-full" style={`width:${Math.min(100, (fotosPct ?? 0) * 10)}%;background:${COLOR_ESTADO[estadoFotos]}`}></div>
@@ -160,16 +160,16 @@ function avisosPorMinuto(r: CorridaScrape): string {
 
         <!-- Duración del ciclo -->
         <div class="border border-line p-element" title={ultimas.map((r) => `${NOMBRE_FUENTE[r.source] ?? r.source}: ${formatearDuracion(r.duracion_segundos)}`).join(' · ')}>
-          <p class="text-base text-muted uppercase tracking-widest">Duración del ciclo</p>
+          <p class="text-base  uppercase tracking-widest">Duración del ciclo</p>
           <p class="text-3xl text-ink mt-2">{formatearDuracion(duracionCiclo)}</p>
-          <p class="text-base text-muted mt-2">Suma de la última corrida de {ultimas.length} fuentes</p>
+          <p class="text-base  mt-2">Suma de la última corrida de {ultimas.length} fuentes</p>
         </div>
 
         <!-- Avisos válidos -->
         <div class="border border-line p-element">
-          <p class="text-base text-muted uppercase tracking-widest">Avisos válidos</p>
+          <p class="text-base  uppercase tracking-widest">Avisos válidos</p>
           <p class="text-3xl text-ink mt-2">{validos.toLocaleString('es-CL')}</p>
-          <p class="text-base text-muted mt-2">
+          <p class="text-base  mt-2">
             {(encontrados - validos).toLocaleString('es-CL')} rechazados en el último ciclo
           </p>
         </div>
@@ -184,7 +184,7 @@ function avisosPorMinuto(r: CorridaScrape): string {
           <section class="border border-line">
             <div class="p-element border-b border-line">
               <h2 class="text-base text-ink">Última corrida por fuente</h2>
-              <p class="text-base text-muted mt-0.5">Avisos válidos, duración y ritmo de cada scraper</p>
+              <p class="text-base  mt-0.5">Avisos válidos, duración y ritmo de cada scraper</p>
             </div>
             <div class="p-element space-y-element">
               {ultimas.map((r) => (
@@ -193,9 +193,9 @@ function avisosPorMinuto(r: CorridaScrape): string {
                     <div class="flex items-center gap-2 min-w-0">
                       <span class="w-2.5 h-2.5 shrink-0" style={`background:${COLOR_FUENTE[r.source] ?? '#484848'}`}></span>
                       <span class="text-base text-ink">{NOMBRE_FUENTE[r.source] ?? r.source}</span>
-                      <span class="text-base text-muted tabular-nums">{formatearFechaHora(r.started_at)}</span>
+                      <span class="text-base  tabular-nums">{formatearFechaHora(r.started_at)}</span>
                     </div>
-                    <span class="text-base text-muted tabular-nums ml-3 shrink-0">
+                    <span class="text-base  tabular-nums ml-3 shrink-0">
                       {formatearDuracion(r.duracion_segundos)} · {avisosPorMinuto(r)} avisos/min
                     </span>
                   </div>
@@ -211,7 +211,7 @@ function avisosPorMinuto(r: CorridaScrape): string {
                     </span>
                   </div>
                   {(r.avisos_rechazados ?? 0) > 0 || r.errors > 0 ? (
-                    <p class="text-base text-muted mt-1">
+                    <p class="text-base  mt-1">
                       {(r.avisos_rechazados ?? 0) > 0 && <span>{r.avisos_rechazados} rechazados por validación</span>}
                       {(r.avisos_rechazados ?? 0) > 0 && r.errors > 0 && <span> · </span>}
                       {r.errors > 0 && <span>{r.errors} fallas en el pipeline</span>}
@@ -226,12 +226,12 @@ function avisosPorMinuto(r: CorridaScrape): string {
           <section class="border border-line">
             <div class="p-element border-b border-line">
               <h2 class="text-base text-ink">Historial de corridas</h2>
-              <p class="text-base text-muted mt-0.5">Todas las corridas registradas, la más reciente primero</p>
+              <p class="text-base  mt-0.5">Todas las corridas registradas, la más reciente primero</p>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-base">
                 <thead>
-                  <tr class="text-base uppercase tracking-wider text-muted border-b border-line">
+                  <tr class="text-base uppercase tracking-wider  border-b border-line">
                     <th class="text-left px-5 py-2.5">Fecha</th>
                     <th class="text-left px-3 py-2.5">Fuente</th>
                     <th class="text-right px-3 py-2.5">Duración</th>
@@ -248,18 +248,18 @@ function avisosPorMinuto(r: CorridaScrape): string {
                     const estado: Estado = tasa === null ? 'warning' : tasa >= 95 ? 'good' : tasa >= 90 ? 'warning' : 'critical';
                     return (
                       <tr class="hover:bg-surface transition-colors">
-                        <td class="px-5 py-2.5 text-muted tabular-nums whitespace-nowrap">{formatearFechaHora(r.started_at)}</td>
+                        <td class="px-5 py-2.5  tabular-nums whitespace-nowrap">{formatearFechaHora(r.started_at)}</td>
                         <td class="px-3 py-2.5">
                           <span class="inline-flex items-center gap-1.5">
                             <span class="w-2 h-2 shrink-0" style={`background:${COLOR_FUENTE[r.source] ?? '#484848'}`}></span>
                             <span class="text-ink">{NOMBRE_FUENTE[r.source] ?? r.source}</span>
                           </span>
                         </td>
-                        <td class="px-3 py-2.5 text-right text-muted tabular-nums whitespace-nowrap">{formatearDuracion(r.duracion_segundos)}</td>
-                        <td class="px-3 py-2.5 text-right text-muted tabular-nums">{r.paginas_procesadas ?? '—'}</td>
-                        <td class="px-3 py-2.5 text-right text-muted tabular-nums">{r.avisos_encontrados?.toLocaleString('es-CL') ?? '—'}</td>
+                        <td class="px-3 py-2.5 text-right  tabular-nums whitespace-nowrap">{formatearDuracion(r.duracion_segundos)}</td>
+                        <td class="px-3 py-2.5 text-right  tabular-nums">{r.paginas_procesadas ?? '—'}</td>
+                        <td class="px-3 py-2.5 text-right  tabular-nums">{r.avisos_encontrados?.toLocaleString('es-CL') ?? '—'}</td>
                         <td class="px-3 py-2.5 text-right text-ink tabular-nums">{r.avisos_validos?.toLocaleString('es-CL') ?? '—'}</td>
-                        <td class="px-3 py-2.5 text-right text-muted tabular-nums">{r.errors}</td>
+                        <td class="px-3 py-2.5 text-right  tabular-nums">{r.errors}</td>
                         <td class="px-5 py-2.5 text-right whitespace-nowrap">
                           <span class="inline-flex items-center gap-1.5 justify-end">
                             <span class="text-ink tabular-nums">{tasa !== null ? `${tasa.toFixed(1)}%` : '—'}</span>
@@ -282,11 +282,11 @@ function avisosPorMinuto(r: CorridaScrape): string {
           <section class="border border-line">
             <div class="p-element border-b border-line">
               <h2 class="text-base text-ink">Vehículos</h2>
-              <p class="text-base text-muted mt-0.5">Avisos activos en las 4 fuentes</p>
+              <p class="text-base  mt-0.5">Avisos activos en las 4 fuentes</p>
             </div>
             <div class="p-element">
               <p class="text-4xl text-ink">{veh.totalAvisos.toLocaleString('es-CL')}</p>
-              <p class="text-base text-muted mt-1 mb-4">avisos en seguimiento</p>
+              <p class="text-base  mt-1 mb-4">avisos en seguimiento</p>
 
               <div class="space-y-3 mb-5">
                 {ORDEN_FUENTES.map((f) => {
@@ -297,9 +297,9 @@ function avisosPorMinuto(r: CorridaScrape): string {
                       <div class="flex items-center justify-between mb-1">
                         <span class="inline-flex items-center gap-1.5">
                           <span class="w-2 h-2 shrink-0" style={`background:${COLOR_FUENTE[f]}`}></span>
-                          <span class="text-base text-muted">{NOMBRE_FUENTE[f]}</span>
+                          <span class="text-base ">{NOMBRE_FUENTE[f]}</span>
                         </span>
-                        <span class="text-base text-muted tabular-nums">{fila.total.toLocaleString('es-CL')}</span>
+                        <span class="text-base  tabular-nums">{fila.total.toLocaleString('es-CL')}</span>
                       </div>
                       <div class="h-1 bg-line">
                         <div class="h-full" style={`width:${((fila.total / maxPorFuente) * 100).toFixed(1)}%;background:${COLOR_FUENTE[f]}`}></div>
@@ -312,11 +312,11 @@ function avisosPorMinuto(r: CorridaScrape): string {
               <div class="grid grid-cols-2 gap-3 border-t border-line pt-4">
                 <div>
                   <p class="text-2xl text-ink tabular-nums">{veh.nuevos24h.toLocaleString('es-CL')}</p>
-                  <p class="text-base text-muted uppercase tracking-wider mt-0.5">Nuevos · 24 h</p>
+                  <p class="text-base  uppercase tracking-wider mt-0.5">Nuevos · 24 h</p>
                 </div>
                 <div>
                   <p class="text-2xl text-ink tabular-nums">{veh.bajadas7d.toLocaleString('es-CL')}</p>
-                  <p class="text-base text-muted uppercase tracking-wider mt-0.5">Bajaron de precio · 7 d</p>
+                  <p class="text-base  uppercase tracking-wider mt-0.5">Bajaron de precio · 7 d</p>
                 </div>
               </div>
             </div>
@@ -327,13 +327,13 @@ function avisosPorMinuto(r: CorridaScrape): string {
             <div class="p-element border-b border-line flex items-baseline justify-between">
               <div>
                 <h2 class="text-base text-ink">Deals activos</h2>
-                <p class="text-base text-muted mt-0.5">Categorizados por IA</p>
+                <p class="text-base  mt-0.5">Categorizados por IA</p>
               </div>
-              <a href="/deals" class="text-base text-ink hover:text-muted transition-colors">Ver deals →</a>
+              <a href="/deals" class="text-base text-ink hover: transition-colors">Ver deals →</a>
             </div>
             <div class="p-element">
               {veh.dealsPorCategoria.length === 0 ? (
-                <p class="text-base text-muted">Sin deals activos por ahora.</p>
+                <p class="text-base ">Sin deals activos por ahora.</p>
               ) : (
                 <div class="space-y-2.5">
                   {veh.dealsPorCategoria.map((d) => {
@@ -342,7 +342,7 @@ function avisosPorMinuto(r: CorridaScrape): string {
                       <div class="flex items-center justify-between">
                         <span class="inline-flex items-center gap-1.5">
                           <span class="w-2 h-2 shrink-0" style={`background:${cat.color}`}></span>
-                          <span class="text-base text-muted">{cat.nombre}</span>
+                          <span class="text-base ">{cat.nombre}</span>
                         </span>
                         <span class="text-base text-ink tabular-nums">{d.total.toLocaleString('es-CL')}</span>
                       </div>
@@ -357,17 +357,17 @@ function avisosPorMinuto(r: CorridaScrape): string {
           <section class="border border-line">
             <div class="p-element border-b border-line">
               <h2 class="text-base text-ink">Fallas por etapa</h2>
-              <p class="text-base text-muted mt-0.5">FAIL LOGs de las corridas recientes</p>
+              <p class="text-base  mt-0.5">FAIL LOGs de las corridas recientes</p>
             </div>
             <div class="p-element space-y-element">
               {op.fallasPorEtapa.length === 0 ? (
-                <p class="text-base text-muted">Sin fallas registradas. Impecable.</p>
+                <p class="text-base ">Sin fallas registradas. Impecable.</p>
               ) : (
                 op.fallasPorEtapa.map((f) => (
                   <div>
                     <div class="flex items-center justify-between mb-1.5">
-                      <span class="text-base text-muted">{NOMBRE_ETAPA[f.etapa] ?? f.etapa}</span>
-                      <span class="text-base text-muted tabular-nums">{f.total.toLocaleString('es-CL')}</span>
+                      <span class="text-base ">{NOMBRE_ETAPA[f.etapa] ?? f.etapa}</span>
+                      <span class="text-base  tabular-nums">{f.total.toLocaleString('es-CL')}</span>
                     </div>
                     <div class="h-1.5 bg-line">
                       <div
@@ -385,13 +385,13 @@ function avisosPorMinuto(r: CorridaScrape): string {
           <section class="border border-line">
             <div class="p-element border-b border-line">
               <h2 class="text-base text-ink">KPIs pendientes</h2>
-              <p class="text-base text-muted mt-0.5">Definidos en Monitoreo, aún sin telemetría</p>
+              <p class="text-base  mt-0.5">Definidos en Monitoreo, aún sin telemetría</p>
             </div>
             <div class="p-element space-y-2">
               {KPIS_PENDIENTES.map((k) => (
                 <div class="flex items-center justify-between border border-dashed border-line px-3 py-2">
-                  <span class="text-base text-muted">{k.nombre}</span>
-                  <span class="text-base text-muted tabular-nums shrink-0 ml-3">meta {k.meta}</span>
+                  <span class="text-base ">{k.nombre}</span>
+                  <span class="text-base  tabular-nums shrink-0 ml-3">meta {k.meta}</span>
                 </div>
               ))}
             </div>
