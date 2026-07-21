@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   auditoria:
@@ -53,15 +52,35 @@ jobs:
           name: auditoria-imagen
           path: reports/auditoria_imagen.json
 
-      # Crea un issue mencionando a los miembros de la organización: la mención
-      # dispara la notificación push (app móvil de GitHub) y web de cada uno.
-      - name: Notificar módulos por actualizar
+      # Actualiza un único Security Advisory en borrador (nunca se publica) en vez
+      # de un issue público: el repo es público y un issue expondría a cualquiera
+      # qué paquetes son vulnerables y con qué severidad. Un draft solo lo ven
+      # administradores/security managers del repo y quienes se agreguen como
+      # colaboradores del advisory.
+      #
+      # GITHUB_TOKEN no puede usarse aquí: "repository-advisories" no existe entre
+      # los permisos otorgables a GITHUB_TOKEN en un workflow, así que se requiere
+      # un fine-grained PAT con permiso "Repository security advisories: write"
+      # sobre este repo, guardado como secret ADVISORY_TOKEN.
+      - name: Actualizar Security Advisory
         if: always() && hashFiles('reports/auditoria_imagen.json') != ''
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.ADVISORY_TOKEN }}
           script: |
             const fs = require('fs');
             const reporte = JSON.parse(fs.readFileSync('reports/auditoria_imagen.json', 'utf8'));
+
+            const TITULO = 'Auditoría de dependencias: módulos por actualizar';
+
+            // Ecosistemas soportados por la API de Security Advisories; lo que no
+            // calza (paquetes deb/apk de la imagen base, "generic" de Playwright)
+            // cae en "other".
+            const ECOSISTEMAS = {
+              pypi: 'pip', npm: 'npm', cargo: 'rust', golang: 'go', go: 'go',
+              maven: 'maven', nuget: 'nuget', composer: 'composer', gem: 'rubygems',
+            };
+            const ORDEN_SEVERIDAD = ['critical', 'high', 'medium', 'low'];
 
             // Agrupa por módulo; el reporte viene ordenado por severidad,
             // así que la primera aparición trae la severidad máxima.
@@ -89,23 +108,22 @@ jobs:
                 ].join('\n')
               : 'Sin vulnerabilidades detectadas.';
 
-            const { data: colaboradores } = await github.rest.repos.listCollaborators({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            });
-            const menciones = colaboradores
-              .filter((c) => c.type === 'User')
-              .map((c) => `@${c.login}`)
-              .join(' ');
-
             const corrida = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `Auditoría semanal ${reporte.generado.slice(0, 10)}: ${porActualizar} módulos por actualizar`,
-              body: [
-                `Auditoría de \`${reporte.imagen}\` con Docker Scout (\`tests/test_auditoria_imagen.py\`).`,
+            const severidadMaxima = ORDEN_SEVERIDAD.find((s) => lista.some((m) => m.severidad === s)) ?? null;
+
+            const vulnerabilities = lista.length
+              ? lista.map((m) => ({
+                  package: { ecosystem: ECOSISTEMAS[m.tipo] ?? 'other', name: m.paquete },
+                  vulnerable_version_range: `<= ${m.version}`,
+                  patched_versions: m.fix ?? undefined,
+                }))
+              : [{ package: { ecosystem: 'other', name: reporte.imagen }, vulnerable_version_range: '*' }];
+
+            const cuerpo = {
+              summary: TITULO,
+              description: [
+                `Auditoría de \`${reporte.imagen}\` con Docker Scout (\`tests/test_auditoria_imagen.py\`), generada ${reporte.generado}.`,
                 '',
                 `**Módulos por actualizar (con fix disponible): ${porActualizar}**`,
                 `Módulos vulnerables sin fix: ${sinFix} · Vulnerabilidades totales: ${reporte.total}`,
@@ -113,7 +131,34 @@ jobs:
                 tabla,
                 '',
                 `Reporte completo en el artifact [\`auditoria-imagen\`](${corrida}) de la corrida.`,
-                '',
-                menciones,
               ].join('\n'),
+              vulnerabilities,
+              severity: severidadMaxima,
+            };
+
+            const { data: existentes } = await github.request('GET /repos/{owner}/{repo}/security-advisories', {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'draft',
+              per_page: 100,
+            });
+            const previo = existentes.find((a) => a.summary === TITULO);
+
+            const ghsaId = previo
+              ? previo.ghsa_id
+              : (await github.request('POST /repos/{owner}/{repo}/security-advisories', {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ...cuerpo,
+                })).data.ghsa_id;
+
+            // El PATCH corre siempre: si el draft ya existía, sincroniza el
+            // contenido; si se acaba de crear, agrega el colaborador (la API de
+            // creación no acepta collaborating_users).
+            await github.request('PATCH /repos/{owner}/{repo}/security-advisories/{ghsa_id}', {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ghsa_id: ghsaId,
+              ...cuerpo,
+              collaborating_users: ['DiegoPyLL'],
             });
