@@ -1,6 +1,6 @@
 ---
 // Hero de las páginas de marketing (/como-funciona). Plano sobre canvas.
-import { seccionCls, rubroCls } from '@lib/marketing';
+import { seccionCls, rubroCls, parrafoCls } from '@lib/marketing';
 
 // `class` deja el ritmo vertical en el call site: por defecto el salto de
 // sección, y se sobreescribe cuando el hero debe pegarse a lo que sigue.
@@ -16,5 +16,5 @@ const { rubro, titulo, class: clase = seccionCls } = Astro.props;
 <div class={clase}>
   <p class={rubroCls}>{rubro}</p>
   <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">{titulo}</h1>
-  <p class="text-base leading-relaxed max-w-xl"><slot /></p>
+  <p class={`${parrafoCls} max-w-xl`}><slot /></p>
 </div>

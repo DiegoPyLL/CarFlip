@@ -1,5 +1,6 @@
 ---
 import Base from '@layouts/Base.astro';
+import { parrafoCls } from '@lib/marketing';
 
 if (Astro.locals.usuario) return Astro.redirect('/cuenta');
 
@@ -22,7 +23,7 @@ const inputCls =
 
     {enviado ? (
       <div role="status">
-        <p class="text-lg leading-relaxed mb-element">
+        <p class={`${parrafoCls} mb-element`}>
           Te enviamos un correo para confirmar tu dirección. Ábrelo y sigue el enlace para activar
           la cuenta.
         </p>

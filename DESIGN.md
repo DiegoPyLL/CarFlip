@@ -64,15 +64,30 @@ El tema se aplica con `data-theme="dark"` en `<html>` y se persiste en `localSto
 
 ### Escala en uso
 
+El tramo de lectura (`sm` … `2xl`) está **corrido un paso hacia arriba** respecto de los valores por defecto de Tailwind: a peso 300, 16px sobre una columna de `max-w-3xl` quedaba bajo el umbral cómodo de lectura. La corrección se hace en los tokens `--text-*` de `global.css`, no clase por clase, así que alcanza a todo el sitio de una vez. De `text-3xl` en adelante —métricas y displays— se conservan los valores de Tailwind: ya estaban dimensionados.
+
 | Rol                          | Utilidad                | Tamaño        | Dónde                                                      |
 | ---------------------------- | ----------------------- | ------------- | ---------------------------------------------------------- |
-| Label / badge                | `text-sm`               | 14px          | Labels de filtro (`uppercase tracking-wider`), fuente, riesgos |
-| Body / nav / meta            | `text-base`             | 16px          | Casi todo: copy, nav, metadatos, botones, paginación       |
-| Precio de card / h2          | `text-2xl`              | 24px          | Precio en `CardAviso`/`CardDeal`, títulos de sección       |
+| Label / badge                | `text-sm`               | 15px          | Labels de filtro (`uppercase tracking-wider`), fuente, riesgos |
+| Body / nav / meta            | `text-base`             | 17px          | Texto de producto: copy de UI, nav, metadatos, botones, paginación |
+| Párrafo editorial            | `text-lg`               | 19px          | Copy de lectura corrida: `/como-funciona`, `/quienes-somos` y las páginas legales — vía `parrafoCls` |
+| —                            | `text-xl`               | 22px          | Sin rol asignado                                            |
+| Precio de card / h2          | `text-2xl`              | 26px          | Precio en `CardAviso`/`CardDeal`, títulos de sección       |
 | Métrica interna              | `text-3xl` / `text-4xl` | 30 / 36px     | Solo `/dashboard`                                          |
 | H1 de página / cifra hero    | `text-5xl sm:text-7xl`  | 48 → 72px     | H1 de cada página y la cifra de portada, con `leading-none` |
 
+Los `line-height` por defecto de Tailwind son ratios sin unidad, así que escalan solos con el tamaño; no hay que redefinirlos al mover la escala.
+
 Los números siempre con `tabular-nums`: precios, kilometrajes, porcentajes y contadores no deben bailar entre filas.
+
+### Texto de producto vs. párrafo editorial
+
+Son dos registros distintos y no deben mezclarse:
+
+- **Producto** (`/avisos`, `/deals`, `/mercado`, cards, formularios, `/dashboard`): `text-base`. Se escanea, no se lee; las líneas son cortas y la densidad importa.
+- **Editorial** (`/como-funciona`, `/quienes-somos`, `/condiciones-de-uso`, `/privacidad`, `/legal`): `text-lg leading-relaxed` sobre `max-w-3xl`. Se lee de corrido, así que pide un paso más de tamaño y más interlínea.
+
+El registro editorial está centralizado en `parrafoCls`, exportado desde [marketing.ts](web/src/lib/marketing.ts) junto a `seccionCls` y `rubroCls`. Los párrafos largos usan esa constante —nunca `text-lg leading-relaxed` escrito a mano— para que un cambio de ritmo de lectura siga siendo un solo edit.
 
 ---
 
@@ -266,6 +281,7 @@ Las páginas de producto (`/avisos`, `/deals`, `/mercado`, `/auto/[id]`, cards) 
 - Bordes de inputs con `line-strong` (3:1); `line` es demasiado sutil para un control interactivo.
 - Dar a los targets táctiles al menos 40px de alto.
 - Usar `ink-on-tint` (no `ink`) para el texto sobre `blue-signal`/`green-signal`: `ink` es negro en tema claro y perdería contraste sobre estos fondos.
+- Usar `parrafoCls` para todo párrafo de lectura corrida, en vez de escribir `text-lg leading-relaxed` a mano.
 
 ## Don'ts
 
@@ -274,6 +290,7 @@ Las páginas de producto (`/avisos`, `/deals`, `/mercado`, `/auto/[id]`, cards) 
 - No agregar un cuarto acento cromático sin actualizar este documento.
 - No usar sombras, glows ni gradientes en elementos de UI.
 - No usar pesos 600+.
+- No corregir el tamaño de un texto agregando una clase suelta en un componente: la escala se mueve en los tokens `--text-*` de `global.css`, para que el ajuste alcance a todo el sitio.
 - No agregar webfonts sin justificar el costo en Core Web Vitals.
 - No usar `dark:` esperando el media query del sistema: la variante está redefinida sobre `data-theme`.
 - No centrar párrafos largos; toda copia extensa se alinea a la izquierda.
@@ -295,6 +312,8 @@ acento (escaso)     → bg-scarlet-signal / focus:border-scarlet-signal
 acento editorial    → bg-blue-signal + text-ink-on-tint (footer, /quienes-somos)
 radio               → 0
 peso                → 300 (400 solo para el wordmark)
+texto de producto   → text-base (17px)
+párrafo editorial   → parrafoCls (text-lg 19px + leading-relaxed)
 gutter de grid      → gap-element (16px)
 salto de sección    → mb-section (80px) · mb-editorial (120px) solo en marketing
 ```

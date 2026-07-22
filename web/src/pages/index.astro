@@ -3,6 +3,7 @@ import Base from '@layouts/Base.astro';
 import CardDeal from '@components/deals/CardDeal.astro';
 import { obtenerDeals, obtenerEstadisticas } from '@lib/db';
 import { formatearPrecio, formatearFecha } from '@lib/formato';
+import { parrafoCls } from '@lib/marketing';
 
 // Antes `/` era el listado: los enlaces y backlinks con filtros siguen llegando
 // aquí. Se preservan redirigiendo a /avisos con los mismos parámetros.
@@ -40,7 +41,7 @@ const cifras = [
     <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance max-w-4xl">
       Todos los autos en venta de Chile, en un solo lugar.
     </h1>
-    <p class="text-base  leading-relaxed max-w-xl mb-block">
+    <p class={`${parrafoCls} max-w-xl mb-block`}>
       CarFlip recopila a diario los avisos de los principales portales del país, los normaliza
       y detecta cuáles están publicados bajo su precio de mercado. No vendemos autos:
       te mostramos dónde están y cuánto cuestan.

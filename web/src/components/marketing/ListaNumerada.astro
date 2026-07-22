@@ -2,6 +2,8 @@
 // Lista con numeración tipográfica (01, 02, ...), sin insignias ni conectores.
 // Compartida por el proceso de /como-funciona y los principios de /quienes-somos.
 // enlace es opcional: se anexa al final del texto como "Visible en la sección X."
+import { parrafoCls } from '@lib/marketing';
+
 interface Item {
   titulo: string;
   texto: string;
@@ -23,7 +25,7 @@ const { items } = Astro.props;
       </span>
       <div>
         <h3 class="text-2xl text-ink mb-2">{titulo}</h3>
-        <p class="text-base  leading-relaxed">
+        <p class={parrafoCls}>
           {texto}
           {enlace && (
             <><a href={enlace.href} class="text-ink underline">{enlace.texto}</a>.</>

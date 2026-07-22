@@ -89,6 +89,18 @@
 }
 
 @theme {
+  /* Escala tipográfica corrida un paso hacia arriba en el tramo de lectura: a
+     16px el peso 300 sobre líneas de hasta 3xl de ancho quedaba por debajo del
+     umbral cómodo de lectura. Solo se toca el tramo de texto (sm…2xl); de 3xl
+     en adelante —métricas y displays— ya estaban dimensionados.
+     Los line-height por defecto de Tailwind son ratios sin unidad, así que
+     escalan solos y no hay que redefinirlos. */
+  --text-sm: 0.9375rem;   /* 14 → 15px */
+  --text-base: 1.0625rem; /* 16 → 17px */
+  --text-lg: 1.1875rem;   /* 18 → 19px */
+  --text-xl: 1.375rem;    /* 20 → 22px */
+  --text-2xl: 1.625rem;   /* 24 → 26px */
+
   /* Ritmo vertical adaptado al producto: 120/240px son de portafolio y hundirían
      un grid de 24 avisos bajo el fold. 120 se reserva a páginas de marketing. */
   --spacing-element: 16px;

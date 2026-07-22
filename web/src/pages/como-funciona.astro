@@ -1,14 +1,10 @@
 ---
 import Base from '@layouts/Base.astro';
 import HeroMarketing from '@components/marketing/HeroMarketing.astro';
-import Cifras from '@components/marketing/Cifras.astro';
 import ListaNumerada from '@components/marketing/ListaNumerada.astro';
 import CtaAvisos from '@components/marketing/CtaAvisos.astro';
-import { obtenerEstadisticas } from '@lib/db';
-import { formatearPrecio } from '@lib/formato';
-import { seccionCls, rubroCls } from '@lib/marketing';
+import { seccionCls, rubroCls, parrafoCls } from '@lib/marketing';
 
-const stats = await obtenerEstadisticas();
 
 const pasos = [
   {
@@ -30,25 +26,6 @@ const pasos = [
   },
 ];
 
-const fuentes = [
-  { nombre: 'Autocosmos',   detalle: 'autocosmos.cl — actualización diaria',  activa: true },
-  { nombre: 'Yapo',         detalle: 'yapo.cl — actualización diaria',        activa: true },
-  { nombre: 'Autosusados',  detalle: 'autosusados.cl — actualización diaria', activa: true },
-  { nombre: 'Checkeados',   detalle: 'checkeados.cl — actualización diaria',  activa: true },
-  { nombre: 'MercadoLibre', detalle: 'Próximamente',                          activa: false },
-];
-
-const cifras = [
-  { valor: stats.total_avisos.toLocaleString('es-CL'), label: 'avisos indexados' },
-  {
-    valor: stats.precio_promedio ? formatearPrecio(Math.round(stats.precio_promedio)) : '—',
-    label: 'precio promedio',
-  },
-  { valor: stats.total_autocosmos.toLocaleString('es-CL'),  label: 'de Autocosmos' },
-  { valor: stats.total_yapo.toLocaleString('es-CL'),        label: 'de Yapo' },
-  { valor: stats.total_autosusados.toLocaleString('es-CL'), label: 'de Autosusados' },
-  { valor: stats.total_checkeados.toLocaleString('es-CL'),  label: 'de Checkeados' },
-];
 
 const faq = [
   {
@@ -56,8 +33,20 @@ const faq = [
     respuesta: 'No. CarFlip solo agrega y compara avisos de terceros. Para contactar al vendedor usa el botón "Ver aviso original" en cada ficha — te lleva directo al portal donde está publicado.',
   },
   {
+    pregunta: '¿Usar CarFlip tiene algún costo?',
+    respuesta: 'No. El sitio es gratuito y sin fines de lucro: no cobramos comisión, no vendemos autos y ningún vendedor puede pagar por aparecer más arriba. El orden lo decide la comparación de precios, nunca la publicidad.',
+  },
+  {
+    pregunta: '¿Necesito una cuenta para buscar autos?',
+    respuesta: 'No. Buscar, filtrar y revisar los deals no requiere registro. La cuenta solo hace falta para publicar un auto propio o para ver el teléfono de un vendedor particular.',
+  },
+  {
     pregunta: '¿Cada cuánto se actualizan los datos?',
     respuesta: 'Todos los días. Los avisos nuevos aparecen en el siguiente ciclo de recopilación. Los que se eliminan del portal original se marcan como no disponibles.',
+  },
+  {
+    pregunta: '¿Los precios son exactos?',
+    respuesta: 'Son los que aparecen publicados en cada portal. Algunos vendedores no actualizan el precio en línea o negocian directamente. Siempre verifica con el vendedor antes de asumir el precio final.',
   },
   {
     pregunta: '¿Qué significa el badge de bajada de precio?',
@@ -68,10 +57,46 @@ const faq = [
     respuesta: 'Autos publicados bajo el precio de mercado de su marca, modelo y año. Los casos más relevantes se evalúan con IA, que revisa la descripción del aviso y entrega un puntaje y posibles riesgos a considerar antes de contactar al vendedor.',
   },
   {
-    pregunta: '¿Los precios son exactos?',
-    respuesta: 'Son los que aparecen publicados en cada portal. Algunos vendedores no actualizan el precio en línea o negocian directamente. Siempre verifica con el vendedor antes de asumir el precio final.',
+    pregunta: '¿Cómo se calcula el precio de mercado de un auto?',
+    respuesta: 'Con la mediana de los avisos comparables: misma marca, mismo modelo y año similar, sumando todos los portales indexados. Se usa la mediana y no el promedio porque unos pocos precios extremos no la mueven. Si un modelo tiene muy pocos avisos comparables, no se le calcula precio de mercado: preferimos no mostrar una referencia poco confiable.',
+  },
+  {
+    pregunta: '¿Qué IA evalúa los deals?',
+    respuesta: 'Hoy es un modelo de lenguaje de propósito general. Recibe el título, la descripción, el precio y el contexto de mercado del aviso, y devuelve una categoría, un puntaje de 0 a 100 y una lista de riesgos concretos encontrados en el texto: motor fundido, sin papeles, chocado, kilometraje no acreditado. Es un lector rápido de descripciones, no un tasador. El plan es reemplazarlo por un modelo propio, entrenado con el historial de precios de CarFlip, cuando el volumen de datos lo justifique.',
+  },
+  {
+    pregunta: '¿Qué tan confiable es el puntaje de la IA?',
+    respuesta: 'Sirve para ordenar la lista, no para decidir una compra. El modelo solo lee lo que el vendedor escribió: si la descripción omite un problema, no hay forma de detectarlo. Antes de cerrar cualquier trato, revisa el auto en persona, pide la documentación y hazlo ver por un mecánico de confianza.',
+  },
+  {
+    pregunta: '¿Por qué un auto muy barato no aparece en Deals?',
+    respuesta: 'Por alguna de tres razones: su grupo comparable tiene pocos avisos y la referencia no sería confiable; el precio bajo se explica por un kilometraje muy superior al del resto del grupo; o la IA lo descartó porque la descripción menciona un daño grave, falta de papeles o un vehículo para repuestos.',
+  },
+  {
+    pregunta: '¿Puedo publicar mi auto en CarFlip?',
+    respuesta: 'Sí, y es gratis. Necesitas una cuenta con el correo confirmado, y el aviso queda visible de inmediato, sin cola de revisión. Cada cuenta admite hasta 5 avisos activos y 10 fotos por aviso. Los avisos que incumplen las condiciones de uso se retiran cuando se reportan.',
   },
 ];
+
+// El reparto en columnas se hace acá y no en CSS: `columns` de CSS rebalancea
+// el contenido al abrir una card y los items saltan de columna. Partido a la
+// mitad, cada pregunta se queda donde está. El orden de lectura pasa a ser
+// vertical: la primera mitad baja por la columna izquierda y la segunda por la
+// derecha.
+const mitadFaq = Math.ceil(faq.length / 2);
+const columnasFaq = [faq.slice(0, mitadFaq), faq.slice(mitadFaq)];
+
+// FAQPage para buscadores y agentes de IA: mismo contenido que se renderiza
+// abajo, sin duplicar el texto.
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faq.map(({ pregunta, respuesta }) => ({
+    '@type': 'Question',
+    name: pregunta,
+    acceptedAnswer: { '@type': 'Answer', text: respuesta },
+  })),
+};
 
 // Página de marketing del sitio (junto a /quienes-somos): ritmo editorial
 // completo (títulos grandes, 120px entre secciones) que un grid de datos no
@@ -82,52 +107,69 @@ const faq = [
   titulo="Cómo funciona CarFlip"
   descripcion="CarFlip recopila avisos de autos en venta desde los principales portales de Chile, normaliza la información y detecta oportunidades de precio en tiempo real."
 >
-  <div class="max-w-3xl">
+  <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
 
-    <!-- Hero -->
-    <HeroMarketing rubro="Cómo funciona" titulo="Un comparador de precios, no un portal de autos.">
-      CarFlip no publica avisos propios. Recopila automáticamente lo que otros portales publican,
-      lo normaliza y lo deja en un solo lugar para que puedas comparar precios sin abrir cinco pestañas.
-    </HeroMarketing>
+  <div class="max-w-5xl">
 
-    <!-- Proceso: numeración tipográfica, sin insignias ni conectores -->
-    <section class={seccionCls}>
-      <h2 class={rubroCls}>El proceso</h2>
-      <ListaNumerada items={pasos} />
-    </section>
+    <!-- El tramo de lectura corrida se queda en la medida editorial (max-w-3xl);
+         solo el mosaico de preguntas usa el ancho completo, que es lo que le
+         permite abrir a dos columnas sin apretar la línea de texto. -->
+    <div class="max-w-3xl">
 
-    <!-- Fuentes activas -->
-    <section class={seccionCls}>
-      <h2 class={rubroCls}>Fuentes de datos</h2>
+      <!-- Hero -->
+      <HeroMarketing rubro="Cómo funciona" titulo="Un comparador de precios, no un portal de autos.">
+        CarFlip no publica avisos propios. Recopila automáticamente lo que otros portales publican,
+        lo normaliza y lo deja en un solo lugar para que puedas comparar precios sin abrir cinco pestañas.
+      </HeroMarketing>
 
-      <ul class="divide-y divide-line border-y border-line">
-        {fuentes.map(({ nombre, detalle, activa }) => (
-          <li class="flex items-baseline justify-between gap-element py-element">
-            <span class={activa ? 'text-base text-ink' : 'text-base '}>
-              {nombre}
-            </span>
-            <span class="text-base  text-right">{detalle}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
+      <!-- Proceso: numeración tipográfica, sin insignias ni conectores -->
+      <section class={seccionCls}>
+        <h2 class={rubroCls}>El proceso</h2>
+        <ListaNumerada items={pasos} />
+      </section>
 
-    <!-- Stats en vivo -->
-    <section class={seccionCls}>
-      <h2 class={rubroCls}>En este momento</h2>
-      <Cifras cifras={cifras} />
-    </section>
+    </div>
 
-    <!-- Preguntas frecuentes: `scroll-mt` compensa el header sticky (h-12)
-         cuando se llega por el enlace "Preguntas Frecuentes" del footer. -->
+
+    <!-- Preguntas frecuentes: mosaico de 2×6 sobre <details> nativos — sin una
+         línea de JS, con el estado abierto/cerrado ya accesible por teclado y
+         anunciado por el lector de pantalla. Las respuestas quedan en el DOM
+         aunque la card esté cerrada, así que buscadores y agentes las leen
+         igual (y coinciden con el FAQPage del <head>).
+         `scroll-mt` compensa el header sticky (h-12) cuando se llega por el
+         enlace "Preguntas Frecuentes" del footer. -->
     <section id="preguntas-frecuentes" class={`${seccionCls} scroll-mt-20`}>
       <h2 class={rubroCls}>Preguntas frecuentes</h2>
 
-      <div class="divide-y divide-line border-y border-line">
-        {faq.map(({ pregunta, respuesta }) => (
-          <div class="py-block">
-            <h3 class="text-2xl text-ink mb-element">{pregunta}</h3>
-            <p class="text-base  leading-relaxed">{respuesta}</p>
+      <!-- Dos columnas independientes en vez de una grilla de 12 celdas: en una
+           grilla, abrir una card empuja la fila completa y deja un hueco al lado.
+           Cada columna es su propia pila, así que solo desplaza a las de abajo
+           suyo. El mismo `gap-element` separa las columnas entre sí y las cards
+           dentro de cada una, de modo que el aire es el mismo en los dos ejes.
+           Dos columnas desde lg y no desde md: a 768px cada card mediría 370px y
+           una pregunta de 26px se partiría en cuatro líneas. -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-element items-start">
+        {columnasFaq.map((columna) => (
+          <div class="flex flex-col gap-element">
+            {columna.map(({ pregunta, respuesta }) => (
+              <details class="faq-card group border border-line open:border-ink hover:border-ink transition-colors duration-200">
+                <summary class="flex items-start justify-between gap-element p-element cursor-pointer">
+                  <h3 class="text-2xl text-ink leading-tight text-balance">{pregunta}</h3>
+                  <svg
+                    class="shrink-0 mt-2 transition-transform duration-200 group-open:rotate-45"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    stroke="currentColor"
+                    stroke-width="1"
+                    aria-hidden="true"
+                  >
+                    <path d="M0 8h16M8 0v16" />
+                  </svg>
+                </summary>
+                <p class={`${parrafoCls} px-element pb-element`}>{respuesta}</p>
+              </details>
+            ))}
           </div>
         ))}
       </div>
@@ -138,3 +180,36 @@ const faq = [
 
   </div>
 </Base>
+
+<style>
+  /* El triángulo nativo del <summary> sobra: el signo + del markup ya indica
+     el estado, y rotado 45° al abrir se convierte en una ×. Dos reglas porque
+     Safari usa su propio pseudo-elemento. */
+  .faq-card summary {
+    list-style: none;
+  }
+
+  .faq-card summary::-webkit-details-marker {
+    display: none;
+  }
+
+  /* El alto de un <details> no es animable, así que se anima el contenido y no
+     la caja: la respuesta entra con un desplazamiento mínimo en vez de
+     aparecer de golpe. */
+  .faq-card[open] p {
+    animation: faq-entrada 200ms ease-out;
+  }
+
+  @keyframes faq-entrada {
+    from {
+      opacity: 0;
+      transform: translateY(-0.25rem);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .faq-card[open] p {
+      animation: none;
+    }
+  }
+</style>

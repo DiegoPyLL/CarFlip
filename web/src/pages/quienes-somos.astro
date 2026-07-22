@@ -1,6 +1,6 @@
 ---
 import Base from '@layouts/Base.astro';
-import { seccionCls, rubroCls } from '@lib/marketing';
+import { seccionCls, rubroCls, parrafoCls } from '@lib/marketing';
 
 
 
@@ -125,13 +125,13 @@ const principios = [
           Que cualquier persona en Chile pueda saber si un precio es bueno antes de negociarlo.
         </p>
 
-        <p class="text-lg leading-relaxed mb-6">
+        <p class={`${parrafoCls} mb-6`}>
           Comprar o vender un auto usado en Chile significa recorrer múltiples portales y encontrarse con anuncios
           de vehículos que pagan por aparecer primero, no necesariamente con las mejores ofertas. CarFlip existe
           para cerrar esa brecha de información y dar la misma oportunidad a todos.
         </p>
 
-        <p class="text-lg leading-relaxed">
+        <p class={parrafoCls}>
           <em>Para encontrar un buen auto no hay que buscar más, sino comparar mejor.</em>
         </p>
       </div>
@@ -171,7 +171,7 @@ const principios = [
               <span class="text-2xl tabular-nums leading-tight" aria-hidden="true">
                 {String(i + 1).padStart(2, '0')}
               </span>
-              <p class="text-lg leading-relaxed max-w-[38ch]">{parrafo}</p>
+              <p class={`${parrafoCls} max-w-[38ch]`}>{parrafo}</p>
             </li>
           ))}
         </ol>
@@ -210,7 +210,7 @@ const principios = [
               {String(i + 1).padStart(2, '0')}
             </span>
             <h3 class="text-2xl text-ink mt-2 mb-2">{titulo}</h3>
-            <p class="text-base leading-relaxed">
+            <p class={parrafoCls}>
               {texto}
               {enlace && (
                 <><a href={enlace.href} class="text-ink underline">{enlace.texto}</a>.</>
@@ -243,7 +243,7 @@ const principios = [
 
       <div class="p-block lg:p-section">
         <h2 class={`${rubroCls} mb-block`}>Por qué sin fines de lucro</h2>
-        <p class="text-lg leading-relaxed">
+        <p class={parrafoCls}>
           No cobramos comisión, no vendemos autos y no tenemos ningún interés comercial en qué auto
           compras ni a quién. CarFlip se sostiene como un proyecto independiente, mantenido por el
           mismo grupo de desarrolladores que lo construyó. Creemos que la transparencia de precio en
@@ -253,7 +253,7 @@ const principios = [
 
       <div class="p-block lg:p-section border-t md:border-t-0 border-white/25">
         <h2 class={`${rubroCls} mb-block`}>Quién está detrás</h2>
-        <p class="text-lg leading-relaxed mb-block">
+        <p class={`${parrafoCls} mb-block`}>
           CarFlip lo desarrolla y mantiene <a
             href="https://volutus.cl"
             target="_blank"
@@ -263,7 +263,7 @@ const principios = [
           normalización de los datos y el sitio que estás viendo. Los detalles de responsabilidad y
           propiedad están en <a href="/legal" class="underline">Legales</a>.
         </p>
-        <p class="text-lg leading-relaxed">
+        <p class={parrafoCls}>
           ¿Te quieres sumar, encontraste un error o tienes una idea? Escríbenos desde
           <a href="/contacto" class="underline">Contacto</a>.
         </p>
