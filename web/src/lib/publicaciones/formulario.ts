@@ -8,7 +8,7 @@
 
 import { normalizar } from '@lib/sanitizar';
 
-import { ANIO_MINIMO, COMBUSTIBLES, REGIONES, TRANSMISIONES, anioMaximo } from './opciones';
+import { ANIO_MINIMO, COMBUSTIBLES, COMUNAS, REGIONES, TRANSMISIONES, anioMaximo } from './opciones';
 
 export interface CamposAviso {
   titulo: string;
@@ -47,13 +47,13 @@ export function camposDelFormulario(datos: FormData): CamposAviso | null {
   const marca = normalizar(datos.get('marca'), { max: 100 });
   const modelo = normalizar(datos.get('modelo'), { max: 100 });
   const version = normalizar(datos.get('version'), { max: 100 });
-  const comuna = normalizar(datos.get('comuna'), { max: 100 });
   const descripcion = normalizar(datos.get('descripcion'), { max: 2000, preservarSaltos: true });
 
   const anio = entero(datos.get('anio'));
   const km = entero(datos.get('km'));
   const precio = entero(datos.get('precio'));
   const region = deLista(datos.get('region'), REGIONES);
+  const comuna = deLista(datos.get('comuna'), COMUNAS);
   const combustible = deLista(datos.get('combustible'), COMBUSTIBLES);
   const transmision = deLista(datos.get('transmision'), TRANSMISIONES);
 

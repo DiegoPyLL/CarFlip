@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 
-import { REGIONES } from '@lib/publicaciones/opciones';
+import { COMUNAS, REGIONES } from '@lib/publicaciones/opciones';
 import { normalizar, normalizarTelefonoCL } from '@lib/sanitizar';
 
 export const prerender = false;
@@ -16,13 +16,14 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   const datos = await request.formData();
   const nombre = normalizar(datos.get('nombre'), { max: 100 });
   const telefono = normalizarTelefonoCL(datos.get('telefono'));
-  const comuna = normalizar(datos.get('comuna'), { max: 100 });
+  const comuna = String(datos.get('comuna') ?? '');
   const region = String(datos.get('region') ?? '');
 
-  if (!nombre || !NOMBRE_RE.test(nombre) || !telefono || !comuna) {
+  if (!nombre || !NOMBRE_RE.test(nombre) || !telefono) {
     return redirect('/cuenta?error=datos', 303);
   }
   if (!(REGIONES as readonly string[]).includes(region)) return redirect('/cuenta?error=datos', 303);
+  if (!COMUNAS.includes(comuna)) return redirect('/cuenta?error=datos', 303);
 
   // El `where` lo impone RLS (`id = auth.uid()`), no este filtro.
   const { error } = await supabase

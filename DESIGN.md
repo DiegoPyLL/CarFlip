@@ -23,7 +23,7 @@ Los nombres son **semánticos**, no cromáticos: el mismo token cambia de valor 
 | `--c-line`        | `line`            | `#dcdcdc` | `#484848` | Bordes de card, divisores, paginación deshabilitada             |
 | `--c-line-strong` | `line-strong`     | `#767676` | `#a0a0a0` | Bordes de inputs y selects (necesitan 3:1 de contraste)         |
 | `--c-scarlet`     | `scarlet-signal`  | `#e4002b` | `#e4002b` | Punto del CTA primario, borde de foco, indicador de filtros activos |
-| `--c-blue`        | `blue-signal`     | `#1873b3` | `#1873b3` | Acento editorial: fondo de bloques de marca (footer, `/quienes-somos`) |
+| `--c-blue`        | `blue-signal`     | `#1873b3` | `#1873b3` | Acento editorial: fondo de bloques de marca (footer, hero de `/quienes-somos`) y lavado rotativo del mosaico de principios de esa misma página |
 | `--c-green`       | `green-signal`    | `#71db4c` | `#71db4c` | Acento editorial secundario, mismo régimen que `blue-signal`; reservado, sin implementación asignada |
 | `--c-ink-on-tint` | `ink-on-tint`     | `#ffffff` | `#ffffff` | Blanco fijo para texto sobre `blue-signal`/`green-signal`; no invierte con el tema |
 | `--c-github`      | `github-signal`   | `#181717` | `#181717` | Negro de marca de GitHub, solo para el ícono del footer; no es un acento del sistema |
@@ -248,7 +248,7 @@ El sistema sigue siendo mayormente acromático. Hay tres acentos cromáticos y c
 | Acento           | Rol                                                                       | Dónde                                                      |
 | ---------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | `scarlet-signal` | Transaccional: la única señal en las páginas de producto.                  | CTA primario, borde de foco, indicador de filtros activos    |
-| `blue-signal`    | Editorial/institucional: identifica los bloques de marca, no de producto.  | Fondo del footer, hero de `/quienes-somos`                   |
+| `blue-signal`    | Editorial/institucional: identifica los bloques de marca, no de producto.  | Fondo del footer, hero de `/quienes-somos`, y como lavado de baja opacidad (16%) que rota entre las celdas del mosaico de principios de esa página |
 | `green-signal`   | Editorial secundario, mismo régimen que `blue-signal`.                     | Reservado — sin implementación asignada todavía              |
 
 Las páginas de producto (`/avisos`, `/deals`, `/mercado`, `/auto/[id]`, cards) mantienen la ración original: ~95% acromático, ~5% escarlata, un elemento como máximo por pantalla. `blue-signal`/`green-signal` no aparecen ahí — quedan reservados a los bloques editoriales/de marca.

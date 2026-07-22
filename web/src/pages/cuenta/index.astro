@@ -2,7 +2,7 @@
 import Base from '@layouts/Base.astro';
 import { obtenerPerfil } from '@lib/publicaciones/consultas';
 import { PALABRA_ELIMINAR, mensajeDeError, perfilCompleto } from '@lib/publicaciones/limites';
-import { REGIONES } from '@lib/publicaciones/opciones';
+import { COMUNAS_POR_REGION, REGIONES } from '@lib/publicaciones/opciones';
 
 // El middleware ya redirige a /entrar si no hay sesión; la comprobación se
 // repite aquí para que el tipo de `usuario` sea no nulo en el template.
@@ -127,15 +127,16 @@ const inputCls =
           <label for="comuna" class="flex items-baseline justify-between text-base text-ink mb-2">
             Comuna <span class="text-sm text-scarlet-signal">*Requerido</span>
           </label>
-          <input
-            type="text"
-            id="comuna"
-            name="comuna"
-            required
-            maxlength="100"
-            value={perfil?.comuna ?? ''}
-            class={inputCls}
-          />
+          <select id="comuna" name="comuna" required class={inputCls}>
+            <option value="">Selecciona…</option>
+            {REGIONES.map((r) => (
+              <optgroup label={r}>
+                {COMUNAS_POR_REGION[r].map((c) => (
+                  <option value={c} selected={perfil?.comuna === c}>{c}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
         </div>
       </div>
 

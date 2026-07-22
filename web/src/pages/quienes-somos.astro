@@ -1,13 +1,27 @@
 ---
 import Base from '@layouts/Base.astro';
-import HeroMarketing from '@components/marketing/HeroMarketing.astro';
-import SeccionEditorial from '@components/marketing/SeccionEditorial.astro';
-import ListaNumerada from '@components/marketing/ListaNumerada.astro';
-import { seccionCls, gridEditorialCls } from '@lib/marketing';
+import { seccionCls, rubroCls } from '@lib/marketing';
 
 
 
 
+const historia = [
+`A inicios de 2026 surgió la idea de crear CarFlip: una página que reuniera los mejores
+  vehículos de particulares y de automotoras pequeñas y medianas en un solo lugar, sin que
+  nadie tuviera que pagar para aparecer primero.`,
+  `CarFlip nació de una necesidad real, no de un plan de negocio. Somos un grupo de amigos
+  que vio un mercado repartido por todo Chile, sin un lugar donde comparar precios y donde
+  un buen vehículo termina opacado por las promociones de otros.`,
+  `Todo empezó como un script privado para responder una sola pregunta: ¿este auto está caro?
+  Comparar a mano un modelo entre todos los portales tomaba una tarde entera, y al día
+  siguiente los avisos ya eran otros. Automatizar esa comparación resultó más útil de lo
+  esperado, así que la convertimos en un sitio público, gratuito y abierto a cualquiera que
+  esté comprando o vendiendo.`,
+  `Hoy CarFlip revisa a diario miles de avisos de distintos portales y los ordena bajo un
+  mismo criterio: precio, estado, antigüedad, kilometraje, etc. Ningún aviso sube por
+  publicidad. Si un auto aparece arriba es porque, comparado con el resto del mercado, lo
+  merece. Esa es la regla que nos dio origen y la que no vamos a romper.`,
+];
 
 const principios = [
 
@@ -18,7 +32,7 @@ const principios = [
   {
     titulo: 'Sin fines de lucro',
     texto: 'No cobramos comisión, no vendemos tus datos, no vendemos autos y ningún vendedor puede pagar por aparecer más arriba.',
-  },  
+  },
   {
     titulo: 'Devolver el tráfico a la fuente original',
     texto: 'Si la publicación viene de una fuente externa, cada ficha enlaza al aviso original.',
@@ -38,176 +52,267 @@ const principios = [
 
 ];
 
-// Segunda página de marketing del sitio (junto a /como-funciona). El hero usa
-// la variante `marca` (fondo blue-signal), único bloque de contenido, además
-// del footer, con este acento.
+// Segunda página de marketing del sitio (junto a /como-funciona), pero con una
+// composición distinta: en vez de apilar secciones de ancho uniforme, el
+// contenido se organiza en bandas en mosaico que usan el ancho completo del
+// contenedor. Cinco ideas se repiten:
 //
-// Orden narrativo: misión → origen → cómo operamos (principios) → por qué sin
-// fines de lucro → prueba (cifras) → quién está detrás → acción. Las cifras van
-// como evidencia hacia el final, no interrumpiendo el relato de la misión.
+//   - Bloques que se tocan sin espacio entre sí (portada, cierre), separados
+//     por color, por una foto de fondo o por una línea de 1px en vez de aire —
+//     mismo lenguaje "sin elevación" del sistema, aplicado a bloques en vez de
+//     a cards.
+//   - La portada se sale del contenedor hasta el borde real de la pantalla
+//     (`.banda-completa`, ver <style>). Las otras dos fotos no: la de "Cómo
+//     empezó" acompaña al texto en su columna y la del cierre es el fondo de
+//     sus dos bloques.
+//   - Una columna de rubro fija en 9rem que mantiene alineados los títulos de
+//     sección aunque el contenido a su derecha cambie de forma (texto libre,
+//     texto + foto fija, grid de principios). "La misión" es la única sección
+//     sin medida de lectura (64ch): es la declaración central y usa todo el
+//     ancho.
+//   - En "Cómo empezó" la foto queda fija con `sticky` mientras el relato pasa
+//     por su costado con el scroll de la página: un párrafo por pantalla, sin
+//     caja de scroll propia.
+//   - "Nuestros principios" no fija el acento en una sola celda: se destaca la
+//     que está bajo el cursor (ver <style> al final).
 //
-// El ritmo vertical es deliberadamente irregular, no un salto constante:
-//   0px   → el bloque azul y la foto de apertura se pegan y leen como portada.
-//   48px  → une un párrafo con la foto que lo ilustra ("Cómo empezó").
-//   80/120 → el paso normal entre secciones.
-// Y hay tres anchos en juego: portada (todo el contenedor), lectura (64ch, con
-// el rubro descolgado al margen) y la foto de respiro, alineada al cuerpo.
+// Orden narrativo sin cambios: misión → origen → cómo operamos (principios) →
+// por qué sin fines de lucro → quién está detrás.
 ---
 
 <Base
   titulo="Quiénes somos"
   descripcion="CarFlip es un proyecto sin fines de lucro construido por un grupo de desarrolladores chilenos con una misión: democratizar el acceso a la información de precios en la reventa de autos."
 >
-  <div class="max-w-4xl">
+  <div class="pagina max-w-6xl">
 
-    <!-- Portada: el bloque de marca y la foto se pegan (sin salto) y leen como
-         una sola unidad antes del primer respiro largo. -->
-    <HeroMarketing
-      rubro="Nuestra misión"
-      titulo="Democratizar la reventa de autos en Chile."
-      marca
-      class=""
-    >
-    </HeroMarketing>
-
-    <div class={`${seccionCls} aspect-[21/9] bg-surface`}>
-      <img
-        src="/quienes-somos.webp"
-        alt="Un conductor mira el atardecer sobre un camino de montaña, apoyado en su auto."
-        width={1600}
-        height={686}
-        loading="eager"
-        fetchpriority="high"
-        class="w-full h-full object-cover"
-      />
+    <!-- Portada: dos bloques que se tocan, sin espacio entre sí, y la banda
+         completa se sale del contenedor hasta el borde real de la pantalla
+         (mismo truco left-1/2/w-screen/-ml-[50vw] que la banda de deals de la
+         portada). El texto respira arriba y abajo (rubro+h1 arriba, cierre
+         abajo); la foto llena el resto del ancho a la misma altura. -->
+    <div class={`${seccionCls} banda-completa grid grid-cols-1 lg:grid-cols-12`}>
+      <div class="hero-marca lg:col-span-5 bg-blue-signal pr-6 py-block sm:pr-10 sm:py-section flex flex-col justify-between lg:min-h-[28rem]">
+        <div>
+          <p class="text-base text-ink-on-tint/70 uppercase tracking-widest mb-element">Nuestra misión</p>
+          <h1 class="text-5xl sm:text-6xl text-ink-on-tint leading-none text-balance">Democratizar la reventa de autos en Chile.</h1>
+        </div>
+        <p class="text-base text-ink-on-tint/80 leading-relaxed max-w-xs mt-block">
+          Sin comisiones, sin autos propios y sin nadie pagando por aparecer primero.
+        </p>
+      </div>
+      <div class="lg:col-span-7 aspect-[4/3] lg:aspect-auto lg:min-h-[28rem] bg-surface">
+        <img
+          src="/quienes-somos.webp"
+          alt="Un conductor mira el atardecer sobre un camino de montaña, apoyado en su auto."
+          width={1600}
+          height={686}
+          loading="eager"
+          fetchpriority="high"
+          class="w-full h-full object-cover"
+        />
+      </div>
     </div>
 
+    <!-- La misión: a diferencia del resto de la página, el cuerpo no queda
+         capado a una medida de lectura (64ch) — ocupa todo el ancho disponible
+         a la derecha del rubro, porque es la declaración central de la página
+         y merece más peso que una columna de texto corrida. -->
+    <div class={`${seccionCls} grid grid-cols-1 lg:grid-cols-[9rem_1fr] gap-x-block`}>
+      <h2 class={`${rubroCls} lg:mb-0`}>La misión</h2>
+      <div>
+        <p class="text-4xl text-ink leading-tight mb-8 text-balance">
+          Que cualquier persona en Chile pueda saber si un precio es bueno antes de negociarlo.
+        </p>
 
+        <p class="text-lg leading-relaxed mb-6">
+          Comprar o vender un auto usado en Chile significa recorrer múltiples portales y encontrarse con anuncios
+          de vehículos que pagan por aparecer primero, no necesariamente con las mejores ofertas. CarFlip existe
+          para cerrar esa brecha de información y dar la misma oportunidad a todos.
+        </p>
 
+        <p class="text-lg leading-relaxed">
+          <em>Para encontrar un buen auto no hay que buscar más, sino comparar mejor.</em>
+        </p>
+      </div>
+    </div>
 
-    
-    <!-- La misión, en extenso -->
-    <SeccionEditorial rubro="La misión">
-      <p class="text-4xl text-ink leading-tight mb-8 text-balance">
-        Que cualquier persona en Chile pueda saber si un precio es bueno antes de negociarlo.
+    <!-- Historia: la foto queda fija (`sticky`) mientras el relato pasa por su
+         costado con el scroll normal de la página — no hay caja con scroll
+         propio. Cada párrafo reserva 55vh: menos que la foto, así avanzar al
+         siguiente cuesta poco más de medio gesto de scroll, pero suficiente
+         para que entre uno y el siguiente quede aire y no se lean como una
+         lista apretada. Es `min-h`, no `h`, para que un párrafo largo o una
+         pantalla baja lo estiren en vez de desbordarlo. El `self-start`
+         es lo que permite el sticky: sin él la celda del grid se estira a todo
+         el alto de la fila y no le queda recorrido para pegarse.
 
-      </p>
+         La foto es 9:16 y se muestra entera, sin recorte: manda el alto (lo que
+         cabe en pantalla descontando el header sticky) y el `w-fit` deja que el
+         aspect-ratio derive el ancho. Por eso su columna es `auto` y no `1fr` —
+         la reclama la foto y el texto se queda con el resto. Bajo lg no hay dos
+         columnas: los párrafos se apilan a su altura natural, con la medida de
+         lectura puesta en el <p>, y la foto cierra el bloque. -->
+    <div class={`${seccionCls} grid grid-cols-1 lg:grid-cols-[9rem_1fr] gap-x-block`}>
+      <h2 class={`${rubroCls} lg:mb-0`}>Cómo empezó</h2>
+      <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] gap-x-block gap-y-block">
+        <ol class="flex flex-col gap-block lg:gap-0">
+          {historia.map((parrafo, i) => (
+            <li class="flex flex-col justify-center gap-element lg:min-h-[55vh]">
+              <span class="text-2xl tabular-nums leading-tight" aria-hidden="true">
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <p class="text-lg leading-relaxed max-w-[38ch]">{parrafo}</p>
+            </li>
+          ))}
+        </ol>
 
-      <p class="text-lg leading-relaxed mb-6">
-        Comprar o vender un auto usado en Chile significa recorrer múltiples portales y encontrarse con anuncios
-        de vehículos que pagan por aparecer primero, no necesariamente con las mejores ofertas. CarFlip existe
-        para cerrar esa brecha de información y dar la misma oportunidad a todos.
-
-      </p>
-
-      <p class="text-lg leading-relaxed">
-        <em>Para encontrar un buen auto no hay que buscar más, sino comparar mejor.</em>
-      </p>
-    </SeccionEditorial>
-
-
-
-
-
-
-
-
-    <!-- Historia: salto corto hacia su foto, que ilustra este párrafo -->
-    <SeccionEditorial rubro="Cómo empezó" class="mb-block">
-      <p class="text-lg leading-relaxed mb-6">
-        A inicios del 2026 surgió la idea de crear CarFlip. Una página que reuniera los mejores vehiculos de particulares,
-        automotoras pequeñas y medianas en un solo lugar e impulsara los mejores vehiculos sin tener que pagar por aparecer primero.
-      </p>
-
-      <p class="text-lg leading-relaxed mb-6">
-        Carflip nació de una necesidad real, no de un plan de negocio. Somos un grupo de
-        amigos que vio un mercado repartido en todo chile sin tener un lugar centralizado, sin ningún
-        lugar donde comparar precios y donde un buen vehículo se ve opacado por promociones de otros.
-      </p>
-
-      <p class="text-lg leading-relaxed">
-        El proyecto empezó como un script privado para responder una sola pregunta: ¿este auto está
-        caro? Comparar a mano un modelo entre todos los portales tomaría una tarde entera, y al día
-        siguiente los avisos ya eran otros. Automatizar esa comparación resultó más útil de lo
-        esperado, así que la convertimos en un sitio público, gratuito y abierto a cualquiera que
-        esté comprando o vendiendo.
-      </p>
-    </SeccionEditorial>
-
-
-
-
-
-
-
-
-
-
-
-
-    <!-- Foto de respiro, alineada al cuerpo y no al contenedor: el margen del
-         rubro queda vacío y sostiene el pie. -->
-    <figure class={`${seccionCls} ${gridEditorialCls}`}>
-      <div class="lg:col-start-2">
-        <div class="aspect-[3/2] bg-surface">
+        <div class="aspect-[9/16] lg:h-[calc(100vh-7rem)] lg:w-fit lg:sticky lg:top-20 lg:self-start bg-surface">
           <img
-            src="/ford-bronco.webp"
-            alt="Una camioneta estacionada bajo un árbol en un parque, con su dueño apoyado en la puerta."
-            width={1400}
-            height={933}
+            src="/quienes-somos2.webp"
+            alt="Una mujer carga maceteros con plantas en el maletero abierto de su auto, en un vivero."
+            width={941}
+            height={1672}
             loading="lazy"
             decoding="async"
             class="w-full h-full object-cover"
           />
         </div>
       </div>
-    </figure>
+    </div>
 
+    <!-- Principios: mosaico de dos columnas con líneas de 1px como único
+         separador, no cards. El último principio, impar, cierra a lo ancho.
+         La celda bajo el cursor se destaca con un lavado de blue-signal (ver
+         <style> abajo). -->
+    <div class={`${seccionCls} grid grid-cols-1 lg:grid-cols-[9rem_1fr] gap-x-block`}>
+      <h2 class={`${rubroCls} lg:mb-0`}>Nuestros principios</h2>
+      <div class="border-t lg:border-l border-line grid grid-cols-1 lg:grid-cols-2">
+        {principios.map(({ titulo, texto, enlace }, i) => (
+          <div
+            class:list={[
+              'principio-celda border-b lg:border-r border-line p-block',
+              i === principios.length - 1 && 'lg:col-span-2',
+            ]}
+          >
+            <span class="text-2xl tabular-nums leading-tight" aria-hidden="true">
+              {String(i + 1).padStart(2, '0')}
+            </span>
+            <h3 class="text-2xl text-ink mt-2 mb-2">{titulo}</h3>
+            <p class="text-base leading-relaxed">
+              {texto}
+              {enlace && (
+                <><a href={enlace.href} class="text-ink underline">{enlace.texto}</a>.</>
+              )}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+    <!-- Cierre: los dos bloques comparten una misma foto de fondo, separados
+         por una línea en vez de por espacio. El velo (.cierre-velo) es lo que
+         hace legible el texto sobre una foto de día: mezcla blue-signal con
+         negro al 88%, dejando la foto como textura y no como imagen. Ese 88%
+         es el punto donde el blanco fijo (ink-on-tint) todavía rinde 4.59:1
+         sobre el píxel más claro de la foto — el mínimo AA. El fondo aquí no
+         depende del tema, porque es la misma foto en los dos. -->
+    <div class="cierre relative isolate text-ink-on-tint grid grid-cols-1 lg:grid-cols-2 lg:divide-x divide-white/25">
+      <img
+        src="/quienes-somos1.webp"
+        alt=""
+        width={1915}
+        height={821}
+        loading="lazy"
+        decoding="async"
+        class="absolute inset-0 -z-10 w-full h-full object-cover"
+      />
+      <div class="cierre-velo absolute inset-0 -z-10"></div>
 
+      <div class="p-block lg:p-section">
+        <h2 class={`${rubroCls} mb-block`}>Por qué sin fines de lucro</h2>
+        <p class="text-lg leading-relaxed">
+          No cobramos comisión, no vendemos autos y no tenemos ningún interés comercial en qué auto
+          compras ni a quién. CarFlip se sostiene como un proyecto independiente, mantenido por el
+          mismo grupo de desarrolladores que lo construyó. Creemos que la transparencia de precio en
+          un mercado tan grande como el de los autos usados no debería depender de un modelo de negocio.
+        </p>
+      </div>
 
-
-
-
-
-
-
-
-
-
-    <!-- Principios: cómo operamos -->
-    <SeccionEditorial rubro="Nuestros principios">
-      <ListaNumerada items={principios} />
-    </SeccionEditorial>
-
-    <!-- Modelo -->
-    <SeccionEditorial rubro="Por qué sin fines de lucro">
-      <p class="text-lg leading-relaxed">
-        No cobramos comisión, no vendemos autos y no tenemos ningún interés comercial en qué auto
-        compras ni a quién. CarFlip se sostiene como un proyecto independiente, mantenido por el
-        mismo grupo de desarrolladores que lo construyó. Creemos que la transparencia de precio en
-        un mercado tan grande como el de los autos usados no debería depender de un modelo de negocio.
-      </p>
-    </SeccionEditorial>
-
-
-    <!-- Quién está detrás -->
-    <SeccionEditorial rubro="Quién está detrás">
-      <p class="text-lg leading-relaxed mb-block">
-        CarFlip lo desarrolla y mantiene <a
-          href="https://volutus.cl"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-ink underline">VolutusDevGroup</a>, un grupo
-        chileno de desarrolladores de software. El equipo se encarga de la recopilación diaria, la
-        normalización de los datos y el sitio que estás viendo. Los detalles de responsabilidad y
-        propiedad están en <a href="/legal" class="text-ink underline">Legales</a>.
-      </p>
-      <p class="text-lg leading-relaxed">
-        ¿Te quieres sumar, encontraste un error o tienes una idea? Escríbenos desde
-        <a href="/contacto" class="text-ink underline">Contacto</a>.
-      </p>
-    </SeccionEditorial>
-
+      <div class="p-block lg:p-section border-t lg:border-t-0 border-white/25">
+        <h2 class={`${rubroCls} mb-block`}>Quién está detrás</h2>
+        <p class="text-lg leading-relaxed mb-block">
+          CarFlip lo desarrolla y mantiene <a
+            href="https://volutus.cl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="underline">VolutusDevGroup</a>, un grupo
+          chileno de desarrolladores de software. El equipo se encarga de la recopilación diaria, la
+          normalización de los datos y el sitio que estás viendo. Los detalles de responsabilidad y
+          propiedad están en <a href="/legal" class="underline">Legales</a>.
+        </p>
+        <p class="text-lg leading-relaxed">
+          ¿Te quieres sumar, encontraste un error o tienes una idea? Escríbenos desde
+          <a href="/contacto" class="underline">Contacto</a>.
+        </p>
+      </div>
+    </div>
 
   </div>
 </Base>
+
+<style>
+  /* Distancia entre el borde izquierdo de la pantalla y donde empieza el
+     contenido: el padding lateral de <main> más el margen que deja su centrado
+     (max-w-7xl = 80rem). Bajo 80rem de viewport el max() cae al padding base.
+     No se usa el idiom left-1/2 + w-screen + -ml-[50vw] porque ese asume que el
+     padre está centrado en la pantalla, y aquí el wrapper max-w-6xl se alinea a
+     la izquierda dentro de <main>: la banda quedaría corrida. */
+  .pagina {
+    --sangria: max(1rem, calc((100vw - 80rem) / 2 + 1rem));
+  }
+
+  @media (min-width: 640px) {
+    .pagina {
+      --sangria: max(1.5rem, calc((100vw - 80rem) / 2 + 1.5rem));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .pagina {
+      --sangria: max(2rem, calc((100vw - 80rem) / 2 + 2rem));
+    }
+  }
+
+  /* Bandas que llegan al borde real de la pantalla. */
+  .banda-completa {
+    width: 100vw;
+    margin-left: calc(-1 * var(--sangria));
+  }
+
+  /* El bloque de marca sangra con su banda, pero su texto vuelve a alinearse
+     con el resto de la página. */
+  .hero-marca {
+    padding-left: var(--sangria);
+  }
+
+  /* La celda bajo el cursor se destaca con un lavado de blue-signal. Tono bajo
+     (16%) para que el texto ink siga siendo legible sin invertir a
+     ink-on-tint. Sólo con puntero real: en táctil el :hover se queda pegado
+     tras el toque. */
+  @media (hover: hover) {
+    .principio-celda {
+      transition: background-color 150ms ease;
+    }
+
+    .principio-celda:hover {
+      background-color: color-mix(in oklab, var(--c-blue) 16%, transparent);
+    }
+  }
+
+  /* Velo del cierre: azul de marca virado a negro, casi opaco. Ver el
+     comentario del bloque .cierre en el markup. */
+  .cierre-velo {
+    background-color: color-mix(in oklab, var(--c-blue) 60%, #000000);
+    opacity: 0.88;
+  }
+</style>
