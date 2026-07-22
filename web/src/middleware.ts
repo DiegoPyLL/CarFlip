@@ -41,5 +41,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return context.redirect('/', 302);
   }
 
-  return next();
+  const respuesta = await next();
+
+  // Astro emite las respuestas SSR como `text/html` a secas. La declaración de
+  // codificación queda entonces solo en el <meta charset> del layout y, aunque
+  // ahí llega dentro de los primeros 1024 bytes, la cabecera es la que manda:
+  // sin el parámetro, los auditores la dan por ausente.
+  const tipo = respuesta.headers.get('content-type');
+  if (tipo?.startsWith('text/html') && !tipo.includes('charset')) {
+    respuesta.headers.set('content-type', 'text/html; charset=utf-8');
+  }
+
+  return respuesta;
 });

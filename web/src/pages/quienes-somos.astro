@@ -94,10 +94,10 @@ const principios = [
     <div class={`${seccionCls} banda-completa grid grid-cols-1 lg:grid-cols-12`}>
       <div class="hero-marca lg:col-span-5 bg-blue-signal pr-6 py-block sm:pr-10 sm:py-section flex flex-col justify-between lg:min-h-[28rem]">
         <div>
-          <p class="text-base text-ink-on-tint/70 uppercase tracking-widest mb-element">Nuestra misión</p>
+          <p class="text-base text-ink-on-tint/100 uppercase tracking-widest mb-element">Nuestra misión</p>
           <h1 class="text-5xl sm:text-6xl text-ink-on-tint leading-none text-balance">Democratizar la reventa de autos en Chile.</h1>
         </div>
-        <p class="text-base text-ink-on-tint/80 leading-relaxed max-w-xs mt-block">
+        <p class="text-base text-ink-on-tint/100 leading-relaxed max-w-xs mt-block">
           Sin comisiones, sin autos propios y sin nadie pagando por aparecer primero.
         </p>
       </div>
@@ -142,23 +142,32 @@ const principios = [
          propio. Cada párrafo reserva 55vh: menos que la foto, así avanzar al
          siguiente cuesta poco más de medio gesto de scroll, pero suficiente
          para que entre uno y el siguiente quede aire y no se lean como una
-         lista apretada. Es `min-h`, no `h`, para que un párrafo largo o una
-         pantalla baja lo estiren en vez de desbordarlo. El `self-start`
+         lista apretada. El tope de 32rem evita que en una pantalla muy alta ese
+         aire se vuelva un vacío de media pantalla entre párrafo y párrafo. Es
+         `min-h`, no `h`, para que un párrafo largo o una pantalla baja lo
+         estiren en vez de desbordarlo. El `self-start`
          es lo que permite el sticky: sin él la celda del grid se estira a todo
          el alto de la fila y no le queda recorrido para pegarse.
 
-         La foto es 9:16 y se muestra entera, sin recorte: manda el alto (lo que
-         cabe en pantalla descontando el header sticky) y el `w-fit` deja que el
-         aspect-ratio derive el ancho. Por eso su columna es `auto` y no `1fr` —
-         la reclama la foto y el texto se queda con el resto. Bajo lg no hay dos
-         columnas: los párrafos se apilan a su altura natural, con la medida de
-         lectura puesta en el <p>, y la foto cierra el bloque. -->
+         La foto es 9:16 y se muestra entera, sin recorte: en todos los tamaños
+         manda el alto y el `w-fit` deja que el aspect-ratio derive el ancho, no
+         al revés. Es lo que la salva en tablet: a lo ancho, un 9:16 de 720px
+         mediría 1280 de alto y sería una pantalla y media de foto muerta. Por
+         eso su columna en lg es `auto` y no `1fr` — la reclama la foto y el
+         texto se queda con el resto.
+
+         El tope de 44rem del alto es justamente para que ese "resto" no se
+         evapore: en una pantalla angosta pero muy alta (iPad Pro vertical,
+         1024x1366) el 100vh daba una foto de 705px de ancho y dejaba al texto
+         con 15. Topada, mide 396 y el texto se queda con 324. Bajo lg no hay
+         dos columnas: los párrafos se apilan a su altura natural, con la medida
+         de lectura puesta en el <p>, y la foto cierra el bloque centrada. -->
     <div class={`${seccionCls} grid grid-cols-1 lg:grid-cols-[9rem_1fr] gap-x-block`}>
       <h2 class={`${rubroCls} lg:mb-0`}>Cómo empezó</h2>
       <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] gap-x-block gap-y-block">
         <ol class="flex flex-col gap-block lg:gap-0">
           {historia.map((parrafo, i) => (
-            <li class="flex flex-col justify-center gap-element lg:min-h-[55vh]">
+            <li class="flex flex-col justify-center gap-element lg:min-h-[min(55vh,32rem)]">
               <span class="text-2xl tabular-nums leading-tight" aria-hidden="true">
                 {String(i + 1).padStart(2, '0')}
               </span>
@@ -167,7 +176,7 @@ const principios = [
           ))}
         </ol>
 
-        <div class="aspect-[9/16] lg:h-[calc(100vh-7rem)] lg:w-fit lg:sticky lg:top-20 lg:self-start bg-surface">
+        <div class="aspect-[9/16] h-[70vh] w-fit mx-auto lg:h-[min(calc(100vh-7rem),44rem)] lg:sticky lg:top-20 lg:self-start bg-surface">
           <img
             src="/quienes-somos2.webp"
             alt="Una mujer carga maceteros con plantas en el maletero abierto de su auto, en un vivero."
@@ -183,16 +192,18 @@ const principios = [
 
     <!-- Principios: mosaico de dos columnas con líneas de 1px como único
          separador, no cards. El último principio, impar, cierra a lo ancho.
+         El mosaico abre en md y no en lg: son textos cortos, y a una columna
+         de 720px las líneas quedaban larguísimas para lo poco que dicen.
          La celda bajo el cursor se destaca con un lavado de blue-signal (ver
          <style> abajo). -->
     <div class={`${seccionCls} grid grid-cols-1 lg:grid-cols-[9rem_1fr] gap-x-block`}>
       <h2 class={`${rubroCls} lg:mb-0`}>Nuestros principios</h2>
-      <div class="border-t lg:border-l border-line grid grid-cols-1 lg:grid-cols-2">
+      <div class="border-t md:border-l border-line grid grid-cols-1 md:grid-cols-2">
         {principios.map(({ titulo, texto, enlace }, i) => (
           <div
             class:list={[
-              'principio-celda border-b lg:border-r border-line p-block',
-              i === principios.length - 1 && 'lg:col-span-2',
+              'principio-celda border-b md:border-r border-line p-block',
+              i === principios.length - 1 && 'md:col-span-2',
             ]}
           >
             <span class="text-2xl tabular-nums leading-tight" aria-hidden="true">
@@ -215,8 +226,10 @@ const principios = [
          negro al 88%, dejando la foto como textura y no como imagen. Ese 88%
          es el punto donde el blanco fijo (ink-on-tint) todavía rinde 4.59:1
          sobre el píxel más claro de la foto — el mínimo AA. El fondo aquí no
-         depende del tema, porque es la misma foto en los dos. -->
-    <div class="cierre relative isolate text-ink-on-tint grid grid-cols-1 lg:grid-cols-2 lg:divide-x divide-white/25">
+         depende del tema, porque es la misma foto en los dos. Los dos bloques
+         se ponen lado a lado desde md: apilados a 720px de ancho las líneas
+         pasaban de 75 caracteres. -->
+    <div class="cierre relative isolate text-ink-on-tint grid grid-cols-1 md:grid-cols-2 md:divide-x divide-white/25">
       <img
         src="/quienes-somos1.webp"
         alt=""
@@ -238,7 +251,7 @@ const principios = [
         </p>
       </div>
 
-      <div class="p-block lg:p-section border-t lg:border-t-0 border-white/25">
+      <div class="p-block lg:p-section border-t md:border-t-0 border-white/25">
         <h2 class={`${rubroCls} mb-block`}>Quién está detrás</h2>
         <p class="text-lg leading-relaxed mb-block">
           CarFlip lo desarrolla y mantiene <a
