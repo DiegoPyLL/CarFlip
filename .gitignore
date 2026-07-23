@@ -14,6 +14,5 @@ data/raw/
 reports/
 .vercel
 .env*
-.diagrama-er.html
 reports/auditoria_imagen.json
 /tests
