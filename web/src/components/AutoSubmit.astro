@@ -1,0 +1,23 @@
+---
+// Mejora progresiva: envía un formulario al cambiar un control, sin `onchange`
+// inline (que la CSP bloquea). El script lo empaqueta Astro como `'self'`.
+// Dos modos, según dónde viva el control:
+//   <form data-autosubmit> … </form>     → cualquier cambio dentro envía el form
+//   <select data-submits="id-del-form">   → envía el form con ese id (control externo)
+// Sin JS el formulario sigue usable con su botón de envío.
+---
+
+<script>
+  for (const form of document.querySelectorAll('form[data-autosubmit]')) {
+    form.addEventListener('change', () => {
+      if (form instanceof HTMLFormElement) form.submit();
+    });
+  }
+
+  for (const control of document.querySelectorAll('[data-submits]')) {
+    control.addEventListener('change', () => {
+      const form = document.getElementById(control.getAttribute('data-submits') || '');
+      if (form instanceof HTMLFormElement) form.submit();
+    });
+  }
+</script>

@@ -260,6 +260,25 @@ export async function yaReveloContacto(
 }
 
 /**
+ * Si el usuario ya reportó este aviso, no se registra un segundo reporte: evita
+ * que una misma persona infle la bandeja de moderación con denuncias repetidas.
+ */
+export async function yaReportoAviso(
+  supabase: SupabaseClient,
+  avisoId: number,
+  usuarioId: string,
+): Promise<boolean> {
+  const total = await contar(
+    supabase
+      .from('reportes_aviso')
+      .select('id', { count: 'exact', head: true })
+      .eq('aviso_id', avisoId)
+      .eq('usuario_id', usuarioId),
+  );
+  return total > 0;
+}
+
+/**
  * Revelaciones de contacto recibidas por cada aviso del usuario. La política de
  * `contacto_revelaciones` deja leer al dueño del aviso, así que basta el
  * cliente de sesión.

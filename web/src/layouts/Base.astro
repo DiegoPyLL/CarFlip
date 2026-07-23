@@ -78,7 +78,7 @@ function esRutaActiva(href: string): boolean {
       El claro es el principal, así que solo se marca el documento si hay
       preferencia explícita por el oscuro.
     -->
-    <script is:inline>
+    <script is:inline nonce={Astro.locals.nonce}>
       try {
         if (localStorage.getItem('tema') === 'oscuro') {
           document.documentElement.dataset.theme = 'dark';
@@ -232,7 +232,7 @@ function esRutaActiva(href: string): boolean {
       </div>
     </footer>
 
-    <script is:inline>
+    <script is:inline nonce={Astro.locals.nonce}>
       (() => {
         const raiz = document.documentElement;
         const boton = document.getElementById('tema-toggle');

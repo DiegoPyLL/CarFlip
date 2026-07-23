@@ -3,6 +3,46 @@ import { escaparHtml, normalizar } from '@lib/sanitizar';
 
 export const prerender = false;
 
+// Rate limit por IP: el honeypot no frena un script dirigido, y cada envío
+// válido gasta cuota de Resend. Se permiten pocas solicitudes por ventana corta.
+const RATE_LIMITE = 5;
+const RATE_VENTANA_MIN = 10;
+// Salt del hash de IP: no se guarda la IP en claro (minimización de datos,
+// Ley 21.719). Se puede sobreescribir por entorno.
+const RATE_SALT = (import.meta.env.CONTACT_RATE_SALT as string) || 'carflip-contacto';
+
+async function hashIp(ip: string): Promise<string> {
+  const datos = new TextEncoder().encode(`${RATE_SALT}:${ip}`);
+  const buffer = await crypto.subtle.digest('SHA-256', datos);
+  return [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Registra el intento y responde si la IP superó el tope en la ventana. El
+ * cliente de servicio se importa aquí (no al tope) para no acoplar el formulario
+ * a la config de la base, y falla abierto: cualquier problema del registro no
+ * bloquea el contacto, solo se pierde esta capa (Vercel Firewall es la otra).
+ */
+async function superaRateLimit(ip: string): Promise<boolean> {
+  try {
+    const { supabase: servicio } = await import('@lib/db/client');
+    const ipHash = await hashIp(ip);
+    const desde = new Date(Date.now() - RATE_VENTANA_MIN * 60 * 1000).toISOString();
+
+    const { count } = await servicio
+      .from('contacto_solicitudes')
+      .select('id', { count: 'exact', head: true })
+      .eq('ip_hash', ipHash)
+      .gte('creado_en', desde);
+
+    await servicio.from('contacto_solicitudes').insert({ ip_hash: ipHash });
+    return (count ?? 0) >= RATE_LIMITE;
+  } catch (error) {
+    console.error('Rate limit de contacto no disponible:', error);
+    return false;
+  }
+}
+
 const RESEND_API_KEY = (import.meta.env.RESEND_API_KEY as string) || (process.env.RESEND_API_KEY as string);
 const CONTACT_EMAIL =
   (import.meta.env.CONTACT_EMAIL as string) || (process.env.CONTACT_EMAIL as string) || 'dpenaylilloluhrs@gmail.com';
@@ -20,7 +60,7 @@ function redirigir(origin: string, parametro: 'enviado' | 'error'): Response {
   return Response.redirect(destino, 303);
 }
 
-export const POST: APIRoute = async ({ request, url }) => {
+export const POST: APIRoute = async ({ request, url, clientAddress }) => {
   const datos = await request.formData();
 
   // Honeypot: campo oculto para personas por CSS; un bot que completa todos
@@ -39,6 +79,18 @@ export const POST: APIRoute = async ({ request, url }) => {
 
   if (!RESEND_API_KEY) {
     console.error('RESEND_API_KEY no está configurada');
+    return redirigir(url.origin, 'error');
+  }
+
+  // `clientAddress` puede lanzar si el adapter no lo expone; sin IP no se aplica
+  // el tope (se apoya en la capa de Vercel Firewall) pero el envío sigue.
+  let ip = '';
+  try {
+    ip = clientAddress ?? '';
+  } catch {
+    /* sin IP */
+  }
+  if (ip && (await superaRateLimit(ip))) {
     return redirigir(url.origin, 'error');
   }
 

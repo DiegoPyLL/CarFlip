@@ -4,6 +4,7 @@ import HeroMarketing from '@components/marketing/HeroMarketing.astro';
 import ListaNumerada from '@components/marketing/ListaNumerada.astro';
 import CtaAvisos from '@components/marketing/CtaAvisos.astro';
 import { seccionCls, rubroCls, parrafoCls } from '@lib/marketing';
+import { scriptJsonLd } from '@lib/jsonLd';
 
 
 const pasos = [
@@ -107,7 +108,7 @@ const jsonLd = {
   titulo="Cómo funciona CarFlip"
   descripcion="CarFlip recopila avisos de autos en venta desde los principales portales de Chile, normaliza la información y detecta oportunidades de precio en tiempo real."
 >
-  <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  <script is:inline nonce={Astro.locals.nonce} slot="head" type="application/ld+json" set:html={scriptJsonLd(jsonLd)} />
 
   <div class="max-w-5xl">
 

@@ -1,5 +1,6 @@
 ---
 import Base from '@layouts/Base.astro';
+import AutoSubmit from '@components/AutoSubmit.astro';
 import CardDeal from '@components/deals/CardDeal.astro';
 import { obtenerDeals } from '@lib/db';
 import type { CategoriaDeal, FuenteDeal } from '@lib/tipos';
@@ -95,7 +96,7 @@ const gruposFiltro = [
   )}
 
   <!-- Filtros -->
-  <form method="GET" action="/deals" class="mb-block space-y-element">
+  <form method="GET" action="/deals" class="mb-block space-y-element" data-autosubmit>
     {gruposFiltro.map(({ name, label, activo, opciones }) => (
       <fieldset class="flex flex-wrap items-center gap-element">
         <legend class="sr-only">{label}</legend>
@@ -109,7 +110,6 @@ const gruposFiltro = [
                 value={value}
                 class="sr-only peer"
                 checked={activo === value}
-                onchange="this.form.submit()"
               />
               <span class="block px-3 py-2 text-base border border-line-strong  peer-checked:bg-ink peer-checked:text-canvas peer-checked:border-ink peer-focus-visible:border-scarlet-signal hover:border-ink hover:text-ink transition-colors whitespace-nowrap">
                 {opcion}
@@ -145,4 +145,5 @@ const gruposFiltro = [
     </div>
   )}
 
+  <AutoSubmit />
 </Base>

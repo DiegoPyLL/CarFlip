@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 
 import { rutaInterna } from '@lib/auth/servidor';
+import { yaReportoAviso } from '@lib/publicaciones/consultas';
 import { MOTIVOS_REPORTE } from '@lib/publicaciones/opciones';
 import { normalizar } from '@lib/sanitizar';
 
@@ -21,6 +22,12 @@ export const POST: APIRoute = async ({ params, request, locals, redirect }) => {
   const motivo = String(datos.get('motivo') ?? '');
   if (!(MOTIVOS_REPORTE as readonly string[]).includes(motivo)) {
     return redirect(`${volver}?error=datos`, 303);
+  }
+
+  // Un mismo usuario no reporta dos veces el mismo aviso: se acusa recibo sin
+  // duplicar la denuncia en la bandeja de moderación.
+  if (await yaReportoAviso(supabase, id, usuario.id)) {
+    return redirect(`${volver}?reportado=1`, 303);
   }
 
   const { error } = await supabase.from('reportes_aviso').insert({
