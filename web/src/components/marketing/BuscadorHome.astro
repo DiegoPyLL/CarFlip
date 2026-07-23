@@ -1,0 +1,106 @@
+---
+// Buscador de la portada. No filtra nada por sí mismo: es un form GET hacia
+// /avisos cuyos `name` son exactamente los que valida `parsearFiltrosUrl`, así
+// que el listado recibe, sanea y aplica los parámetros sin lógica nueva.
+//
+// El campo de texto viaja como `modelo`, que en la capa de datos hace OR sobre
+// titulo/marca/modelo y además pasa por `normalizarBusqueda` ("peugot" → "Peugeot").
+import type { FiltrosDisponibles } from '@lib/tipos';
+
+interface Props {
+  disponibles: FiltrosDisponibles;
+}
+
+const { disponibles } = Astro.props;
+
+const controlCls = [
+  'w-full text-base bg-canvas border border-line-strong px-3 py-2',
+  'text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors',
+].join(' ');
+
+const inputCls = `${controlCls} placeholder:text-ink/70`;
+const selectCls = `${controlCls} appearance-none cursor-pointer`;
+const labelCls = 'block text-sm text-ink/70 uppercase tracking-wider mb-2';
+---
+
+<form
+  method="GET"
+  action="/avisos"
+  id="buscador-home"
+  role="search"
+  aria-label="Buscar vehículos"
+  class="border border-line p-element grid gap-element sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_auto] lg:items-end"
+>
+  <div>
+    <label for="q" class={labelCls}>Buscar</label>
+    <input
+      id="q"
+      type="text"
+      name="modelo"
+      placeholder="Corolla, Jeep, Sail…"
+      maxlength="100"
+      autocomplete="off"
+      class={inputCls}
+    />
+  </div>
+
+  <div>
+    <label for="q-marca" class={labelCls}>Marca</label>
+    <select id="q-marca" name="marca" class={selectCls}>
+      <option value="">Todas</option>
+      {disponibles.marcas.map((m) => <option value={m}>{m}</option>)}
+    </select>
+  </div>
+
+  <div>
+    <label for="q-anio" class={labelCls}>Año</label>
+    <select id="q-anio" name="anio" class={selectCls}>
+      <option value="">Todos</option>
+      {disponibles.anios.map((a) => <option value={a}>{a}</option>)}
+    </select>
+  </div>
+
+  <div>
+    <label for="q-precio" class={labelCls}>Precio máximo</label>
+    <input
+      id="q-precio"
+      type="number"
+      name="precio_max"
+      inputmode="numeric"
+      min="0"
+      step="500000"
+      placeholder="$ CLP"
+      class={inputCls}
+    />
+  </div>
+
+  <button
+    type="submit"
+    class="sm:col-span-2 lg:col-span-1 text-base text-ink border border-ink px-6 py-2 hover:bg-ink hover:text-canvas focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150"
+  >
+    Buscar autos
+  </button>
+</form>
+
+<script>
+  // Mejora progresiva: deja los campos vacíos fuera de la URL, para compartir
+  // /avisos?modelo=corolla y no /avisos?modelo=corolla&marca=&anio=&precio_max=.
+  // Sin JS el formulario funciona igual, solo con la URL más sucia.
+  const form = document.getElementById('buscador-home');
+
+  if (form instanceof HTMLFormElement) {
+    form.addEventListener('submit', () => {
+      const vacios = [
+        ...form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input[name], select[name]'),
+      ].filter((control) => !control.value);
+
+      for (const control of vacios) control.disabled = true;
+
+      // Se reactivan en el tick siguiente —el navegador ya serializó el
+      // formulario— para que al volver con el botón atrás no queden inertes.
+      setTimeout(() => {
+        for (const control of vacios) control.disabled = false;
+      });
+    });
+  }
+</script>

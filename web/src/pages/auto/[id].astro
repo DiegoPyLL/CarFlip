@@ -1,4 +1,5 @@
 ---
+import PosicionMercado from '@components/avisos/PosicionMercado.astro';
 import Base from '@layouts/Base.astro';
 import { resolverUrlImagen } from '@lib/cdn';
 import { obtenerAviso } from '@lib/db';
@@ -63,12 +64,12 @@ const jsonLd = {
 >
   <script is:inline nonce={Astro.locals.nonce} slot="head" type="application/ld+json" set:html={scriptJsonLd(jsonLd)} />
 
-  <div class="max-w-4xl mx-auto">
+  <div class="max-w-6xl mx-auto">
 
     <!-- Volver -->
     <a
       href={urlVolver}
-      class="inline-flex items-center gap-2 text-base  hover:text-ink mb-block transition-colors"
+      class="inline-flex items-center gap-2 text-base  hover:text-ink mb-element transition-colors"
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M19 12H5M12 5l-7 7 7 7"/>
@@ -76,28 +77,30 @@ const jsonLd = {
       Volver a avisos
     </a>
 
-    <div>
+    <!-- Cabecera: foto a la izquierda, todo lo que decide la compra a la
+         derecha. En una columna la foto ya empujaba el precio y la ficha bajo el
+         fold; en dos, la pantalla completa cabe arriba. Bajo md vuelve a
+         apilarse, con la foto primero. -->
+    <div class="grid md:grid-cols-2 gap-block items-start">
 
       <!-- Imagen: obra a sangre, sin radio ni recorte -->
       {urlImagen ? (
-        <div class="aspect-[16/9] bg-surface">
-          <img
-            src={urlImagen}
-            alt={aviso.titulo}
-            width={900}
-            height={506}
-            loading="eager"
-            fetchpriority="high"
-            class="w-full h-full object-cover"
-          />
-        </div>
+        <img
+          src={urlImagen}
+          alt={aviso.titulo}
+          width={900}
+          height={506}
+          loading="eager"
+          fetchpriority="high"
+          class="w-full aspect-[16/9] object-cover bg-surface"
+        />
       ) : (
         <div class="aspect-[16/9] bg-surface flex items-center justify-center  text-base">
           Sin imagen
         </div>
       )}
 
-      <div class="pt-block">
+      <div>
 
         <!-- Badges -->
         <div class="flex flex-wrap gap-2 mb-element">
@@ -118,13 +121,15 @@ const jsonLd = {
 
         <!-- Título y precio -->
         <!-- El título es subtítulo; el precio es el display. Separarlos evita que
-             compitan, sobre todo cuando el título del portal ya incluye el precio. -->
-        <h1 class="text-2xl sm:text-3xl  leading-snug mb-element">
+             compitan, sobre todo cuando el título del portal ya incluye el precio.
+             El display baja de 7xl a 5xl: en media pantalla, catorce dígitos a
+             7xl desbordan la columna. -->
+        <h1 class="text-xl sm:text-2xl  leading-snug mb-element">
           {aviso.titulo}
         </h1>
 
-        <div class="flex flex-wrap items-baseline gap-element mb-block pb-block border-b border-line">
-          <span class="text-5xl sm:text-7xl text-ink tabular-nums leading-none">
+        <div class="flex flex-wrap items-baseline gap-element mb-element pb-element border-b border-line">
+          <span class="text-4xl sm:text-5xl text-ink tabular-nums leading-none">
             {aviso.precio ? formatearPrecio(aviso.precio, aviso.moneda) : 'Precio a consultar'}
           </span>
           {aviso.precio_anterior && delta && (
@@ -134,58 +139,53 @@ const jsonLd = {
           )}
         </div>
 
-        <!-- Layout: ficha + CTA -->
-        <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-block">
-
-          <!-- Ficha técnica: pares label/valor apilados, sin cajas -->
-          <dl class="grid grid-cols-2 gap-x-block gap-y-element">
-            {ficha.map(({ label, valor }) => (
-              <div>
-                <dt class="text-base ">{label}</dt>
-                <dd class="text-base text-ink">{valor}</dd>
-              </div>
-            ))}
-          </dl>
-
-          <!-- CTA + fechas: el punto escarlata es el único color de esta pantalla -->
-          <div class="flex flex-col gap-element sm:items-end">
-            <a
-              href={aviso.url}
-              rel="noopener noreferrer"
-              target="_blank"
-              class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-3 hover:bg-ink hover:text-canvas transition-colors duration-150 shrink-0"
-            >
-              <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
-              Ver aviso original
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                <polyline points="15 3 21 3 21 9"/>
-                <line x1="10" y1="14" x2="21" y2="3"/>
-              </svg>
-            </a>
-
-            <div class="text-base  sm:text-right space-y-1">
-              {aviso.primera_vez_visto && (
-                <p>Visto por primera vez: <span class="text-ink">{formatearFecha(aviso.primera_vez_visto)}</span></p>
-              )}
-              {aviso.ultima_vez_visto && (
-                <p>Última actualización: <span class="text-ink">{formatearFecha(aviso.ultima_vez_visto)}</span></p>
-              )}
+        <!-- Ficha técnica: pares label/valor apilados, sin cajas -->
+        <dl class="grid grid-cols-2 gap-x-element gap-y-element mb-element">
+          {ficha.map(({ label, valor }) => (
+            <div>
+              <dt class="text-base ">{label}</dt>
+              <dd class="text-base text-ink">{valor}</dd>
             </div>
-          </div>
+          ))}
+        </dl>
+
+        <!-- CTA + fechas: el punto escarlata es el único color de esta pantalla -->
+        <a
+          href={aviso.url}
+          rel="noopener noreferrer"
+          target="_blank"
+          class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-3 hover:bg-ink hover:text-canvas transition-colors duration-150"
+        >
+          <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+          Ver aviso original
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+        </a>
+
+        <div class="text-sm  space-y-1 mt-element">
+          {aviso.primera_vez_visto && (
+            <p>Visto por primera vez: <span class="text-ink">{formatearFecha(aviso.primera_vez_visto)}</span></p>
+          )}
+          {aviso.ultima_vez_visto && (
+            <p>Última actualización: <span class="text-ink">{formatearFecha(aviso.ultima_vez_visto)}</span></p>
+          )}
         </div>
-
-        <!-- Descripción -->
-        {aviso.descripcion && (
-          <div class="mt-section pt-block border-t border-line">
-            <h2 class="text-base  uppercase tracking-wider mb-element">Descripción</h2>
-            <p class="text-base text-ink whitespace-pre-line leading-relaxed max-w-2xl">
-              {aviso.descripcion}
-            </p>
-          </div>
-        )}
-
       </div>
     </div>
+
+    <PosicionMercado marca={aviso.marca} modelo={aviso.modelo} anio={aviso.anio} precio={aviso.precio} />
+
+    <!-- Descripción -->
+    {aviso.descripcion && (
+      <div class="mt-section pt-block border-t border-line">
+        <h2 class="text-base  uppercase tracking-wider mb-element">Descripción</h2>
+        <p class="text-base text-ink whitespace-pre-line leading-relaxed max-w-2xl">
+          {aviso.descripcion}
+        </p>
+      </div>
+    )}
   </div>
 </Base>

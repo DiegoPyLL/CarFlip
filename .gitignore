@@ -15,4 +15,3 @@ reports/
 .vercel
 .env*
 reports/auditoria_imagen.json
-/tests

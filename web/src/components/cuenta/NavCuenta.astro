@@ -1,0 +1,38 @@
+---
+// Barra de sección del área de cuenta: deja a la vista que hay más de una
+// página y en cuál estás. Antes lo único que unía /cuenta con /cuenta/avisos
+// era un enlace suelto al pie del formulario.
+// El subrayado activo es de 1px, como el resto de los bordes del sistema; el
+// `-mb-px` lo monta sobre el borde del contenedor para que se lea como pestaña.
+const ruta = Astro.url.pathname.replace(/\/+$/, '') || '/';
+
+const pestanas = [
+  { href: '/cuenta', texto: 'Resumen' },
+  { href: '/cuenta/avisos', texto: 'Mis publicaciones' },
+];
+
+// Las subrutas de un aviso (nuevo, editar) siguen resaltando "Mis publicaciones".
+const esActiva = (href: string) =>
+  ruta === href || (href !== '/cuenta' && ruta.startsWith(`${href}/`));
+---
+
+<nav aria-label="Secciones de tu cuenta" class="border-b border-line mb-block">
+  <ul class="flex flex-wrap gap-x-8 -mb-px">
+    {pestanas.map(({ href, texto }) => (
+      <li>
+        <a
+          href={href}
+          aria-current={esActiva(href) ? 'page' : undefined}
+          class:list={[
+            'inline-flex py-3 text-base border-b transition-colors duration-200',
+            esActiva(href)
+              ? 'text-ink border-ink'
+              : 'text-ink/70 border-transparent hover:text-ink',
+          ]}
+        >
+          {texto}
+        </a>
+      </li>
+    ))}
+  </ul>
+</nav>

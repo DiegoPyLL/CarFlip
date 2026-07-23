@@ -13,7 +13,6 @@ __pycache__/
 .env.*
 !.env.example
 logs/
-docker-compose.yml
-Dockerfile
+docker/
 *.md
 tests/

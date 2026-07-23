@@ -1,7 +1,16 @@
 ---
 import Base from '@layouts/Base.astro';
 import AutoSubmit from '@components/AutoSubmit.astro';
-import { obtenerDatosMercado } from '@lib/db';
+import Panel from '@components/mercado/Panel.astro';
+import KpiSignal from '@components/mercado/KpiSignal.astro';
+import Treemap from '@components/mercado/Treemap.astro';
+import Histograma from '@components/mercado/Histograma.astro';
+import BandaPrecioAnio from '@components/mercado/BandaPrecioAnio.astro';
+import MixCombustible from '@components/mercado/MixCombustible.astro';
+import RangoDumbbell from '@components/mercado/RangoDumbbell.astro';
+import TendenciaMercado from '@components/mercado/TendenciaMercado.astro';
+import ConsultaMercado from '@components/mercado/ConsultaMercado.astro';
+import { obtenerDatosMercado, obtenerHistoriaMercado, consultarMercado } from '@lib/db';
 import { parsearFiltrosUrl } from '@lib/filtros';
 import { formatearPrecio } from '@lib/formato';
 
@@ -9,48 +18,70 @@ const params  = Astro.url.searchParams;
 const filtros = parsearFiltrosUrl(params);
 const fuente  = filtros.fuente;
 
-const datos = await obtenerDatosMercado(fuente);
+// Consultor de precios: parámetros propios (q_*) para no chocar con el filtro
+// del tablero. Se validan y acotan antes de llegar a la consulta.
+const anioActual = new Date().getFullYear();
+const qMarca  = params.get('q_marca')?.trim().slice(0, 100) ?? '';
+const qModelo = params.get('q_modelo')?.trim().slice(0, 100) ?? '';
+const qAnioN  = parseInt(params.get('q_anio') ?? '');
+const qAnio   = !isNaN(qAnioN) && qAnioN >= 1950 && qAnioN <= anioActual + 1 ? qAnioN : null;
+const qPrecioN = parseFloat(params.get('q_precio') ?? '');
+const qPrecio  = !isNaN(qPrecioN) && qPrecioN > 0 ? qPrecioN : null;
+const consulta = { marca: qMarca, modelo: qModelo, anio: qAnio, precio: qPrecio };
 
-const maxMarca  = datos.marcas[0]?.total  ?? 1;
-const maxModelo = datos.modelos[0]?.total ?? 1;
-const maxDist   = Math.max(...datos.distribucion.map(d => d.total), 1);
+// La tendencia histórica es de mercado total (una fila por día); no se filtra
+// por fuente. El resto del tablero sí responde al filtro.
+const [datos, historia, resultadoConsulta] = await Promise.all([
+  obtenerDatosMercado(fuente),
+  obtenerHistoriaMercado(30),
+  qMarca && qModelo && qAnio ? consultarMercado(qMarca, qModelo, qAnio) : Promise.resolve(null),
+]);
 
 const fuentes = [
   { value: '',            label: 'Todas' },
   { value: 'autocosmos',  label: 'Autocosmos' },
   { value: 'yapo',        label: 'Yapo' },
+  { value: 'autosusados', label: 'Autos Usados' },
+  { value: 'checkeados',  label: 'Checkeados' },
+  { value: 'particular',  label: 'Particulares' },
 ];
 
-// Clases compartidas por los cuatro paneles: el borde hairline es toda la estructura.
-const panelCls   = 'border border-line';
-const cabeceraCls = 'p-element border-b border-line';
-const filaCls    = 'flex items-center gap-element p-element hover:bg-surface transition-colors';
-const rankCls    = 'text-base  w-6 shrink-0 tabular-nums text-right';
-// `w-full overflow-hidden` es necesario: sin ancho explícito, el % de la barra
-// interior queda indeterminado durante el sizing intrínseco y dispara el layout.
-const pistaCls   = 'h-px w-full bg-line overflow-hidden';
+const serieNuevos = datos.nuevosPorDia.map((d) => d.total);
+const kpi = (n: number | null) => (n != null ? formatearPrecio(Math.round(n)) : '—');
 ---
 
 <Base
   titulo="Mercado — Estadísticas de autos en Chile"
-  descripcion="Precios promedio, marcas y modelos más listados en los portales de autos en Chile."
+  descripcion="Precios, marcas, modelos y tendencias del mercado de autos usados en Chile: distribución de precios, depreciación por año, kilometraje y combustible."
 >
 
   <!-- Header -->
-  <div class="mb-section">
-    <p class="text-base  uppercase tracking-widest mb-element">Análisis de precios</p>
+  <div class="mb-block">
+    <p class="text-base text-muted uppercase tracking-widest mb-element">Análisis de precios</p>
     <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-element">Mercado</h1>
-    <p class="text-base  max-w-xl">
+    <p class="text-base text-muted max-w-xl">
       Estadísticas calculadas sobre {datos.total.toLocaleString('es-CL')} avisos activos.
       Se actualizan a diario junto con el resto de los datos.
     </p>
   </div>
 
+  <!-- Consultor de precios -->
+  <div class="mb-block">
+    <ConsultaMercado
+      marcas={datos.marcasTodas}
+      modelos={datos.modelosTodos}
+      anios={datos.aniosTodos}
+      fuente={fuente}
+      consulta={consulta}
+      resultado={resultadoConsulta}
+    />
+  </div>
+
   <!-- Filtro de fuente -->
-  <form method="GET" action="/mercado" class="mb-block" data-autosubmit>
+  <form method="GET" action="/mercado" class="mb-element" data-autosubmit>
     <fieldset class="flex flex-wrap items-center gap-element">
       <legend class="sr-only">Fuente</legend>
-      <span class="text-sm  uppercase tracking-wider shrink-0" aria-hidden="true">Fuente</span>
+      <span class="text-sm text-muted uppercase tracking-wider shrink-0" aria-hidden="true">Fuente</span>
       <div class="flex flex-wrap gap-2">
         {fuentes.map(({ value, label }) => (
           <label class="cursor-pointer select-none shrink-0">
@@ -61,7 +92,7 @@ const pistaCls   = 'h-px w-full bg-line overflow-hidden';
               class="sr-only peer"
               checked={fuente === value || (!fuente && value === '')}
             />
-            <span class="block px-3 py-2 text-base border border-line-strong  peer-checked:bg-ink peer-checked:text-canvas peer-checked:border-ink peer-focus-visible:border-scarlet-signal hover:border-ink hover:text-ink transition-colors whitespace-nowrap">
+            <span class="block px-3 py-2 text-base border border-line-strong text-muted peer-checked:bg-ink peer-checked:text-canvas peer-checked:border-ink peer-focus-visible:border-scarlet-signal hover:border-ink hover:text-ink transition-colors whitespace-nowrap">
               {label}
             </span>
           </label>
@@ -70,149 +101,69 @@ const pistaCls   = 'h-px w-full bg-line overflow-hidden';
     </fieldset>
   </form>
 
-  <div class="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-element">
+  <!-- Tira de KPIs -->
+  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-element mb-element">
+    <KpiSignal etiqueta="Avisos activos" valor={datos.total.toLocaleString('es-CL')} nota="en total" />
+    <KpiSignal etiqueta="Precio mediano" valor={kpi(datos.precio_mediano)} nota="mediana del mercado" />
+    <KpiSignal etiqueta="Precio promedio" valor={kpi(datos.precio_promedio)} nota="media aritmética" />
+    <KpiSignal etiqueta="Nuevos" valor={datos.nuevos_24h.toLocaleString('es-CL')} nota="últimas 24 h" serie={serieNuevos} />
+    <KpiSignal etiqueta="Con rebaja" valor={datos.con_baja.toLocaleString('es-CL')} nota="▼ bajaron de precio" />
+  </div>
 
-    <!-- Columna principal -->
-    <div class="space-y-element">
+  <!-- Bento de gráficos -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-element">
 
-      <!-- Marcas más listadas -->
-      <section class={panelCls}>
-        <div class={cabeceraCls}>
-          <h2 class="text-base text-ink">Marcas más listadas</h2>
-          <p class="text-base ">Top 20 por cantidad de avisos</p>
-        </div>
-        <div class="divide-y divide-line">
-          {datos.marcas.map((m, i) => (
-            <div class={filaCls}>
-              <span class={rankCls}>{i + 1}</span>
+    <Panel titulo="Marcas más listadas" subtitulo="Área proporcional a la cantidad de avisos" class="lg:col-span-4">
+      {datos.marcas.length > 0
+        ? <Treemap marcas={datos.marcas} titulo="Marcas más listadas" />
+        : <p class="p-element text-sm text-muted">Sin datos de marcas para esta fuente.</p>}
+    </Panel>
 
-              <!-- Nombre + barra -->
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between mb-2">
-                  <a
-                    href={`/marcas/${encodeURIComponent(m.marca)}`}
-                    class="text-base text-ink hover: transition-colors truncate"
-                  >
-                    {m.marca}
-                  </a>
-                  <span class="text-base  tabular-nums ml-3 shrink-0">
-                    {m.total.toLocaleString('es-CL')}
-                  </span>
-                </div>
-                <div class={pistaCls}>
-                  <div
-                    class="h-full bg-ink"
-                    style={`width: ${(m.total / maxMarca * 100).toFixed(1)}%`}
-                  />
-                </div>
-              </div>
+    <Panel titulo="Modelos más listados" subtitulo="Top 15 por cantidad" class="lg:col-span-2">
+      <div class="divide-y divide-line">
+        {datos.modelos.map((m, i) => (
+          <div class="flex items-center gap-element p-element hover:bg-surface transition-colors">
+            <span class="text-base w-6 shrink-0 tabular-nums text-right text-muted">{i + 1}</span>
+            <a
+              href={`/avisos?marca=${encodeURIComponent(m.marca)}&modelo=${encodeURIComponent(m.modelo)}`}
+              class="text-base text-ink hover:text-muted transition-colors truncate min-w-0 flex-1"
+            >
+              {m.modelo}<span class="text-muted ml-2 text-sm">{m.marca}</span>
+            </a>
+            <span class="text-base text-muted tabular-nums shrink-0">{m.total.toLocaleString('es-CL')}</span>
+          </div>
+        ))}
+      </div>
+    </Panel>
 
-              <!-- Precio promedio -->
-              <span class="text-base tabular-nums  w-28 text-right shrink-0 hidden sm:block">
-                {m.precio_promedio ? formatearPrecio(Math.round(m.precio_promedio)) : '—'}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
+    <Panel titulo="Distribución de precios" subtitulo="Avisos por tramo de precio" class="lg:col-span-3">
+      <Histograma buckets={datos.histogramaPrecio} unidad="precio" titulo="Distribución de precios" />
+    </Panel>
 
-      <!-- Modelos más listados -->
-      <section class={panelCls}>
-        <div class={cabeceraCls}>
-          <h2 class="text-base text-ink">Modelos más listados</h2>
-          <p class="text-base ">Top 15 por cantidad de avisos</p>
-        </div>
-        <div class="divide-y divide-line">
-          {datos.modelos.map((m, i) => (
-            <div class={filaCls}>
-              <span class={rankCls}>{i + 1}</span>
+    <Panel titulo="Precio por año" subtitulo="Mediana y banda p25–p75 · depreciación" class="lg:col-span-3">
+      {datos.precioPorAnio.length >= 2
+        ? <BandaPrecioAnio datos={datos.precioPorAnio} />
+        : <p class="p-element text-sm text-muted">Datos insuficientes para la curva por año.</p>}
+    </Panel>
 
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between mb-2">
-                  <div class="min-w-0">
-                    <a
-                      href={`/avisos?marca=${encodeURIComponent(m.marca)}&modelo=${encodeURIComponent(m.modelo)}`}
-                      class="text-base text-ink hover: transition-colors"
-                    >
-                      {m.modelo}
-                    </a>
-                    <span class="text-base  ml-2">{m.marca}</span>
-                  </div>
-                  <span class="text-base  tabular-nums ml-3 shrink-0">
-                    {m.total.toLocaleString('es-CL')}
-                  </span>
-                </div>
-                <div class={pistaCls}>
-                  <div
-                    class="h-full bg-muted"
-                    style={`width: ${(m.total / maxModelo * 100).toFixed(1)}%`}
-                  />
-                </div>
-              </div>
+    <Panel titulo="Combustible" subtitulo="Mix del mercado" class="lg:col-span-2">
+      {datos.mixCombustible.length > 0
+        ? <MixCombustible datos={datos.mixCombustible} />
+        : <p class="p-element text-sm text-muted">Sin datos de combustible para esta fuente.</p>}
+    </Panel>
 
-              <span class="text-base tabular-nums  w-28 text-right shrink-0 hidden sm:block">
-                {m.precio_promedio ? formatearPrecio(Math.round(m.precio_promedio)) : '—'}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
+    <Panel titulo="Distribución de kilometraje" subtitulo="Avisos por tramo de km" class="lg:col-span-2">
+      <Histograma buckets={datos.histogramaKm} unidad="km" titulo="Distribución de kilometraje" />
+    </Panel>
 
-    </div>
+    <Panel titulo="Rango de precios por marca" subtitulo="Mínimo · mediana · máximo" class="lg:col-span-2">
+      <RangoDumbbell marcas={datos.marcas} />
+    </Panel>
 
-    <!-- Columna lateral -->
-    <div class="space-y-element">
+    <Panel titulo="Tendencia del mercado" subtitulo="Mediana de precio por día · mercado total" class="lg:col-span-6">
+      <TendenciaMercado serie={historia} />
+    </Panel>
 
-      <!-- Distribución de precios -->
-      <section class={panelCls}>
-        <div class={cabeceraCls}>
-          <h2 class="text-base text-ink">Distribución de precios</h2>
-          <p class="text-base ">Avisos por rango</p>
-        </div>
-        <div class="p-element space-y-element">
-          {datos.distribucion.map(d => (
-            <div>
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-base text-ink">{d.etiqueta}</span>
-                <span class="text-base tabular-nums ">
-                  {d.total.toLocaleString('es-CL')}
-                </span>
-              </div>
-              <div class={pistaCls}>
-                <div
-                  class="h-full bg-ink"
-                  style={`width: ${d.total > 0 ? (d.total / maxDist * 100).toFixed(1) : 0}%`}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <!-- Tabla de marcas: rango de precios -->
-      <section class={panelCls}>
-        <div class={cabeceraCls}>
-          <h2 class="text-base text-ink">Rango de precios por marca</h2>
-          <p class="text-base ">Mínimo y máximo publicados</p>
-        </div>
-        <div class="divide-y divide-line max-h-96 overflow-y-auto">
-          {datos.marcas.filter(m => m.precio_minimo && m.precio_maximo).map(m => (
-            <div class="p-element">
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-base text-ink">{m.marca}</span>
-                <span class="text-base  tabular-nums">{m.total} avisos</span>
-              </div>
-              <div class="flex items-center gap-2 text-base tabular-nums">
-                <span class="">{formatearPrecio(Math.round(m.precio_minimo!))}</span>
-                <span class="flex-1 border-t border-line border-dashed mx-1" />
-                <span class="">{formatearPrecio(Math.round(m.precio_maximo!))}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-    </div>
   </div>
 
   <AutoSubmit />

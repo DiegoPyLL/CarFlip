@@ -173,7 +173,7 @@ uv run alembic upgrade head   # aplicar migraciones
 uv run carflip run            # ciclo único
 ```
 
-También se puede correr con Docker, igual que en CI: `docker compose up --build`.
+También se puede correr con Docker, igual que en CI: `docker compose -f docker/docker-compose.yml up --build`.
 
 ---
 

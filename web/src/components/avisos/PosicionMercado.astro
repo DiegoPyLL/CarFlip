@@ -1,0 +1,86 @@
+---
+// Cierre del perfil de un aviso: dónde cae su precio frente al mercado. Compara
+// contra la mediana de los avisos comparables (misma marca/modelo, año cercano)
+// de todas las fuentes. Resuelve su propia consulta para que las dos páginas de
+// detalle lo usen en una línea, y degrada a un párrafo cuando no hay con qué
+// comparar. La dirección la comunica el glifo (▼≈▲), nunca el color.
+import MedidorMercado from '@components/mercado/MedidorMercado.astro';
+import { consultarMercado, posicionMercado } from '@lib/db';
+import { formatearPrecio } from '@lib/formato';
+
+interface Props {
+  marca: string | null;
+  modelo: string | null;
+  anio: number | null;
+  precio: number | null;
+}
+const { marca, modelo, anio, precio } = Astro.props;
+
+// Con menos de tres comparables la mediana es prácticamente el precio de este
+// mismo aviso y el veredicto sería una tautología. Entre tres y ocho sí se
+// muestra, pero declarado como referencia gruesa (mismo umbral que el consultor).
+const MIN_VEREDICTO = 3;
+
+const mercado =
+  marca && modelo && anio && precio !== null ? await consultarMercado(marca, modelo, anio) : null;
+
+const referencia =
+  mercado && precio !== null && mercado.comparables >= MIN_VEREDICTO
+    ? {
+        ...mercado,
+        posicion: posicionMercado(precio, mercado.mediana),
+        debil: mercado.comparables < 8,
+      }
+    : null;
+
+const clp = (v: number) => formatearPrecio(Math.round(v));
+---
+<section class="mt-section border border-line">
+  <div class="p-element border-b border-line flex flex-wrap items-baseline justify-between gap-x-element gap-y-1">
+    <h2 class="text-base text-ink">Precio frente al mercado</h2>
+    {referencia && (
+      <p class="text-sm text-muted tabular-nums">
+        {referencia.comparables.toLocaleString('es-CL')} avisos comparables · ±{referencia.banda} {referencia.banda === 1 ? 'año' : 'años'}
+      </p>
+    )}
+  </div>
+
+  {referencia ? (
+    <div class="p-element space-y-element">
+      <div>
+        <p class="text-2xl sm:text-3xl text-ink leading-none">
+          <span aria-hidden="true">{referencia.posicion.glifo}</span> {referencia.posicion.etiqueta}
+        </p>
+        <p class="text-base text-muted tabular-nums mt-2">
+          {referencia.posicion.pct === 0
+            ? `Igual a la mediana de mercado, ${clp(referencia.mediana)}`
+            : `${Math.abs(referencia.posicion.pct).toFixed(1)}% ${referencia.posicion.pct < 0 ? 'bajo' : 'sobre'} la mediana de mercado, ${clp(referencia.mediana)}`}
+        </p>
+      </div>
+
+      {referencia.debil && (
+        <p class="text-sm text-muted border-l-2 border-line pl-3">
+          Pocos avisos comparables: tómalo como una referencia gruesa, no como una tasación.
+        </p>
+      )}
+
+      <MedidorMercado resultado={referencia} precio={precio} etiquetaPrecio="Este aviso" marcador="ink" />
+
+      <a
+        href={`/avisos?marca=${encodeURIComponent(referencia.marca)}&modelo=${encodeURIComponent(referencia.modelo)}&anio=${referencia.anio}`}
+        class="inline-flex text-base text-ink hover:text-muted transition-colors duration-150"
+      >
+        Ver los avisos de {referencia.marca} {referencia.modelo} {referencia.anio} →
+      </a>
+    </div>
+  ) : (
+    <div class="p-element">
+      <p class="text-base text-muted">
+        No hay suficientes avisos comparables para situar este precio en el mercado.
+        <a href="/mercado#consulta" class="text-ink hover:text-muted transition-colors duration-150">
+          Consulta otro modelo →
+        </a>
+      </p>
+    </div>
+  )}
+</section>

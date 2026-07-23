@@ -33,6 +33,19 @@
   --c-green: #71db4c;
   --c-ink-on-tint: #ffffff;
 
+  /* Paleta de datos: presupuesto cromático EXCLUSIVO de gráficos (/mercado y
+     futuras vistas de estadística). No aplica al chrome del producto, que sigue
+     acromático + ración de scarlet. Orden categórico fijo (viz-1…viz-4), nunca
+     cíclico; una 5.ª categoría se pliega en "Otros" (muted). Magnitud/secuencial
+     usa un solo tono (viz-1) o ink; scarlet queda para un único dato focal.
+     Validada con scripts/validate_palette.js (skill dataviz): PASS en las seis
+     comprobaciones sobre superficie clara y oscura, así que un mismo valor sirve
+     en ambos temas (igual que scarlet/blue) y no se redefine en el tema oscuro. */
+  --c-viz-1: #1b6faf; /* azul   */
+  --c-viz-2: #a15c00; /* ocre   */
+  --c-viz-3: #0e8f7d; /* teal   */
+  --c-viz-4: #8a3fb0; /* violeta */
+
   /* Único par cromático del chrome: el toggle de tema, que muestra el tema
      activo (sol en claro, luna en oscuro). Valor fijo en ambos temas porque
      cada icono solo se dibuja sobre un fondo.
@@ -81,6 +94,10 @@
   --color-scarlet-signal: var(--c-scarlet);
   --color-blue-signal: var(--c-blue);
   --color-green-signal: var(--c-green);
+  --color-viz-1: var(--c-viz-1);
+  --color-viz-2: var(--c-viz-2);
+  --color-viz-3: var(--c-viz-3);
+  --color-viz-4: var(--c-viz-4);
   --color-ink-on-tint: var(--c-ink-on-tint);
   --color-sun-signal: var(--c-sun);
   --color-sun-line: var(--c-sun-line);
@@ -155,4 +172,101 @@ h2,
 h3 {
   font-weight: 300;
   letter-spacing: -0.02em;
+}
+
+/*
+  Barra de navegación.
+
+  El encogimiento NO es un estado con transición: es continuo. El script del
+  layout escribe `--p`, que va de 0 (arriba del todo) a 1 (pasados 80px de
+  scroll), y de ahí salen el alto y el tamaño del wordmark. Al no haber
+  `transition`, la barra va pegada al scroll en vez de dispararse por umbral
+  y tardar 200ms en llegar — que es lo que se sentía escalonado.
+
+  Solo el retraerse es un estado, porque depende del sentido del scroll y eso
+  no es una posición: `data-oculta` lo pone el script con histéresis.
+
+  `:focus-within` devuelve siempre la barra a la vista: quien navega con
+  teclado nunca queda tabulando sobre algo fuera de pantalla.
+  `data-menu` (menú desplegado, solo bajo md:) bloquea el retraerse, porque el
+  panel cuelga de la barra.
+*/
+#barra {
+  /* Curva exponencial: sale rápido y frena largo, que es lo que hace que un
+     desplazamiento se lea como fluido y no como un salto. */
+  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+#barra[data-oculta]:not(:focus-within) {
+  transform: translateY(-100%);
+}
+
+/* 5rem → 3rem y text-2xl → text-base, interpolados por `--p`. */
+#barra-fila {
+  height: calc(5rem - 2rem * var(--p, 0));
+}
+
+#barra-marca {
+  font-size: calc(var(--text-2xl) - (var(--text-2xl) - var(--text-base)) * var(--p, 0));
+}
+
+/* El desplegable existe solo bajo md:; de ahí para arriba la nav va en línea
+   dentro de la barra y el atributo no pinta nada. */
+@media (width < 48rem) {
+  #menu {
+    display: none;
+  }
+
+  #barra[data-menu] #menu {
+    display: block;
+  }
+}
+
+#menu-boton[aria-expanded="true"] .icono-abrir,
+#menu-boton[aria-expanded="false"] .icono-cerrar {
+  display: none;
+}
+
+/* Con reduced-motion la barra queda quieta en su forma compacta: ni encoge ni
+   se retrae. Es la barra de 48px de siempre, que es exactamente lo que pide
+   quien desactivó el movimiento. */
+@media (prefers-reduced-motion: reduce) {
+  #barra {
+    transition: none;
+  }
+
+  #barra[data-oculta] {
+    transform: none;
+  }
+
+  #barra-fila {
+    height: 3rem;
+  }
+
+  #barra-marca {
+    font-size: var(--text-base);
+  }
+}
+
+/* Capa de movimiento (DESIGN.md §3): opacidad 0→1 · 200ms · ease-out.
+   Sin delay, sin desplazamiento, sin stagger.
+
+   Se aplica una sola vez por bloque —no por elemento— para que no haya escalonado.
+   Sirve sobre el hero del home aunque contenga el LCP: al no llevar `animation-delay`,
+   la opacidad supera 0 en el primer frame y ahí mismo se contabiliza el pintado.
+
+   La regla vive dentro del media query a propósito: con `prefers-reduced-motion`
+   la clase queda inerte y el contenido nace visible, sin necesidad de un override
+   que la anule. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes entrada {
+    from {
+      opacity: 0;
+    }
+  }
+
+  .entrada {
+    animation: entrada 200ms ease-out;
+  }
 }

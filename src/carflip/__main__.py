@@ -2,10 +2,11 @@
 CLI de CarFlip.
 
 Comandos:
-  carflip start   — inicia el scheduler automático (cada 12h)
-  carflip run     — ejecuta todos los scrapers una vez
-  carflip market  — muestra precio promedio/min/max para marca/modelo/año
-  carflip deals   — detecta y categoriza oportunidades de compra (SQL + Groq)
+  carflip start    — inicia el scheduler automático (cada 12h)
+  carflip run      — ejecuta todos los scrapers una vez
+  carflip market   — muestra precio promedio/min/max para marca/modelo/año
+  carflip deals    — detecta y categoriza oportunidades de compra (SQL + Groq)
+  carflip snapshot — persiste el agregado de mercado del día (tendencias de /mercado)
 """
 
 import asyncio
@@ -74,6 +75,20 @@ def deals() -> None:
 
     activos = asyncio.run(_run())
     click.echo(f"Deals activos: {activos}")
+
+
+@cli.command()
+def snapshot() -> None:
+    """Persiste el agregado de mercado del día en market_snapshots (idempotente)."""
+    from carflip.database.session import AsyncSessionLocal
+    from carflip.database.snapshot import snapshot_market
+
+    async def _run():
+        async with AsyncSessionLocal() as session:
+            return await snapshot_market(session)
+
+    fecha = asyncio.run(_run())
+    click.echo(f"Snapshot de mercado escrito para {fecha}")
 
 
 @cli.command()

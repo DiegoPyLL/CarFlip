@@ -1,10 +1,11 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -164,6 +165,32 @@ class RunFailLog(Base):
     motivo: Mapped[str] = mapped_column(Text, nullable=False)
     id_externo: Mapped[str | None] = mapped_column(String(200), nullable=True)
     timestamp: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class MarketSnapshot(Base):
+    """Agregado diario del mercado: una fila por día para las tendencias de /mercado.
+
+    La escribe `snapshot_market()` tras cada scrape, con upsert idempotente sobre
+    `fecha`: re-correr el workflow el mismo día actualiza la fila, no la duplica.
+    Recupera la serie temporal que se perdió al eliminar price_history en 0002,
+    pero a nivel de mercado, no por aviso. `payload` guarda el detalle del día
+    (histograma, top marcas, mix de combustible) como JSONB para poder graficar
+    histórico más rico a futuro sin cambiar el esquema.
+    """
+
+    __tablename__ = "market_snapshots"
+
+    fecha: Mapped[date] = mapped_column(Date, primary_key=True)
+    total: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    precio_promedio: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    precio_mediano: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    precio_p25: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    precio_p75: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    nuevos_24h: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    con_baja: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    por_fuente: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 # --- Avisos de particulares -------------------------------------------------

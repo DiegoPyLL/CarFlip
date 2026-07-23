@@ -1,0 +1,58 @@
+---
+// Histograma de columnas (SSR, cero JS): barras `div` ancladas a la baseline,
+// tono `viz-1`; el tramo modal se resalta en `ink` (énfasis acromático, no
+// gasta color). Tooltip nativo por bucket vía `title`; tabla sr-only para
+// lectores de pantalla. Etiquetas de eje en HTML con tokens del sistema.
+import type { BucketHistograma } from '@lib/db';
+import { formatearPrecio } from '@lib/formato';
+
+interface Props {
+  buckets: BucketHistograma[];
+  unidad: 'precio' | 'km';
+  titulo: string;
+}
+const { buckets, unidad, titulo } = Astro.props;
+
+const max = Math.max(...buckets.map((b) => b.total), 1);
+const idxModal = buckets.reduce((mi, b, i, arr) => (b.total > arr[mi].total ? i : mi), 0);
+
+function rango(b: BucketHistograma): string {
+  if (unidad === 'precio') {
+    return b.max === Infinity
+      ? `desde ${formatearPrecio(b.min)}`
+      : `${formatearPrecio(b.min)} – ${formatearPrecio(b.max)}`;
+  }
+  const k = (v: number) => `${(v / 1000).toLocaleString('es-CL')} mil km`;
+  return b.max === Infinity ? `desde ${k(b.min)}` : `${k(b.min)} – ${k(b.max)}`;
+}
+---
+<div class="p-element">
+  <div class="flex items-end gap-[2px] h-40" role="img" aria-label={titulo}>
+    {buckets.map((b, i) => (
+      <div
+        class="flex-1 h-full flex flex-col justify-end"
+        title={`${rango(b)}: ${b.total.toLocaleString('es-CL')} avisos`}
+      >
+        <div
+          class:list={['w-full', i === idxModal ? 'bg-ink' : 'bg-viz-1']}
+          style={`height: ${max ? ((b.total / max) * 100).toFixed(1) : 0}%`}
+        />
+      </div>
+    ))}
+  </div>
+  <div class="flex gap-[2px] mt-2">
+    {buckets.map((b) => (
+      <span class="flex-1 text-center text-xs text-muted tabular-nums truncate">{b.etiqueta}</span>
+    ))}
+  </div>
+
+  <table class="sr-only">
+    <caption>{titulo}</caption>
+    <thead><tr><th>Rango</th><th>Avisos</th></tr></thead>
+    <tbody>
+      {buckets.map((b) => (
+        <tr><td>{rango(b)}</td><td>{b.total}</td></tr>
+      ))}
+    </tbody>
+  </table>
+</div>

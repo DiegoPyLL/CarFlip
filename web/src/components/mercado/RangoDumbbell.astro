@@ -1,0 +1,52 @@
+---
+// Rango de precios por marca como dumbbell: mín ●───┃───● máx con la mediana
+// como marca central. Acromático (muted/line/ink), escala común a todas las
+// marcas para que las barras sean comparables. Reemplaza la lista de línea
+// punteada anterior. Valores visibles como texto (accesible sin el gráfico).
+import type { EstadisticaMarca } from '@lib/db';
+import { formatearPrecio } from '@lib/formato';
+
+interface Props {
+  marcas: EstadisticaMarca[];
+}
+const { marcas } = Astro.props;
+
+const conRango = marcas.filter((m) => m.precio_minimo != null && m.precio_maximo != null);
+const maxP = Math.max(...conRango.map((m) => m.precio_maximo!), 1);
+const pct = (v: number) => (v / maxP) * 100;
+---
+<div class="divide-y divide-line max-h-96 overflow-y-auto">
+  {conRango.map((m) => (
+    <div class="p-element">
+      <div class="flex items-center justify-between mb-2 gap-2">
+        <span class="text-sm text-ink truncate">{m.marca}</span>
+        <span class="text-sm text-muted tabular-nums shrink-0">
+          med. {formatearPrecio(Math.round(m.precio_mediano ?? m.precio_promedio ?? 0))}
+        </span>
+      </div>
+      <div
+        class="relative h-3"
+        title={`${m.marca}: ${formatearPrecio(Math.round(m.precio_minimo!))} – ${formatearPrecio(Math.round(m.precio_maximo!))}`}
+      >
+        <div
+          class="absolute top-1/2 -translate-y-1/2 h-px bg-line"
+          style={`left: ${pct(m.precio_minimo!).toFixed(1)}%; width: ${(pct(m.precio_maximo!) - pct(m.precio_minimo!)).toFixed(1)}%`}
+        />
+        <span
+          class="absolute top-1/2 w-2 h-2 -translate-x-1/2 -translate-y-1/2 bg-muted"
+          style={`left: ${pct(m.precio_minimo!).toFixed(1)}%`}
+        />
+        {m.precio_mediano != null && (
+          <span
+            class="absolute top-1/2 w-px h-3 -translate-x-1/2 -translate-y-1/2 bg-ink"
+            style={`left: ${pct(m.precio_mediano).toFixed(1)}%`}
+          />
+        )}
+        <span
+          class="absolute top-1/2 w-2 h-2 -translate-x-1/2 -translate-y-1/2 bg-ink"
+          style={`left: ${pct(m.precio_maximo!).toFixed(1)}%`}
+        />
+      </div>
+    </div>
+  ))}
+</div>

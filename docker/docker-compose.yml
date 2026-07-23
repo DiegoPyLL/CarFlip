@@ -1,0 +1,13 @@
+services:
+  carflip:
+    # Contexto = raíz del repo (un nivel arriba); el Dockerfile vive en docker/.
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    # Todas las variables en .env (en la raíz del repo)
+    # se leen directamente desde tu .env local — no se duplican aquí.
+    env_file:
+      - ../.env
+    volumes:
+      - ../logs:/app/logs
+    command: ["run"]

@@ -1,0 +1,22 @@
+---
+// Tile de KPI para la tira superior: valor grande + nota + sparkline opcional.
+// La dirección de la nota se comunica con glifo (▲▼), nunca con color.
+import Sparkline from './Sparkline.astro';
+
+interface Props {
+  etiqueta: string;
+  valor: string;
+  nota?: string;
+  serie?: number[];
+}
+const { etiqueta, valor, nota, serie } = Astro.props;
+const tieneSerie = Array.isArray(serie) && serie.length > 1;
+---
+<div class="border border-line p-element flex flex-col justify-between gap-3 min-h-0">
+  <p class="text-sm text-muted uppercase tracking-wider truncate">{etiqueta}</p>
+  <div>
+    <p class="text-3xl text-ink tabular-nums leading-none">{valor}</p>
+    {nota && <p class="text-sm text-muted tabular-nums mt-2">{nota}</p>}
+  </div>
+  {tieneSerie && <Sparkline valores={serie!} class="h-8 w-full" />}
+</div>

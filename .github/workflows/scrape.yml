@@ -28,6 +28,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: docker/Dockerfile
           load: true
           tags: carflip:ci
           cache-from: type=gha
@@ -63,3 +64,9 @@ jobs:
       # --scraper all evita el prompt interactivo de `carflip run` (no hay TTY en CI)
       - name: Ejecutar scrapers
         run: docker run --rm --env-file .env carflip:ci run --scraper all
+
+      # Agregado diario del mercado para las tendencias de /mercado. Va después
+      # de los scrapers para fotografiar el estado ya actualizado; el upsert es
+      # idempotente por fecha, así que un re-run del día no duplica la fila.
+      - name: Snapshot de mercado
+        run: docker run --rm --env-file .env carflip:ci snapshot

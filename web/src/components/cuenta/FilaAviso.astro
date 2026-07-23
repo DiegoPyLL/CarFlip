@@ -1,0 +1,83 @@
+---
+// Fila de un aviso propio, compartida por el resumen de /cuenta y el listado
+// completo de /cuenta/avisos. La miniatura es lo que vuelve reconocible cada
+// fila de un vistazo; el bloque de datos entero es el enlace a la edición y el
+// slot queda para las acciones de estado.
+import type { AvisoPropio } from '@lib/publicaciones/consultas';
+import { resolverUrlImagen } from '@lib/cdn';
+import { formatearKm, formatearPrecio } from '@lib/formato';
+import { ETIQUETA_ESTADO } from '@lib/publicaciones/opciones';
+
+interface Props {
+  aviso: AvisoPropio;
+  contactos: number;
+}
+
+const { aviso, contactos } = Astro.props;
+const imagen = resolverUrlImagen(aviso.url_imagen);
+
+// El estado jerarquiza por relleno y borde, nunca por color, igual que el badge
+// de categoría de CardDeal.
+const ESTILO_ESTADO: Record<AvisoPropio['estado'], string> = {
+  publicado: 'bg-ink text-canvas',
+  pausado: 'border border-line-strong text-ink',
+  vendido: 'border border-line text-ink/70',
+};
+
+// Misma anatomía que CardAviso: el precio manda y los metadatos van unidos por
+// ` · ` en una línea subordinada.
+const precio = aviso.precio !== null ? formatearPrecio(aviso.precio, 'CLP') : 'Sin precio';
+const meta = [
+  aviso.anio ? String(aviso.anio) : null,
+  aviso.km !== null ? formatearKm(aviso.km) : null,
+  aviso.ubicacion,
+].filter(Boolean);
+---
+
+<li class="p-element flex flex-col gap-element lg:flex-row lg:items-center lg:justify-between hover:bg-surface transition-colors duration-200">
+  <a
+    href={`/cuenta/avisos/${aviso.id}/editar`}
+    class="group flex items-center gap-element min-w-0"
+  >
+    <div class="w-28 aspect-[4/3] shrink-0 bg-surface">
+      {imagen ? (
+        <img
+          src={imagen}
+          alt=""
+          width="112"
+          height="84"
+          loading="lazy"
+          class="w-full h-full object-cover"
+        />
+      ) : (
+        <span class="w-full h-full flex items-center justify-center text-sm text-ink/70">
+          Sin foto
+        </span>
+      )}
+    </div>
+
+    <div class="min-w-0">
+      <div class="flex items-baseline gap-3 flex-wrap">
+        <h2 class="text-base text-ink truncate group-hover:underline underline-offset-4">
+          {aviso.titulo}
+        </h2>
+        <span class:list={['text-sm px-2 py-0.5', ESTILO_ESTADO[aviso.estado]]}>
+          {ETIQUETA_ESTADO[aviso.estado]}
+        </span>
+      </div>
+      <p class="text-2xl text-ink tabular-nums mt-1">{precio}</p>
+      {meta.length > 0 && (
+        <p class="text-base text-ink/70 mt-1 truncate">{meta.join(' · ')}</p>
+      )}
+      <p class="text-sm text-ink/70 tabular-nums mt-1">
+        {aviso.vistas} vistas · {contactos} contactos revelados
+      </p>
+    </div>
+  </a>
+
+  {Astro.slots.has('default') && (
+    <div class="flex flex-wrap items-center gap-x-element gap-y-2 shrink-0">
+      <slot />
+    </div>
+  )}
+</li>

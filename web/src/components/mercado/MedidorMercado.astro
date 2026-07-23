@@ -1,0 +1,48 @@
+---
+// Medidor de rango: min ── banda p25–p75 ── max, con la mediana marcada y, si
+// se pasa, el precio que se está evaluando. La dirección la comunica la
+// posición dentro del rango, nunca el color; el único acento escarlata es ese
+// marcador. Compartido por el consultor de /mercado y el perfil del aviso.
+import type { ConsultaMercado } from '@lib/db';
+import { formatearPrecio } from '@lib/formato';
+
+interface Props {
+  resultado: ConsultaMercado;
+  precio?: number | null;
+  etiquetaPrecio?: string;
+  /** `ink` cuando la pantalla ya gastó su ración de escarlata en otro elemento. */
+  marcador?: 'scarlet' | 'ink';
+}
+const { resultado, precio = null, etiquetaPrecio = 'Tu precio', marcador = 'scarlet' } = Astro.props;
+
+const clp = (v: number) => formatearPrecio(Math.round(v));
+
+const rango = resultado.precio_max - resultado.precio_min || 1;
+const pos = (v: number) => Math.max(0, Math.min(100, ((v - resultado.precio_min) / rango) * 100));
+---
+<div>
+  <div
+    class="relative h-10"
+    role="img"
+    aria-label={`Rango de mercado entre ${clp(resultado.precio_min)} y ${clp(resultado.precio_max)}, mediana ${clp(resultado.mediana)}`}
+  >
+    <div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-px bg-line"></div>
+    <div
+      class="absolute top-1/2 -translate-y-1/2 h-2"
+      style={`left: ${pos(resultado.p25).toFixed(1)}%; width: ${(pos(resultado.p75) - pos(resultado.p25)).toFixed(1)}%; background-color: color-mix(in srgb, var(--c-viz-1) 30%, transparent);`}
+    ></div>
+    <div class="absolute top-1/2 -translate-y-1/2 w-px h-4 bg-ink" style={`left: ${pos(resultado.mediana).toFixed(1)}%`}></div>
+    {precio != null && (
+      <span
+        class={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 ${marcador === 'ink' ? 'bg-ink' : 'bg-scarlet-signal'}`}
+        style={`left: ${pos(precio).toFixed(1)}%`}
+        title={`${etiquetaPrecio}: ${clp(precio)}`}
+      ></span>
+    )}
+  </div>
+  <div class="flex justify-between text-xs text-muted tabular-nums mt-1">
+    <span>{clp(resultado.precio_min)}</span>
+    <span>mediana {clp(resultado.mediana)}</span>
+    <span>{clp(resultado.precio_max)}</span>
+  </div>
+</div>

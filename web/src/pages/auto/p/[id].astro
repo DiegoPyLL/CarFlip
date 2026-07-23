@@ -1,4 +1,5 @@
 ---
+import PosicionMercado from '@components/avisos/PosicionMercado.astro';
 import Base from '@layouts/Base.astro';
 import { rutaInterna, urlEntrar } from '@lib/auth/servidor';
 import { formatearFecha, formatearKm, formatearPrecio, signosDelta } from '@lib/formato';
@@ -107,79 +108,86 @@ const campoCls =
 >
   <script is:inline nonce={Astro.locals.nonce} slot="head" type="application/ld+json" set:html={scriptJsonLd(jsonLd)} />
 
-  <div class="max-w-4xl mx-auto">
+  <div class="max-w-6xl mx-auto">
     <a
       href={volver}
-      class="inline-flex items-center gap-2 text-base hover:text-ink mb-block transition-colors duration-150"
+      class="inline-flex items-center gap-2 text-base hover:text-ink mb-element transition-colors duration-150"
     >
       <span aria-hidden="true">←</span>
       Volver a avisos
     </a>
 
-    <!-- Galería: carrusel de scroll-snap con miniaturas ancladas. Cero JS y
-         cero layout shift, porque cada foto lleva su proporción fija. -->
-    {fotos.length > 0 ? (
-      <div>
-        <ul class="flex overflow-x-auto snap-x snap-mandatory motion-safe:scroll-smooth">
-          {fotos.map((foto, i) => (
-            <li id={`foto-${i + 1}`} class="snap-start shrink-0 w-full">
-              <img
-                src={foto.url}
-                alt={`${aviso.titulo} — foto ${i + 1} de ${fotos.length}`}
-                width={900}
-                height={506}
-                loading={i === 0 ? 'eager' : 'lazy'}
-                fetchpriority={i === 0 ? 'high' : undefined}
-                decoding={i === 0 ? 'sync' : 'async'}
-                class="w-full aspect-[16/9] object-cover bg-surface"
-              />
-            </li>
-          ))}
-        </ul>
+    <!-- Cabecera en dos columnas: galería a la izquierda, todo lo que decide la
+         compra a la derecha, para que la pantalla completa quepa arriba. Bajo md
+         se apila, con las fotos primero. -->
+    <div class="grid md:grid-cols-2 gap-block items-start">
 
-        {fotos.length > 1 && (
-          <ul class="flex gap-2 mt-2 overflow-x-auto">
+      <!-- Galería: carrusel de scroll-snap con miniaturas ancladas. Cero JS y
+           cero layout shift, porque cada foto lleva su proporción fija.
+           `min-w-0` evita que el carrusel ensanche su columna del grid. -->
+      {fotos.length > 0 ? (
+        <div class="min-w-0">
+          <ul class="flex overflow-x-auto snap-x snap-mandatory motion-safe:scroll-smooth">
             {fotos.map((foto, i) => (
-              <li class="shrink-0">
-                <a
-                  href={`#foto-${i + 1}`}
-                  aria-label={`Ver la foto ${i + 1}`}
-                  class="block border border-line hover:border-ink transition-colors duration-150"
-                >
-                  <img src={foto.url} alt="" width={96} height={64} loading="lazy" class="w-24 aspect-[3/2] object-cover" />
-                </a>
+              <li id={`foto-${i + 1}`} class="snap-start shrink-0 w-full">
+                <img
+                  src={foto.url}
+                  alt={`${aviso.titulo} — foto ${i + 1} de ${fotos.length}`}
+                  width={900}
+                  height={506}
+                  loading={i === 0 ? 'eager' : 'lazy'}
+                  fetchpriority={i === 0 ? 'high' : undefined}
+                  decoding={i === 0 ? 'sync' : 'async'}
+                  class="w-full aspect-[16/9] object-cover bg-surface"
+                />
               </li>
             ))}
           </ul>
-        )}
-      </div>
-    ) : (
-      <div class="aspect-[16/9] bg-surface flex items-center justify-center text-base">Sin fotos</div>
-    )}
 
-    <div class="pt-block">
-      <div class="flex flex-wrap gap-2 mb-element">
-        <span class="text-base px-3 py-1 border border-line">Particular</span>
-        {delta && (
-          <span class={`text-base px-3 py-1 border border-line tabular-nums ${delta.clases}`}>{delta.texto}</span>
-        )}
-      </div>
+          {fotos.length > 1 && (
+            <ul class="flex gap-2 mt-2 overflow-x-auto">
+              {fotos.map((foto, i) => (
+                <li class="shrink-0">
+                  <a
+                    href={`#foto-${i + 1}`}
+                    aria-label={`Ver la foto ${i + 1}`}
+                    class="block border border-line hover:border-ink transition-colors duration-150"
+                  >
+                    <img src={foto.url} alt="" width={96} height={64} loading="lazy" class="w-24 aspect-[3/2] object-cover" />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <div class="aspect-[16/9] bg-surface flex items-center justify-center text-base">Sin fotos</div>
+      )}
 
-      <h1 class="text-2xl sm:text-3xl leading-snug mb-element">{aviso.titulo}</h1>
+      <div>
+        <div class="flex flex-wrap gap-2 mb-element">
+          <span class="text-base px-3 py-1 border border-line">Particular</span>
+          {delta && (
+            <span class={`text-base px-3 py-1 border border-line tabular-nums ${delta.clases}`}>{delta.texto}</span>
+          )}
+        </div>
 
-      <div class="flex flex-wrap items-baseline gap-element mb-block pb-block border-b border-line">
-        <span class="text-5xl sm:text-7xl text-ink tabular-nums leading-none">
-          {aviso.precio ? formatearPrecio(aviso.precio, aviso.moneda) : 'Precio a consultar'}
-        </span>
-        {aviso.precio_anterior && delta && (
-          <span class="text-base line-through tabular-nums">
-            {formatearPrecio(aviso.precio_anterior, aviso.moneda)}
+        <h1 class="text-xl sm:text-2xl leading-snug mb-element">{aviso.titulo}</h1>
+
+        <!-- El display baja de 7xl a 5xl: en media pantalla, catorce dígitos a
+             7xl desbordan la columna. -->
+        <div class="flex flex-wrap items-baseline gap-element mb-element pb-element border-b border-line">
+          <span class="text-4xl sm:text-5xl text-ink tabular-nums leading-none">
+            {aviso.precio ? formatearPrecio(aviso.precio, aviso.moneda) : 'Precio a consultar'}
           </span>
-        )}
-      </div>
+          {aviso.precio_anterior && delta && (
+            <span class="text-base line-through tabular-nums">
+              {formatearPrecio(aviso.precio_anterior, aviso.moneda)}
+            </span>
+          )}
+        </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-block">
-        <dl class="grid grid-cols-2 gap-x-block gap-y-element">
+        <dl class="grid grid-cols-2 gap-x-element gap-y-element mb-element">
           {ficha.map(({ label, valor }) => (
             <div>
               <dt class="text-base">{label}</dt>
@@ -188,106 +196,116 @@ const campoCls =
           ))}
         </dl>
 
-        <div class="text-base sm:text-right space-y-1">
+        <a
+          href="#contacto"
+          class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-3 hover:bg-ink hover:text-canvas transition-colors duration-150"
+        >
+          <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+          Contactar al vendedor
+        </a>
+
+        <div class="text-sm space-y-1 mt-element">
           <p>Publicado: <span class="text-ink">{formatearFecha(new Date(aviso.publicado_en))}</span></p>
           <p>Última actualización: <span class="text-ink">{formatearFecha(new Date(aviso.actualizado_en))}</span></p>
         </div>
       </div>
+    </div>
 
-      {aviso.descripcion && (
-        <div class="mt-section pt-block border-t border-line">
-          <h2 class="text-base uppercase tracking-wider mb-element">Descripción</h2>
-          <p class="text-base text-ink whitespace-pre-line leading-relaxed max-w-2xl">{aviso.descripcion}</p>
+    <PosicionMercado marca={aviso.marca} modelo={aviso.modelo} anio={aviso.anio} precio={aviso.precio} />
+
+    {aviso.descripcion && (
+      <div class="mt-section pt-block border-t border-line">
+        <h2 class="text-base uppercase tracking-wider mb-element">Descripción</h2>
+        <p class="text-base text-ink whitespace-pre-line leading-relaxed max-w-2xl">{aviso.descripcion}</p>
+      </div>
+    )}
+
+    <!-- Contacto: el teléfono lo pinta el servidor solo a quien ya lo reveló.
+         Sin sesión no está en el HTML, ni siquiera oculto. -->
+    <section id="contacto" class="mt-section pt-block border-t border-line scroll-mt-16">
+      <h2 class="text-base uppercase tracking-wider mb-element">Contacto</h2>
+
+      {mensajeError && (
+        <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
+          {mensajeError}
         </div>
       )}
 
-      <!-- Contacto: el teléfono lo pinta el servidor solo a quien ya lo reveló.
-           Sin sesión no está en el HTML, ni siquiera oculto. -->
-      <section id="contacto" class="mt-section pt-block border-t border-line scroll-mt-16">
-        <h2 class="text-base uppercase tracking-wider mb-element">Contacto</h2>
+      {reportado && (
+        <div class="mb-element px-6 py-2.5 border border-line-strong text-base text-ink" role="status">
+          Gracias. Revisaremos esta publicación.
+        </div>
+      )}
 
-        {mensajeError && (
-          <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
-            {mensajeError}
-          </div>
-        )}
-
-        {reportado && (
-          <div class="mb-element px-6 py-2.5 border border-line-strong text-base text-ink" role="status">
-            Gracias. Revisaremos esta publicación.
-          </div>
-        )}
-
-        {contacto ? (
-          <div class="max-w-md">
-            <p class="text-2xl text-ink">{contacto.nombre ?? 'Vendedor particular'}</p>
-            <!-- El número mide 14 caracteres: a text-5xl se sale de una pantalla
-                 de 320px, así que escala recién en sm. -->
-            <p class="text-3xl sm:text-5xl text-ink tabular-nums leading-none mt-element">{contacto.telefono}</p>
-            <div class="flex flex-wrap gap-element mt-block">
-              <a href={contacto.tel} class={botonCls}>
-                <span class="w-1.5 h-1.5 bg-scarlet-signal" aria-hidden="true"></span>
-                Llamar
-              </a>
-              <a
-                href={`${contacto.whatsapp}?text=${textoWhatsapp}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                class={botonCls}
-              >
-                WhatsApp
-                <span aria-hidden="true">→</span>
-              </a>
-            </div>
-          </div>
-        ) : usuario ? (
-          <form method="POST" action={`/api/publicacion/${aviso.id}/contacto`} class="max-w-md">
-            <input type="hidden" name="volver" value={ruta} />
-            <button type="submit" class={botonCls}>
+      {contacto ? (
+        <div class="max-w-md">
+          <p class="text-2xl text-ink">{contacto.nombre ?? 'Vendedor particular'}</p>
+          <!-- El número mide 14 caracteres: a text-5xl se sale de una pantalla
+               de 320px, así que escala recién en sm. -->
+          <p class="text-3xl sm:text-5xl text-ink tabular-nums leading-none mt-element">{contacto.telefono}</p>
+          <div class="flex flex-wrap gap-element mt-block">
+            <a href={contacto.tel} class={botonCls}>
               <span class="w-1.5 h-1.5 bg-scarlet-signal" aria-hidden="true"></span>
-              Ver el teléfono del vendedor
-            </button>
-            <p class="text-base leading-relaxed mt-element">
-              El vendedor verá cuántas personas pidieron su contacto.
-            </p>
-          </form>
-        ) : (
-          <div class="max-w-md">
-            <a href={urlEntrar(ruta)} rel="nofollow" class={botonCls}>
-              <span class="w-1.5 h-1.5 bg-scarlet-signal" aria-hidden="true"></span>
-              Inicia sesión para ver el contacto
+              Llamar
             </a>
-            <p class="text-base leading-relaxed mt-element">
-              Pedimos sesión para que los teléfonos de quienes publican no terminen en manos de un
-              robot.
-            </p>
+            <a
+              href={`${contacto.whatsapp}?text=${textoWhatsapp}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              class={botonCls}
+            >
+              WhatsApp
+              <span aria-hidden="true">→</span>
+            </a>
           </div>
-        )}
+        </div>
+      ) : usuario ? (
+        <form method="POST" action={`/api/publicacion/${aviso.id}/contacto`} class="max-w-md">
+          <input type="hidden" name="volver" value={ruta} />
+          <button type="submit" class={botonCls}>
+            <span class="w-1.5 h-1.5 bg-scarlet-signal" aria-hidden="true"></span>
+            Ver el teléfono del vendedor
+          </button>
+          <p class="text-base leading-relaxed mt-element">
+            El vendedor verá cuántas personas pidieron su contacto.
+          </p>
+        </form>
+      ) : (
+        <div class="max-w-md">
+          <a href={urlEntrar(ruta)} rel="nofollow" class={botonCls}>
+            <span class="w-1.5 h-1.5 bg-scarlet-signal" aria-hidden="true"></span>
+            Inicia sesión para ver el contacto
+          </a>
+          <p class="text-base leading-relaxed mt-element">
+            Pedimos sesión para que los teléfonos de quienes publican no terminen en manos de un
+            robot.
+          </p>
+        </div>
+      )}
 
-        <details class="mt-block">
-          <summary class="text-base underline underline-offset-4 hover:text-ink transition-colors duration-150 cursor-pointer">
-            Reportar publicación
-          </summary>
-          <form
-            method="POST"
-            action={`/api/publicacion/${aviso.id}/reportar`}
-            class="mt-element max-w-md space-y-element"
-          >
-            <input type="hidden" name="volver" value={ruta} />
-            <div>
-              <label for="motivo" class="block text-base text-ink mb-2">Motivo</label>
-              <select id="motivo" name="motivo" required class={campoCls}>
-                {MOTIVOS_REPORTE.map((m) => <option value={m}>{m}</option>)}
-              </select>
-            </div>
-            <div>
-              <label for="detalle" class="block text-base text-ink mb-2">Detalle (opcional)</label>
-              <textarea id="detalle" name="detalle" rows="3" maxlength="1000" class={campoCls}></textarea>
-            </div>
-            <button type="submit" class={botonCls}>Enviar reporte</button>
-          </form>
-        </details>
-      </section>
-    </div>
+      <details class="mt-block">
+        <summary class="text-base underline underline-offset-4 hover:text-ink transition-colors duration-150 cursor-pointer">
+          Reportar publicación
+        </summary>
+        <form
+          method="POST"
+          action={`/api/publicacion/${aviso.id}/reportar`}
+          class="mt-element max-w-md space-y-element"
+        >
+          <input type="hidden" name="volver" value={ruta} />
+          <div>
+            <label for="motivo" class="block text-base text-ink mb-2">Motivo</label>
+            <select id="motivo" name="motivo" required class={campoCls}>
+              {MOTIVOS_REPORTE.map((m) => <option value={m}>{m}</option>)}
+            </select>
+          </div>
+          <div>
+            <label for="detalle" class="block text-base text-ink mb-2">Detalle (opcional)</label>
+            <textarea id="detalle" name="detalle" rows="3" maxlength="1000" class={campoCls}></textarea>
+          </div>
+          <button type="submit" class={botonCls}>Enviar reporte</button>
+        </form>
+      </details>
+    </section>
   </div>
 </Base>

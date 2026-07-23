@@ -28,12 +28,62 @@ const ordenOptions = [
   { value: 'precio_desc', label: 'Precio: mayor a menor' },
   { value: 'km_asc',      label: 'Menor kilometraje' },
 ];
+
+// Vista y densidad son preferencias del cliente (localStorage), no filtros: no
+// viajan en la URL ni tocan la query. El servidor siempre pinta el default
+// —cuadrícula de 3— y el CSS reacciona al atributo que el <head> deja en <html>.
+const vistas = [
+  { valor: 'cuadricula', label: 'Cuadrícula' },
+  { valor: 'lista',      label: 'Lista' },
+];
+
+// La densidad depende de la vista: la cuadrícula elige entre 2, 3 y 4 columnas;
+// la lista, entre una fila a ancho completo o dos por línea. Solo se muestra el
+// grupo de la vista activa, y solo desde xl (ver el CSS).
+const densidades = [
+  { vista: 'cuadricula', opciones: [2, 3, 4], porDefecto: 3, rotulo: 'Columnas de la cuadrícula' },
+  { vista: 'lista',      opciones: [1, 2],    porDefecto: 2, rotulo: 'Columnas de la lista' },
+];
+
+const chipCls = [
+  'text-base border border-line-strong px-3 py-2',
+  'aria-pressed:bg-ink aria-pressed:text-canvas aria-pressed:border-ink',
+  'hover:border-ink hover:text-ink',
+  'focus:outline-hidden focus:border-scarlet-signal',
+  'transition-colors cursor-pointer',
+].join(' ');
+
+// El nonce se lee acá y no dentro del atributo del <script slot="head">: cuando
+// `Astro` se usa solo dentro del contenido de un slot, el compilador no deja el
+// binding disponible en esa clausura y lanza "Astro is not defined".
+const nonce = Astro.locals.nonce;
 ---
 
 <Base
   titulo="Avisos — Autos en venta en Chile"
   descripcion="Todos los autos en venta en Chile en un solo lugar. Filtra por marca, año, kilometraje y precio sobre Autocosmos, Yapo, AutosUsados y Checkeados."
 >
+
+  <!--
+    Bloqueante y en <head> a propósito, igual que el tema: la densidad guardada
+    se aplica antes del primer pintado, así el grid no salta de 3 a 2 ó 4
+    columnas una vez cargada la página.
+  -->
+  <script is:inline nonce={nonce} slot="head">
+    try {
+      const cols = localStorage.getItem('avisos-columnas');
+      if (cols === '2' || cols === '3' || cols === '4') {
+        document.documentElement.dataset.avisosCols = cols;
+      }
+      if (localStorage.getItem('avisos-vista') === 'lista') {
+        document.documentElement.dataset.avisosVista = 'lista';
+      }
+      // Este sí se escribe siempre: al pasar a lista el CSS ya necesita saber si
+      // va a una o dos por línea, sin esperar a que se toque el control.
+      document.documentElement.dataset.avisosColsLista =
+        localStorage.getItem('avisos-columnas-lista') === '1' ? '1' : '2';
+    } catch (_) {}
+  </script>
 
   <div class="mb-block">
     <p class="text-base  uppercase tracking-widest mb-element">Listado completo</p>
@@ -63,26 +113,79 @@ const ordenOptions = [
               : <><span class="text-ink tabular-nums">{resultado.total.toLocaleString('es-CL')}</span> {resultado.total === 1 ? 'aviso' : 'avisos'}</>
             }
           </p>
-          <div class="flex items-center gap-2">
-            <label for="orden" class="text-base  hidden sm:block shrink-0">
-              Ordenar por
-            </label>
-            <select
-              id="orden"
-              name="orden"
-              aria-label="Ordenar por"
-              data-submits="filtros-form"
-              class="text-base bg-canvas border border-line-strong px-3 py-2 text-ink appearance-none cursor-pointer focus:outline-hidden focus:border-scarlet-signal transition-colors"
+          <div class="flex items-center gap-element">
+
+            <!--
+              Vista. Desde sm: bajo 640px la cuadrícula ya es de una columna, así
+              que la lista no aportaría nada y el toolbar no tiene espacio.
+            -->
+            <div
+              id="vista"
+              role="group"
+              aria-label="Vista del listado"
+              class="hidden sm:flex items-center gap-2"
             >
-              {ordenOptions.map(({ value, label }) => (
-                <option
-                  value={value}
-                  selected={filtros.orden === value || (!filtros.orden && value === 'reciente')}
+              <span class="text-base  shrink-0">Vista</span>
+              {vistas.map(({ valor, label }) => (
+                <button
+                  type="button"
+                  data-valor={valor}
+                  aria-pressed={valor === 'cuadricula' ? 'true' : 'false'}
+                  class={chipCls}
                 >
                   {label}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
+
+            <!--
+              Densidad: un grupo por vista, ambos ocultos hasta xl. Bajo 1280px
+              no hay ancho que repartir —la cuarta columna dejaría tarjetas de
+              ~176px, donde el precio ya no cabe en una línea.
+            -->
+            {densidades.map(({ vista, opciones, porDefecto, rotulo }) => (
+              <div
+                id={`densidad-${vista}`}
+                data-para={vista}
+                role="group"
+                aria-label={rotulo}
+                class="hidden items-center gap-2"
+              >
+                <span class="text-base  shrink-0">Columnas</span>
+                {opciones.map((n) => (
+                  <button
+                    type="button"
+                    data-valor={n}
+                    aria-pressed={n === porDefecto ? 'true' : 'false'}
+                    class={`${chipCls} tabular-nums`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            ))}
+
+            <div class="flex items-center gap-2">
+              <label for="orden" class="text-base  hidden sm:block shrink-0">
+                Ordenar por
+              </label>
+              <select
+                id="orden"
+                name="orden"
+                aria-label="Ordenar por"
+                data-submits="filtros-form"
+                class="text-base bg-canvas border border-line-strong px-3 py-2 text-ink appearance-none cursor-pointer focus:outline-hidden focus:border-scarlet-signal transition-colors"
+              >
+                {ordenOptions.map(({ value, label }) => (
+                  <option
+                    value={value}
+                    selected={filtros.orden === value || (!filtros.orden && value === 'reciente')}
+                  >
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -90,7 +193,7 @@ const ordenOptions = [
         {resultado.items.length > 0 ? (
           <div
             id="listings-grid"
-            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-element"
+            class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-element"
           >
             {resultado.items.map((aviso) => (
               <CardAviso aviso={aviso} />
@@ -121,4 +224,88 @@ const ordenOptions = [
   </form>
 
   <AutoSubmit />
+
+  <script is:inline nonce={nonce}>
+    (() => {
+      const raiz = document.documentElement;
+
+      // Cada grupo de chips guarda su valor en <html> y en localStorage; el CSS
+      // hace el resto. `atributo` es la forma camelCase del data-* de <html>.
+      const conectar = (id, atributo, clave, porDefecto) => {
+        const grupo = document.getElementById(id);
+        if (!grupo) return;
+        const botones = grupo.querySelectorAll('button[data-valor]');
+        const marcar = () => {
+          const activo = raiz.dataset[atributo] || porDefecto;
+          for (const boton of botones) {
+            boton.setAttribute('aria-pressed', String(boton.dataset.valor === activo));
+          }
+        };
+        marcar();
+        for (const boton of botones) {
+          boton.addEventListener('click', () => {
+            raiz.dataset[atributo] = boton.dataset.valor;
+            try { localStorage.setItem(clave, boton.dataset.valor); } catch (_) {}
+            marcar();
+          });
+        }
+      };
+
+      conectar('vista', 'avisosVista', 'avisos-vista', 'cuadricula');
+      conectar('densidad-cuadricula', 'avisosCols', 'avisos-columnas', '3');
+      conectar('densidad-lista', 'avisosColsLista', 'avisos-columnas-lista', '2');
+    })();
+  </script>
+
+  <!--
+    Global porque los selectores cuelgan de <html>, que queda fuera del scope del
+    componente. Los defaults del layout —cuadrícula de 3— no se redeclaran acá:
+    sin preferencia guardada el listado se comporta exactamente igual que antes.
+  -->
+  <style is:global>
+    /* Vista lista: la tarjeta se acuesta y el listado pasa a una sola columna.
+       La fila a ancho completo tiene sitio de sobra a la derecha, así que la
+       procedencia baja del overlay de la foto al costado, alineada al final. */
+    @media (min-width: 640px) {
+      :root[data-avisos-vista='lista'] #listings-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      :root[data-avisos-vista='lista'] #listings-grid [data-card-link] {
+        display: grid;
+        grid-template-columns: 240px minmax(0, 1fr) auto;
+        align-items: center;
+      }
+      :root[data-avisos-vista='lista'] #listings-grid [data-fuente='badge'] { display: none; }
+      :root[data-avisos-vista='lista'] #listings-grid [data-fuente='lado']  { display: block; }
+    }
+
+    /* Densidad: solo desde xl, donde una cuarta columna sigue dejando el precio
+       en una línea. Cada vista muestra su propio grupo de columnas. */
+    @media (min-width: 1280px) {
+      :root:not([data-avisos-vista='lista']) [data-para='cuadricula'] { display: flex; }
+      :root[data-avisos-vista='lista'] [data-para='lista'] { display: flex; }
+
+      :root[data-avisos-cols='2'] #listings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      :root[data-avisos-cols='3'] #listings-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      :root[data-avisos-cols='4'] #listings-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+      /* Las dos densidades de la lista se declaran completas —no heredan de la
+         cuadrícula— porque su selector de dos atributos es el que gana sobre la
+         densidad guardada para la otra vista. */
+      :root[data-avisos-vista='lista'][data-avisos-cols-lista='1'] #listings-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      :root[data-avisos-vista='lista'][data-avisos-cols-lista='2'] #listings-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      /* Dos por línea parte la fila a la mitad: ahí ya no hay ancho para la
+         procedencia al costado y vuelve a la foto. */
+      :root[data-avisos-vista='lista'][data-avisos-cols-lista='2'] #listings-grid [data-card-link] {
+        grid-template-columns: 240px minmax(0, 1fr);
+      }
+      :root[data-avisos-vista='lista'][data-avisos-cols-lista='2'] #listings-grid [data-fuente='badge'] { display: block; }
+      :root[data-avisos-vista='lista'][data-avisos-cols-lista='2'] #listings-grid [data-fuente='lado']  { display: none; }
+    }
+  </style>
 </Base>

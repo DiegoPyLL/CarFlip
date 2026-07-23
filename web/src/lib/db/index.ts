@@ -3,7 +3,22 @@
 
 export { obtenerAvisos, obtenerAviso, obtenerFiltrosDisponibles } from './avisos';
 export { obtenerDeals } from './deals';
-export { obtenerDatosMercado, obtenerDatosMarca } from './mercado';
-export type { EstadisticaMarca, EstadisticaModelo, DatosMercado } from './mercado';
+export {
+  obtenerDatosMercado,
+  obtenerDatosMarca,
+  obtenerHistoriaMercado,
+  consultarMercado,
+  posicionMercado,
+} from './mercado';
+export type {
+  EstadisticaMarca,
+  EstadisticaModelo,
+  DatosMercado,
+  BucketHistograma,
+  PrecioAnio,
+  PuntoDia,
+  PuntoHistoria,
+  ConsultaMercado,
+} from './mercado';
 export { obtenerEstadisticas } from './estadisticas';
 export { obtenerMetricasOperacion, obtenerMetricasVehiculos } from './metricas';

@@ -1,0 +1,128 @@
+---
+// Treemap de marcas (squarified, Bruls et al.): el área de cada rectángulo es
+// proporcional a su cantidad de avisos, así que "abarca el espacio" en vez de
+// una columna. El layout se calcula en el frontmatter (SSR, cero JS) y se
+// renderiza con `div` posicionados en %; el sombreado es secuencial (viz-1 con
+// opacidad por tamaño) y la marca #1 lleva el único punto escarlata focal.
+import type { EstadisticaMarca } from '@lib/db';
+import { formatearPrecio } from '@lib/formato';
+
+interface Props {
+  marcas: EstadisticaMarca[];
+  titulo: string;
+}
+const { marcas, titulo } = Astro.props;
+
+interface Rect {
+  marca: string;
+  total: number;
+  precio_promedio: number | null;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+// Squarified sobre un lienzo 100×100 (porcentajes). Consume el rectángulo libre
+// por franjas, agregando ítems a una franja mientras mejore la peor proporción.
+function squarify(datos: EstadisticaMarca[], W: number, H: number): Rect[] {
+  const totalVal = datos.reduce((s, d) => s + d.total, 0) || 1;
+  const escala = (W * H) / totalVal;
+  const items = datos.map((d) => ({ ...d, area: d.total * escala }));
+  const rects: Rect[] = [];
+  const libre = { x: 0, y: 0, w: W, h: H };
+
+  const peor = (fila: (typeof items)[number][], lado: number): number => {
+    if (fila.length === 0) return Infinity;
+    const s = fila.reduce((a, it) => a + it.area, 0);
+    const mx = Math.max(...fila.map((it) => it.area));
+    const mn = Math.min(...fila.map((it) => it.area));
+    const lado2 = lado * lado;
+    const s2 = s * s;
+    return Math.max((lado2 * mx) / s2, s2 / (lado2 * mn));
+  };
+
+  const colocar = (fila: (typeof items)[number][]) => {
+    const s = fila.reduce((a, it) => a + it.area, 0);
+    if (libre.w >= libre.h) {
+      const ancho = s / libre.h;
+      let yy = libre.y;
+      for (const it of fila) {
+        const alto = it.area / ancho;
+        rects.push({ marca: it.marca, total: it.total, precio_promedio: it.precio_promedio, x: libre.x, y: yy, w: ancho, h: alto });
+        yy += alto;
+      }
+      libre.x += ancho;
+      libre.w -= ancho;
+    } else {
+      const alto = s / libre.w;
+      let xx = libre.x;
+      for (const it of fila) {
+        const ancho = it.area / alto;
+        rects.push({ marca: it.marca, total: it.total, precio_promedio: it.precio_promedio, x: xx, y: libre.y, w: ancho, h: alto });
+        xx += ancho;
+      }
+      libre.y += alto;
+      libre.h -= alto;
+    }
+  };
+
+  let fila: (typeof items)[number][] = [];
+  let i = 0;
+  while (i < items.length) {
+    const lado = Math.min(libre.w, libre.h);
+    const it = items[i];
+    if (fila.length === 0 || peor([...fila, it], lado) <= peor(fila, lado)) {
+      fila.push(it);
+      i++;
+    } else {
+      colocar(fila);
+      fila = [];
+    }
+  }
+  if (fila.length) colocar(fila);
+  return rects;
+}
+
+const datos = marcas.filter((m) => m.total > 0).slice(0, 16);
+const rects = squarify(datos, 100, 100);
+const maxTotal = Math.max(...datos.map((d) => d.total), 1);
+// Opacidad secuencial 18%→60% según cantidad; el texto (ink) queda a full.
+const opacidad = (total: number) => 18 + (total / maxTotal) * 42;
+---
+<div class="p-element h-full min-h-64">
+  <div class="relative w-full h-full min-h-64" role="img" aria-label={titulo}>
+    {rects.map((r, i) => (
+      <a
+        href={`/marcas/${encodeURIComponent(r.marca)}`}
+        class="absolute block border border-canvas hover:border-ink hover:z-10 overflow-hidden group"
+        style={`left:${r.x}%; top:${r.y}%; width:${r.w}%; height:${r.h}%; background-color: color-mix(in srgb, var(--c-viz-1) ${opacidad(r.total)}%, transparent);`}
+        title={`${r.marca}: ${r.total.toLocaleString('es-CL')} avisos${r.precio_promedio ? ` · prom. ${formatearPrecio(Math.round(r.precio_promedio))}` : ''}`}
+      >
+        {r.w > 13 && r.h > 9 && (
+          <span class="absolute top-1 left-1.5 right-1 flex items-start gap-1">
+            {i === 0 && <span class="mt-1 w-1.5 h-1.5 shrink-0 bg-ink" aria-hidden="true"></span>}
+            <span class="min-w-0">
+              <span class="block text-sm text-ink leading-tight truncate">{r.marca}</span>
+              <span class="block text-xs text-muted tabular-nums">{r.total.toLocaleString('es-CL')}</span>
+            </span>
+          </span>
+        )}
+      </a>
+    ))}
+  </div>
+
+  <table class="sr-only">
+    <caption>{titulo}</caption>
+    <thead><tr><th>Marca</th><th>Avisos</th><th>Precio promedio</th></tr></thead>
+    <tbody>
+      {datos.map((d) => (
+        <tr>
+          <td>{d.marca}</td>
+          <td>{d.total}</td>
+          <td>{d.precio_promedio ? formatearPrecio(Math.round(d.precio_promedio)) : '—'}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>

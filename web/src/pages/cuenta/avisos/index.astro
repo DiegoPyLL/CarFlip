@@ -1,9 +1,9 @@
 ---
 import Base from '@layouts/Base.astro';
+import NavCuenta from '@components/cuenta/NavCuenta.astro';
+import FilaAviso from '@components/cuenta/FilaAviso.astro';
 import { listarAvisosPropios, revelacionesPorAviso } from '@lib/publicaciones/consultas';
-import { formatearKm, formatearPrecio } from '@lib/formato';
 import { LIMITES, mensajeDeError } from '@lib/publicaciones/limites';
-import { ETIQUETA_ESTADO } from '@lib/publicaciones/opciones';
 
 const usuario = Astro.locals.usuario;
 if (!usuario || !Astro.locals.supabase) return Astro.redirect('/entrar?volver=/cuenta/avisos');
@@ -19,16 +19,17 @@ const mensajeError = mensajeDeError(Astro.url.searchParams.get('error'));
 const guardado = Astro.url.searchParams.has('guardado');
 const eliminado = Astro.url.searchParams.has('eliminado');
 
-// Estilo compartido por las acciones en línea de cada fila.
+// Estilo compartido por las acciones de estado de cada fila. "Editar" ya no está
+// aquí: la fila entera enlaza a la edición.
 const accionCls =
-  'text-base underline underline-offset-4 hover:text-ink transition-colors duration-150 cursor-pointer';
+  'text-base text-ink/70 underline underline-offset-4 hover:text-ink transition-colors duration-150 cursor-pointer';
 ---
 
 <Base titulo="Mis publicaciones" descripcion="Gestiona los avisos que publicaste en CarFlip." noindex>
-  <div class="flex flex-wrap items-end justify-between gap-element mb-block">
+  <header class="flex flex-wrap items-end justify-between gap-element mb-block">
     <div>
       <h1 class="text-5xl sm:text-7xl text-ink leading-none text-balance">Mis publicaciones.</h1>
-      <p class="text-base mt-element tabular-nums">
+      <p class="text-base text-ink/70 mt-element tabular-nums">
         {activos} de {LIMITES.avisosActivos} avisos publicados
       </p>
     </div>
@@ -36,11 +37,12 @@ const accionCls =
       href="/cuenta/avisos/nuevo"
       class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-3 hover:bg-ink hover:text-canvas transition-colors duration-150"
     >
-      <span class="w-1.5 h-1.5 bg-scarlet-signal" aria-hidden="true"></span>
       Publicar un auto
       <span aria-hidden="true">→</span>
     </a>
-  </div>
+  </header>
+
+  <NavCuenta />
 
   {mensajeError && (
     <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
@@ -61,62 +63,41 @@ const accionCls =
   )}
 
   {avisos.length === 0 ? (
-    <div class="border-y border-line py-block">
+    <div class="border border-line p-block">
       <p class="text-2xl text-ink mb-element">Todavía no publicaste ningún auto.</p>
-      <p class="text-base leading-relaxed max-w-xl">
+      <p class="text-base text-ink/70 leading-relaxed max-w-xl">
         Publica el tuyo y aparecerá en el listado junto a los avisos de los portales que CarFlip
         compara. Necesitas tu nombre y teléfono cargados en
         <a href="/cuenta" class="text-ink underline underline-offset-4">tu cuenta</a>.
       </p>
     </div>
   ) : (
-    <ul class="divide-y divide-line border-y border-line">
+    <ul class="border border-line divide-y divide-line">
       {avisos.map((aviso) => (
-        <li class="py-element flex flex-col gap-element lg:flex-row lg:items-center lg:justify-between hover:bg-surface transition-colors duration-150">
-          <div class="min-w-0">
-            <div class="flex items-baseline gap-3 flex-wrap">
-              <h2 class="text-2xl text-ink truncate">{aviso.titulo}</h2>
-              <span class="text-sm border border-line-strong px-2 py-0.5">
-                {ETIQUETA_ESTADO[aviso.estado]}
-              </span>
-            </div>
-            <p class="text-base tabular-nums mt-1">
-              {aviso.precio !== null ? formatearPrecio(aviso.precio, 'CLP') : 'Sin precio'}
-              {aviso.km !== null && <> · {formatearKm(aviso.km)}</>}
-              {aviso.ubicacion && <> · {aviso.ubicacion}</>}
-            </p>
-            <p class="text-sm mt-1 tabular-nums">
-              {aviso.vistas} vistas · {revelaciones.get(aviso.id) ?? 0} contactos revelados
-            </p>
-          </div>
+        <FilaAviso aviso={aviso} contactos={revelaciones.get(aviso.id) ?? 0}>
+          {aviso.estado === 'publicado' ? (
+            <form method="POST" action={`/api/publicacion/${aviso.id}/estado`}>
+              <input type="hidden" name="estado" value="pausado" />
+              <button type="submit" class={accionCls}>Pausar</button>
+            </form>
+          ) : (
+            <form method="POST" action={`/api/publicacion/${aviso.id}/estado`}>
+              <input type="hidden" name="estado" value="publicado" />
+              <button type="submit" class={accionCls}>Republicar</button>
+            </form>
+          )}
 
-          <div class="flex flex-wrap items-center gap-x-element gap-y-2 shrink-0">
-            <a href={`/cuenta/avisos/${aviso.id}/editar`} class={accionCls}>Editar</a>
+          {aviso.estado !== 'vendido' && (
+            <form method="POST" action={`/api/publicacion/${aviso.id}/estado`}>
+              <input type="hidden" name="estado" value="vendido" />
+              <button type="submit" class={accionCls}>Marcar vendido</button>
+            </form>
+          )}
 
-            {aviso.estado === 'publicado' ? (
-              <form method="POST" action={`/api/publicacion/${aviso.id}/estado`}>
-                <input type="hidden" name="estado" value="pausado" />
-                <button type="submit" class={accionCls}>Pausar</button>
-              </form>
-            ) : (
-              <form method="POST" action={`/api/publicacion/${aviso.id}/estado`}>
-                <input type="hidden" name="estado" value="publicado" />
-                <button type="submit" class={accionCls}>Republicar</button>
-              </form>
-            )}
-
-            {aviso.estado !== 'vendido' && (
-              <form method="POST" action={`/api/publicacion/${aviso.id}/estado`}>
-                <input type="hidden" name="estado" value="vendido" />
-                <button type="submit" class={accionCls}>Marcar vendido</button>
-              </form>
-            )}
-
-            {aviso.estado === 'publicado' && (
-              <a href={`/auto/p/${aviso.id}`} class={accionCls}>Ver aviso</a>
-            )}
-          </div>
-        </li>
+          {aviso.estado === 'publicado' && (
+            <a href={`/auto/p/${aviso.id}`} class={accionCls}>Ver aviso</a>
+          )}
+        </FilaAviso>
       ))}
     </ul>
   )}

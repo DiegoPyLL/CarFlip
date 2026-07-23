@@ -1,0 +1,83 @@
+---
+// Tendencia histórica de precio (mediana) desde market_snapshots. Una fila por
+// día que escribe el pipeline; hasta que se acumulan snapshots, degrada a un
+// aviso en vez de inventar una curva. Un solo eje Y; SVG para la línea, ejes y
+// tooltips en HTML. Cero JS.
+import type { PuntoHistoria } from '@lib/db';
+import { formatearPrecio } from '@lib/formato';
+
+interface Props {
+  serie: PuntoHistoria[];
+}
+const { serie } = Astro.props;
+const puntos = serie.filter((p) => p.precio_mediano != null);
+
+const W = 100;
+const H = 60;
+const n = puntos.length;
+
+const valores = puntos.map((p) => p.precio_mediano as number);
+const yMin = valores.length ? Math.min(...valores) * 0.95 : 0;
+const yMax = valores.length ? Math.max(...valores) * 1.05 : 1;
+const span = yMax - yMin || 1;
+
+const xAt = (i: number) => (n > 1 ? (i / (n - 1)) * W : W / 2);
+const yAt = (p: number) => H - ((p - yMin) / span) * H;
+const linea = puntos.map((p, i) => `${xAt(i).toFixed(2)},${yAt(p.precio_mediano as number).toFixed(2)}`).join(' ');
+
+const ticks = [yMax, yMin].map((v) => ({
+  valor: v,
+  top: ((H - ((v - yMin) / span) * H) / H) * 100,
+}));
+const compacto = (p: number) => `$${Math.round(p / 1e6)}M`;
+const fechaCorta = (f: string) => {
+  const d = new Date(f + 'T00:00:00');
+  return new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short' }).format(d);
+};
+---
+{n < 2 ? (
+  <div class="p-element h-full min-h-48 flex items-center justify-center text-center">
+    <p class="text-sm text-muted max-w-xs">
+      Acumulando histórico. La tendencia de precios aparece a medida que se registran
+      los snapshots diarios del mercado.
+    </p>
+  </div>
+) : (
+  <div class="p-element">
+    <div class="relative h-48">
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" class="absolute inset-0 w-full h-full" role="img" aria-label="Tendencia histórica de la mediana de precio">
+        {ticks.map((t) => (
+          <line x1="0" y1={yAt(t.valor).toFixed(2)} x2={W} y2={yAt(t.valor).toFixed(2)} class="stroke-line" stroke-width="1" vector-effect="non-scaling-stroke" />
+        ))}
+        <polyline
+          points={linea}
+          fill="none"
+          class="stroke-viz-1"
+          stroke-width="1.5"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+          vector-effect="non-scaling-stroke"
+        />
+      </svg>
+
+      <div class="absolute inset-0 pointer-events-none">
+        {ticks.map((t) => (
+          <span class="absolute left-0 text-xs text-muted tabular-nums bg-canvas/80 px-1" style={`top: ${t.top}%; transform: translateY(-50%)`}>
+            {compacto(t.valor)}
+          </span>
+        ))}
+      </div>
+
+      <div class="absolute inset-0 flex" aria-hidden="true">
+        {puntos.map((p) => (
+          <div class="flex-1 hover:bg-surface/60" title={`${fechaCorta(p.fecha)}: mediana ${formatearPrecio(Math.round(p.precio_mediano as number))} · ${p.total.toLocaleString('es-CL')} avisos`} />
+        ))}
+      </div>
+    </div>
+
+    <div class="flex justify-between mt-2 text-xs text-muted tabular-nums">
+      <span>{fechaCorta(puntos[0].fecha)}</span>
+      <span>{fechaCorta(puntos[n - 1].fecha)}</span>
+    </div>
+  </div>
+)}

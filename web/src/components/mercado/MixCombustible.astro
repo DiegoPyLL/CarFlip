@@ -1,0 +1,40 @@
+---
+// Barra 100% apilada del mix de combustible. Categórica → paleta viz-1…viz-4 en
+// orden fijo por categoría (el color sigue a la entidad, no al ranking) + "Otros"
+// en muted. Leyenda con etiqueta y % para que la identidad no dependa del color.
+interface Props {
+  datos: { etiqueta: string; total: number }[];
+}
+const { datos } = Astro.props;
+
+const total = datos.reduce((s, d) => s + d.total, 0) || 1;
+const COLOR: Record<string, string> = {
+  Bencina: 'bg-viz-1',
+  Diésel: 'bg-viz-2',
+  Híbrido: 'bg-viz-3',
+  Eléctrico: 'bg-viz-4',
+  Otros: 'bg-muted',
+};
+const pct = (t: number) => (t / total) * 100;
+---
+<div class="p-element flex flex-col gap-element">
+  <div class="flex gap-[2px] h-10" role="img" aria-label="Mix de combustible del mercado">
+    {datos.map((d) => (
+      <div
+        class:list={[COLOR[d.etiqueta] ?? 'bg-muted']}
+        style={`width: ${pct(d.total).toFixed(1)}%`}
+        title={`${d.etiqueta}: ${pct(d.total).toFixed(1)}% (${d.total.toLocaleString('es-CL')})`}
+      />
+    ))}
+  </div>
+
+  <ul class="flex flex-wrap gap-x-element gap-y-2">
+    {datos.map((d) => (
+      <li class="flex items-center gap-2 text-sm">
+        <span class:list={['w-3 h-3 shrink-0', COLOR[d.etiqueta] ?? 'bg-muted']} aria-hidden="true" />
+        <span class="text-ink">{d.etiqueta}</span>
+        <span class="text-muted tabular-nums">{pct(d.total).toFixed(0)}%</span>
+      </li>
+    ))}
+  </ul>
+</div>

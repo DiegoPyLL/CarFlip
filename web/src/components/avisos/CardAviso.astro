@@ -30,10 +30,13 @@ const metaItems = [
 
 <!-- La foto es el borde de la card: sin radio, sin sombra, sin transformaciones. -->
 <article class="group border border-line hover:border-ink transition-colors duration-200">
+  <!-- `data-card-link` es el punto de anclaje de la vista lista de /avisos, que
+       acuesta la tarjeta desde CSS (foto | contenido). -->
   <a
     href={enlaceAviso(aviso, Astro.url.pathname + Astro.url.search)}
     aria-label={`Ver ${aviso.titulo}`}
     class="block"
+    data-card-link
   >
     <!-- Imagen -->
     <div class="aspect-[4/3] bg-surface relative">
@@ -54,7 +57,7 @@ const metaItems = [
 
       <!-- Badges sobre la imagen -->
       <div class="absolute top-element left-element flex flex-wrap gap-2">
-        <span class="text-sm px-2 py-0.5 bg-canvas/75 ">
+        <span data-fuente="badge" class="text-sm px-2 py-0.5 bg-canvas/75 ">
           {fuenteLabel}
         </span>
         {delta && (
@@ -89,5 +92,12 @@ const metaItems = [
         </p>
       )}
     </div>
+
+    <!-- La misma procedencia, al costado: la fila de la vista lista tiene ancho
+         de sobra a la derecha y ahí se lee mejor que encima de la foto. Solo una
+         de las dos se muestra a la vez (ver el CSS de /avisos). -->
+    <p data-fuente="lado" class="hidden text-sm uppercase tracking-wider pr-element whitespace-nowrap">
+      {fuenteLabel}
+    </p>
   </a>
 </article>

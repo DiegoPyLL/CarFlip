@@ -2,7 +2,6 @@
 import Base from '@layouts/Base.astro';
 import HeroMarketing from '@components/marketing/HeroMarketing.astro';
 import ListaNumerada from '@components/marketing/ListaNumerada.astro';
-import CtaAvisos from '@components/marketing/CtaAvisos.astro';
 import { seccionCls, rubroCls, parrafoCls } from '@lib/marketing';
 import { scriptJsonLd } from '@lib/jsonLd';
 
@@ -77,6 +76,10 @@ const faq = [
     pregunta: '¿Puedo publicar mi auto en CarFlip?',
     respuesta: 'Sí, y es gratis. Necesitas una cuenta con el correo confirmado, y el aviso queda visible de inmediato, sin cola de revisión. Cada cuenta admite hasta 5 avisos activos y 10 fotos por aviso. Los avisos que incumplen las condiciones de uso se retiran cuando se reportan.',
   },
+  //{
+  //  pregunta: '¿Seguridad',
+  //  respuesta: 'corregir',
+  //},
 ];
 
 // El reparto en columnas se hace acá y no en CSS: `columns` de CSS rebalancea
@@ -99,6 +102,12 @@ const jsonLd = {
   })),
 };
 
+// El nonce lo inyecta el middleware por request (CSP estricta). Se lee acá, en
+// el scope del componente, y no directo en el atributo del <script slot="head">:
+// cuando `Astro` se usa solo dentro de contenido de un slot, el compilador no
+// deja el binding disponible en esa clausura y lanza "Astro is not defined".
+const nonce = Astro.locals.nonce;
+
 // Página de marketing del sitio (junto a /quienes-somos): ritmo editorial
 // completo (títulos grandes, 120px entre secciones) que un grid de datos no
 // toleraría. seccionCls/rubroCls viven en @lib/marketing.
@@ -108,7 +117,7 @@ const jsonLd = {
   titulo="Cómo funciona CarFlip"
   descripcion="CarFlip recopila avisos de autos en venta desde los principales portales de Chile, normaliza la información y detecta oportunidades de precio en tiempo real."
 >
-  <script is:inline nonce={Astro.locals.nonce} slot="head" type="application/ld+json" set:html={scriptJsonLd(jsonLd)} />
+  <script is:inline nonce={nonce} slot="head" type="application/ld+json" set:html={scriptJsonLd(jsonLd)} />
 
   <div class="max-w-5xl">
 
@@ -137,7 +146,7 @@ const jsonLd = {
          anunciado por el lector de pantalla. Las respuestas quedan en el DOM
          aunque la card esté cerrada, así que buscadores y agentes las leen
          igual (y coinciden con el FAQPage del <head>).
-         `scroll-mt` compensa el header sticky (h-12) cuando se llega por el
+         `scroll-mt` compensa la barra fija (48px compacta) cuando se llega por el
          enlace "Preguntas Frecuentes" del footer. -->
     <section id="preguntas-frecuentes" class={`${seccionCls} scroll-mt-20`}>
       <h2 class={rubroCls}>Preguntas frecuentes</h2>
@@ -176,41 +185,7 @@ const jsonLd = {
       </div>
     </section>
 
-    <!-- CTA -->
-    <CtaAvisos />
+
 
   </div>
 </Base>
-
-<style>
-  /* El triángulo nativo del <summary> sobra: el signo + del markup ya indica
-     el estado, y rotado 45° al abrir se convierte en una ×. Dos reglas porque
-     Safari usa su propio pseudo-elemento. */
-  .faq-card summary {
-    list-style: none;
-  }
-
-  .faq-card summary::-webkit-details-marker {
-    display: none;
-  }
-
-  /* El alto de un <details> no es animable, así que se anima el contenido y no
-     la caja: la respuesta entra con un desplazamiento mínimo en vez de
-     aparecer de golpe. */
-  .faq-card[open] p {
-    animation: faq-entrada 200ms ease-out;
-  }
-
-  @keyframes faq-entrada {
-    from {
-      opacity: 0;
-      transform: translateY(-0.25rem);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .faq-card[open] p {
-      animation: none;
-    }
-  }
-</style>

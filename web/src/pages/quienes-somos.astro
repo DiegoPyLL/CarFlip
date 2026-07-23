@@ -52,6 +52,28 @@ const principios = [
 
 ];
 
+// Hoja de ruta. No son promesas con fecha, sino las líneas en las que
+// trabajamos; todas nacen de la misma idea: darte más información antes de
+// negociar. La primera es la que motivó agregar esta sección.
+const proximosPasos = [
+  {
+    titulo: 'Verificación de encargo por robo',
+    texto: 'Cruzar cada aviso contra el registro de vehículos con encargo por robo, para advertirlo en la ficha antes de que contactes al vendedor.',
+  },
+  {
+    titulo: 'Historial del vehículo',
+    texto: 'Sumar a cada auto los antecedentes públicos disponibles por patente: revisión técnica y permiso de circulación al día, multas pendientes y número de dueños.',
+  },
+  {
+    titulo: 'Alertas de precio',
+    texto: 'Guardar una búsqueda y recibir un aviso cuando aparezca un auto bajo el precio de mercado o cuando uno que sigues baje de precio.',
+  },
+  {
+    titulo: 'Tasación con modelo propio',
+    texto: 'Reemplazar el modelo de lenguaje general que hoy evalúa los deals por uno entrenado con el historial de precios de CarFlip, cuando el volumen de datos lo justifique.',
+  },
+];
+
 // Segunda página de marketing del sitio (junto a /como-funciona), pero con una
 // composición distinta: en vez de apilar secciones de ancho uniforme, el
 // contenido se organiza en bandas en mosaico que usan el ancho completo del
@@ -76,8 +98,8 @@ const principios = [
 //   - "Nuestros principios" no fija el acento en una sola celda: se destaca la
 //     que está bajo el cursor (ver <style> al final).
 //
-// Orden narrativo sin cambios: misión → origen → cómo operamos (principios) →
-// por qué sin fines de lucro → quién está detrás.
+// Orden narrativo: misión → origen → cómo operamos (principios) → hacia dónde
+// vamos (próximos pasos) → por qué sin fines de lucro → quién está detrás.
 ---
 
 <Base
@@ -220,6 +242,36 @@ const principios = [
         ))}
       </div>
     </div>
+
+    <!-- Próximos pasos: hoja de ruta como lista de una columna separada por
+         líneas de 1px, no mosaico ni numeración — así no repite la forma de los
+         principios (grid numerado) que la anteceden. El cuadrado escarlata de
+         6px es el único color de esta página fuera del hero y el cierre, ambos
+         en azul: lo reservamos para marcar aquí lo que está por venir (mismo uso
+         gráfico y racionado del acento que en el resto del sitio). La medida de
+         lectura la fija cada texto (64ch), no la columna. -->
+    <div class={`${seccionCls} grid grid-cols-1 lg:grid-cols-[9rem_1fr] gap-x-block`}>
+      <h2 class={`${rubroCls} lg:mb-0`}>Próximos pasos</h2>
+      <div>
+        <p class={`${parrafoCls} max-w-[64ch] mb-block`}>
+          CarFlip sigue en construcción. Estas son las líneas en las que estamos
+          trabajando: no son promesas con fecha, sino hacia dónde queremos llevar
+          el sitio.
+        </p>
+        <div class="border-t border-line">
+          {proximosPasos.map(({ titulo, texto }) => (
+            <div class="border-b border-line py-block">
+              <div class="flex items-center gap-element mb-2">
+                <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+                <h3 class="text-2xl text-ink leading-tight">{titulo}</h3>
+              </div>
+              <p class={`${parrafoCls} max-w-[64ch]`}>{texto}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
     <!-- Cierre: los dos bloques comparten una misma foto de fondo, separados
          por una línea en vez de por espacio. El velo (.cierre-velo) es lo que
          hace legible el texto sobre una foto de día: mezcla blue-signal con

@@ -1,0 +1,181 @@
+---
+// Consultor de precios: el usuario elige marca/modelo/año (+ opcional su precio)
+// y ve la referencia de mercado y si está bajo/en/sobre. Form GET sin JS (los
+// resultados quedan en una URL compartible). La dirección se comunica con glifo
+// (▼≈▲), nunca con color; el único acento escarlata de la pantalla es el
+// marcador "tu precio" en el medidor.
+import type { ConsultaMercado } from '@lib/db';
+import { posicionMercado } from '@lib/db';
+import { formatearPrecio, formatearKm } from '@lib/formato';
+import MedidorMercado from './MedidorMercado.astro';
+
+interface Props {
+  marcas: string[];
+  modelos: string[];
+  anios: number[];
+  fuente?: string;
+  consulta: { marca: string; modelo: string; anio: number | null; precio: number | null };
+  resultado: ConsultaMercado | null;
+}
+const { marcas, modelos, anios, fuente, consulta, resultado } = Astro.props;
+
+const intento = Boolean(consulta.marca && consulta.modelo && consulta.anio);
+const posicion =
+  resultado && consulta.precio != null ? posicionMercado(consulta.precio, resultado.mediana) : null;
+
+// Mismo piso que usa candidatos.sql para aceptar un grupo comparable: por debajo
+// de 5 avisos la mediana es demasiado frágil como para presentarla sin reserva.
+const muestraDebil = resultado != null && resultado.comparables < 8;
+
+const selectCls =
+  'text-base bg-canvas border border-line-strong px-3 py-2 text-ink appearance-none cursor-pointer focus:outline-hidden focus:border-scarlet-signal transition-colors w-full';
+const inputCls =
+  'text-base bg-canvas border border-line-strong px-3 py-2 text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors w-full';
+const labelCls = 'text-sm text-muted uppercase tracking-wider';
+---
+<section id="consulta" class="border border-line scroll-mt-20">
+  <div class="p-element border-b border-line">
+    <h2 class="text-base text-ink">¿Está bien el precio?</h2>
+    <p class="text-sm text-muted">Compara un modelo con el mercado y descubre si está bajo o sobre precio</p>
+  </div>
+
+  <form method="GET" action="/mercado#consulta" class="p-element grid gap-element sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+    {fuente && <input type="hidden" name="fuente" value={fuente} />}
+
+    <div class="flex flex-col gap-2">
+      <label for="q_marca" class={labelCls}>Marca</label>
+      <select id="q_marca" name="q_marca" class={selectCls} required>
+        <option value="">Elige…</option>
+        {marcas.map((m) => (
+          <option value={m} selected={consulta.marca === m}>{m}</option>
+        ))}
+      </select>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="q_modelo" class={labelCls}>Modelo</label>
+      <input
+        id="q_modelo"
+        name="q_modelo"
+        list="modelos-consulta"
+        value={consulta.modelo}
+        placeholder="Ej. Corolla"
+        autocomplete="off"
+        maxlength="100"
+        class={inputCls}
+        required
+      />
+      <datalist id="modelos-consulta">
+        {modelos.map((m) => <option value={m} />)}
+      </datalist>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="q_anio" class={labelCls}>Año</label>
+      <select id="q_anio" name="q_anio" class={selectCls} required>
+        <option value="">Elige…</option>
+        {anios.map((a) => (
+          <option value={a} selected={consulta.anio === a}>{a}</option>
+        ))}
+      </select>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="q_precio" class={labelCls}>Tu precio <span class="normal-case text-muted">(opcional)</span></label>
+      <input
+        id="q_precio"
+        name="q_precio"
+        type="number"
+        inputmode="numeric"
+        min="0"
+        step="100000"
+        value={consulta.precio ?? ''}
+        placeholder="$ CLP"
+        class={inputCls}
+      />
+    </div>
+
+    <button
+      type="submit"
+      class="inline-flex items-center justify-center gap-2 text-base text-ink border border-ink px-5 py-2 hover:bg-ink hover:text-canvas focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150"
+    >
+      <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+      Consultar
+    </button>
+  </form>
+
+  {intento && !resultado && (
+    <div class="p-element border-t border-line">
+      <p class="text-base text-muted">
+        No encontramos avisos suficientes de <span class="text-ink">{consulta.marca} {consulta.modelo} {consulta.anio}</span> (±1 año)
+        para calcular una referencia. Prueba otro modelo o año.
+      </p>
+    </div>
+  )}
+
+  {resultado && (
+    <div class="p-element border-t border-line space-y-element">
+      <div class="flex flex-wrap items-baseline justify-between gap-x-element gap-y-2">
+        <p class="text-base text-ink">
+          {resultado.marca} {resultado.modelo} <span class="tabular-nums">{resultado.anio}</span>
+        </p>
+        <p class="text-sm text-muted tabular-nums">
+          {resultado.comparables.toLocaleString('es-CL')} avisos comparables · ±{resultado.banda} {resultado.banda === 1 ? 'año' : 'años'}
+        </p>
+      </div>
+
+      {muestraDebil && (
+        <p class="text-sm text-muted border-l-2 border-line pl-3">
+          Pocos avisos comparables: tómalo como una referencia gruesa, no como una tasación.
+        </p>
+      )}
+
+      {posicion && (
+        <div class="border border-line p-element">
+          <p class="text-2xl text-ink leading-none">
+            <span aria-hidden="true">{posicion.glifo}</span> {posicion.etiqueta}
+          </p>
+          <p class="text-base text-muted mt-2 tabular-nums">
+            Tu precio {formatearPrecio(Math.round(consulta.precio!))} —
+            {' '}
+            {posicion.pct === 0
+              ? 'igual a la mediana'
+              : `${Math.abs(posicion.pct).toFixed(1)}% ${posicion.pct < 0 ? 'bajo' : 'sobre'} la mediana de mercado`}
+          </p>
+        </div>
+      )}
+
+      <MedidorMercado resultado={resultado} precio={consulta.precio} />
+
+      <div class="flex flex-wrap gap-x-block gap-y-element">
+        <div>
+          <p class="text-sm text-muted">Mediana</p>
+          <p class="text-base text-ink tabular-nums">{formatearPrecio(Math.round(resultado.mediana))}</p>
+        </div>
+        <div>
+          <p class="text-sm text-muted">Rango típico (p25–p75)</p>
+          <p class="text-base text-ink tabular-nums">
+            {formatearPrecio(Math.round(resultado.p25))} – {formatearPrecio(Math.round(resultado.p75))}
+          </p>
+        </div>
+        <div>
+          <p class="text-sm text-muted">Promedio</p>
+          <p class="text-base text-ink tabular-nums">{formatearPrecio(Math.round(resultado.promedio))}</p>
+        </div>
+        {resultado.km_mediano != null && (
+          <div>
+            <p class="text-sm text-muted">Km mediano</p>
+            <p class="text-base text-ink tabular-nums">{formatearKm(Math.round(resultado.km_mediano))}</p>
+          </div>
+        )}
+      </div>
+
+      <a
+        href={`/avisos?marca=${encodeURIComponent(resultado.marca)}&modelo=${encodeURIComponent(resultado.modelo)}&anio=${resultado.anio}`}
+        class="inline-flex text-base text-ink hover:text-muted transition-colors"
+      >
+        Ver los avisos de {resultado.marca} {resultado.modelo} {resultado.anio} →
+      </a>
+    </div>
+  )}
+</section>

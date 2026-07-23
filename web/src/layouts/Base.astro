@@ -31,21 +31,18 @@ const urlCanonicaAbs = new URL(rutaCanonica.pathname + rutaCanonica.search, orig
 // Las imágenes del CDN ya vienen absolutas; solo se resuelven las rutas locales.
 const urlImagenAbs = new URL(urlImagen, origenCanonico).href;
 
-// A 320px no caben cinco enlaces más el logo y el toggle. Se ocultan por orden
-// de redundancia: "Home" porque el logo ya lleva ahí, y "Cómo funciona" por ser
-// la sección menos transaccional. Ninguna queda inalcanzable.
-// El enlace de sesión también se oculta bajo sm: a 320px no cabe un sexto
-// enlace. No queda inalcanzable — el footer lo repite sin condición de ancho.
+// Bajo md: la nav entera se pliega en el menú desplegable, así que ningún
+// enlace se oculta por falta de ancho: los seis están siempre alcanzables.
 const enlaceSesion = Astro.locals.usuario
-  ? { href: '/cuenta', texto: 'Mi cuenta', visible: 'hidden sm:block' }
-  : { href: '/entrar', texto: 'Entrar', visible: 'hidden sm:block' };
+  ? { href: '/cuenta', texto: 'Mi cuenta' }
+  : { href: '/entrar', texto: 'Entrar' };
 
 const enlacesNav = [
-  { href: '/',              texto: 'Home',          visible: 'hidden sm:block' },
-  { href: '/avisos',        texto: 'Avisos',        visible: '' },
-  { href: '/deals',         texto: 'Deals',         visible: '' },
-  { href: '/mercado',       texto: 'Mercado',       visible: '' },
-  { href: '/como-funciona', texto: 'Cómo funciona', visible: 'hidden md:block' },
+  { href: '/',              texto: 'Home' },
+  { href: '/avisos',        texto: 'Avisos' },
+  { href: '/deals',         texto: 'Deals' },
+  { href: '/mercado',       texto: 'Mercado' },
+  { href: '/como-funciona', texto: 'Cómo funciona' },
   enlaceSesion,
 ];
 
@@ -109,48 +106,81 @@ function esRutaActiva(href: string): boolean {
     <slot name="head" />
   </head>
   <body class="bg-canvas text-ink min-h-screen flex flex-col antialiased">
-    <!-- La barra se funde con el canvas: sin borde ni blur. -->
-    <header class="sticky top-0 z-20 bg-canvas">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-12 flex items-center justify-between gap-4">
-        <a href="/" class="flex items-center gap-4 shrink-0">
-          <span class="text-base font-normal text-ink">CarFlip</span>
-          <span class="hidden lg:block text-base ">Comparador de autos Chile</span>
-        </a>
+    <!-- La barra se funde con el canvas: sin borde ni blur. El <header> reserva
+         en el flujo los 80px del estado expandido y la barra va `fixed`, así el
+         encogimiento al hacer scroll no empuja el contenido y no hay layout
+         shift. Los estados (compacta, oculta, menú abierto) son atributos sobre
+         #barra y se dibujan en global.css; los conmuta el script del final. -->
+    <header class="h-20 shrink-0">
+      <div id="barra" class="fixed inset-x-0 top-0 z-20 bg-canvas">
+        <div id="barra-fila" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+          <a href="/" class="flex items-baseline gap-4 shrink-0">
+            <span id="barra-marca" class="font-normal text-ink">CarFlip</span>
+            <span class="hidden lg:block text-base text-ink/70">Comparador de autos Chile</span>
+          </a>
 
-        <div class="flex items-center gap-3 sm:gap-4">
-          <nav aria-label="Navegación principal">
-            <ul class="flex gap-3 sm:gap-4 text-base text-ink">
-              {enlacesNav.map(({ href, texto, visible }) => (
-                <li class={visible}>
-                  <a
-                    href={href}
-                    aria-current={esRutaActiva(href) ? 'page' : undefined}
-                    class={esRutaActiva(href)
-                      ? 'text-ink underline underline-offset-4'
-                      : ' hover:text-ink transition-colors duration-150'}
-                  >
-                    {texto}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
+          <div class="flex items-center gap-3 sm:gap-4">
+            <!-- Una sola nav para ambos anchos: bajo md: se despliega bajo la
+                 barra, de ahí para arriba va en línea. -->
+            <nav
+              id="menu"
+              aria-label="Navegación principal"
+              class="absolute inset-x-0 top-full bg-canvas border-y border-line px-4 sm:px-6 md:static md:border-0 md:px-0"
+            >
+              <ul class="max-w-7xl mx-auto text-base divide-y divide-line md:flex md:gap-4 md:divide-y-0">
+                {enlacesNav.map(({ href, texto }) => (
+                  <li>
+                    <a
+                      href={href}
+                      aria-current={esRutaActiva(href) ? 'page' : undefined}
+                      class:list={[
+                        'block py-3 md:py-0',
+                        esRutaActiva(href)
+                          ? 'text-ink underline underline-offset-4'
+                          : 'text-ink/70 hover:text-ink transition-colors duration-200',
+                      ]}
+                    >
+                      {texto}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
 
-          <!-- Toggle de tema. El claro es el principal; se guarda la elección. -->
-          <button
-            type="button"
-            id="tema-toggle"
-            class="shrink-0 -mr-2 h-10 w-10 flex items-center justify-center hover:opacity-70 transition-opacity cursor-pointer"
-            aria-label="Cambiar a tema oscuro"
-          >
-            <svg class="text-sun-line dark:hidden" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="4" class="fill-sun-signal"/>
-              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
-            </svg>
-            <svg class="hidden text-moon-signal dark:block" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-            </svg>
-          </button>
+            <!-- Toggle de tema. El claro es el principal; se guarda la elección. -->
+            <button
+              type="button"
+              id="tema-toggle"
+              class="shrink-0 md:-mr-2 h-10 w-10 flex items-center justify-center hover:opacity-70 transition-opacity cursor-pointer"
+              aria-label="Cambiar a tema oscuro"
+            >
+              <svg class="text-sun-line dark:hidden" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" class="fill-sun-signal"/>
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+              </svg>
+              <svg class="hidden text-moon-signal dark:block" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            </button>
+
+            <!-- Hamburguesa: solo bajo md:, donde la nav vive plegada. Los dos
+                 glifos se alternan según `aria-expanded`, sin atributo extra. -->
+            <button
+              type="button"
+              id="menu-boton"
+              class="md:hidden shrink-0 -mr-2 h-10 w-10 flex items-center justify-center hover:opacity-70 transition-opacity cursor-pointer"
+              aria-label="Abrir menú"
+              aria-expanded="false"
+              aria-controls="menu"
+            >
+              <svg class="icono-abrir" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                <path d="M3 6h18M3 12h18M3 18h18"/>
+              </svg>
+              <svg class="icono-cerrar" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                <path d="M6 6l12 12M18 6L6 18"/>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </header>
@@ -174,7 +204,7 @@ function esRutaActiva(href: string): boolean {
             </p>
             <a
               href="/quienes-somos"
-              class="inline-block text-base text-ink-on-tint underline underline-offset-4 mt-element"
+              class="inline-flex text-base text-ink-on-tint underline underline-offset-4 mt-element"
             >
               Quiénes somos →
             </a>
@@ -231,6 +261,89 @@ function esRutaActiva(href: string): boolean {
         </div>
       </div>
     </footer>
+
+    <script is:inline nonce={Astro.locals.nonce}>
+      (() => {
+        const barra = document.getElementById('barra');
+        const boton = document.getElementById('menu-boton');
+        if (!barra || !boton) return;
+
+        // El panel precede al botón en el DOM, así que al abrirlo el foco se
+        // lleva a su primer enlace: si no, un Tab desde la hamburguesa saltaría
+        // por sobre el menú recién desplegado. Escape lo devuelve al botón.
+        const abrirMenu = (abierto) => {
+          barra.toggleAttribute('data-menu', abierto);
+          boton.setAttribute('aria-expanded', String(abierto));
+          boton.setAttribute('aria-label', abierto ? 'Cerrar menú' : 'Abrir menú');
+          if (abierto) document.querySelector('#menu a')?.focus();
+        };
+
+        boton.addEventListener('click', () => abrirMenu(!barra.hasAttribute('data-menu')));
+
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && barra.hasAttribute('data-menu')) {
+            abrirMenu(false);
+            boton.focus();
+          }
+        });
+
+        document.addEventListener('click', (e) => {
+          if (barra.hasAttribute('data-menu') && !barra.contains(e.target)) abrirMenu(false);
+        });
+
+        // Pasando a escritorio la nav vuelve a la barra, así que el estado del
+        // desplegable se limpia: si quedara puesto, bloquearía el retraerse.
+        matchMedia('(width >= 48rem)').addEventListener('change', (e) => {
+          if (e.matches) abrirMenu(false);
+        });
+
+        // Listener pasivo y un solo rAF por frame: el scroll nunca se bloquea.
+        const RECORRIDO = 80; // en cuántos px de scroll la barra termina de encoger
+        const UMBRAL = 24;    // cuánto hay que recorrer en un sentido para conmutar
+        const PISO = 160;     // desde dónde puede empezar a retraerse
+
+        let ultimo = window.scrollY;
+        let ancla = ultimo;
+        let bajando = false;
+        let pendiente = false;
+
+        const medir = () => {
+          pendiente = false;
+          const y = Math.max(0, window.scrollY);
+
+          // El encogimiento es continuo: `--p` mapea el scroll a un 0…1 y el
+          // CSS interpola alto y wordmark. Sin transición de por medio, así que
+          // la barra sigue al scroll en vez de animar por su cuenta.
+          barra.style.setProperty('--p', Math.min(y / RECORRIDO, 1).toFixed(3));
+
+          if (y === ultimo) return;
+
+          // El momentum y el rebote del trackpad invierten el sentido por uno o
+          // dos píxeles. Sin histéresis eso conmuta la barra en cada micro-
+          // cambio y se ve como un parpadeo. El ancla se reubica al cambiar de
+          // sentido y recién se conmuta tras recorrer UMBRAL en el nuevo.
+          const bajandoAhora = y > ultimo;
+          if (bajandoAhora !== bajando) {
+            bajando = bajandoAhora;
+            ancla = ultimo;
+          }
+          ultimo = y;
+
+          if (Math.abs(y - ancla) > UMBRAL) {
+            barra.toggleAttribute(
+              'data-oculta',
+              bajando && y > PISO && !barra.hasAttribute('data-menu'),
+            );
+          }
+        };
+        medir();
+        addEventListener('scroll', () => {
+          if (pendiente) return;
+          pendiente = true;
+          requestAnimationFrame(medir);
+        }, { passive: true });
+      })();
+    </script>
 
     <script is:inline nonce={Astro.locals.nonce}>
       (() => {

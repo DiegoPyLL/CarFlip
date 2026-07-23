@@ -1,0 +1,105 @@
+---
+// Precio por año: banda p25–p75 (área) + línea de mediana. Un solo eje Y de
+// precio (nunca doble). La baseline no es 0 —el precio no es un conteo— y se
+// declara con etiquetas de eje. SVG inline para las curvas; ejes y tooltips en
+// HTML. Columnas de hover invisibles dan el detalle por año sin JS.
+import type { PrecioAnio } from '@lib/db';
+import { formatearPrecio } from '@lib/formato';
+
+interface Props {
+  datos: PrecioAnio[];
+}
+const { datos } = Astro.props;
+
+const W = 100;
+const H = 60;
+const n = datos.length;
+
+const yMin = Math.min(...datos.map((d) => d.p25)) * 0.9;
+const yMax = Math.max(...datos.map((d) => d.p75)) * 1.05;
+const span = yMax - yMin || 1;
+
+const xAt = (i: number) => (n > 1 ? (i / (n - 1)) * W : W / 2);
+const yAt = (p: number) => H - ((p - yMin) / span) * H;
+
+const p75 = datos.map((d, i) => `${xAt(i).toFixed(2)},${yAt(d.p75).toFixed(2)}`);
+const p25 = datos.map((d, i) => `${xAt(i).toFixed(2)},${yAt(d.p25).toFixed(2)}`);
+const banda = [...p75, ...p25.reverse()].join(' ');
+const mediana = datos.map((d, i) => `${xAt(i).toFixed(2)},${yAt(d.mediana).toFixed(2)}`).join(' ');
+
+// Tres marcas de eje Y (arriba/medio/abajo) con su posición vertical en %.
+const ticks = [yMax, (yMax + yMin) / 2, yMin].map((v) => ({
+  valor: v,
+  top: ((H - ((v - yMin) / span) * H) / H) * 100,
+}));
+const compacto = (p: number) => `$${Math.round(p / 1e6)}M`;
+---
+<div class="p-element">
+  <div class="relative h-48">
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" class="absolute inset-0 w-full h-full" role="img" aria-label="Precio por año: banda p25–p75 y mediana">
+      {ticks.map((t) => (
+        <line
+          x1="0"
+          y1={yAt(t.valor).toFixed(2)}
+          x2={W}
+          y2={yAt(t.valor).toFixed(2)}
+          class="stroke-line"
+          stroke-width="1"
+          vector-effect="non-scaling-stroke"
+        />
+      ))}
+      <polygon points={banda} class="fill-viz-1/15" />
+      <polyline
+        points={mediana}
+        fill="none"
+        class="stroke-viz-1"
+        stroke-width="1.5"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+        vector-effect="non-scaling-stroke"
+      />
+    </svg>
+
+    <div class="absolute inset-0 pointer-events-none">
+      {ticks.map((t) => (
+        <span
+          class="absolute left-0 text-xs text-muted tabular-nums bg-canvas/80 px-1"
+          style={`top: ${t.top}%; transform: translateY(-50%)`}
+        >
+          {compacto(t.valor)}
+        </span>
+      ))}
+    </div>
+
+    <div class="absolute inset-0 flex" aria-hidden="true">
+      {datos.map((d) => (
+        <div
+          class="flex-1 hover:bg-surface/60"
+          title={`${d.anio}: mediana ${formatearPrecio(Math.round(d.mediana))} · p25 ${formatearPrecio(Math.round(d.p25))} – p75 ${formatearPrecio(Math.round(d.p75))}`}
+        />
+      ))}
+    </div>
+  </div>
+
+  <div class="flex justify-between mt-2 text-xs text-muted tabular-nums">
+    <span>{datos[0]?.anio}</span>
+    <span>Mediana ▬ · banda p25–p75</span>
+    <span>{datos[n - 1]?.anio}</span>
+  </div>
+
+  <table class="sr-only">
+    <caption>Precio por año</caption>
+    <thead><tr><th>Año</th><th>p25</th><th>Mediana</th><th>p75</th><th>Avisos</th></tr></thead>
+    <tbody>
+      {datos.map((d) => (
+        <tr>
+          <td>{d.anio}</td>
+          <td>{formatearPrecio(Math.round(d.p25))}</td>
+          <td>{formatearPrecio(Math.round(d.mediana))}</td>
+          <td>{formatearPrecio(Math.round(d.p75))}</td>
+          <td>{d.total}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>

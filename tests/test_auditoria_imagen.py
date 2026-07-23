@@ -12,7 +12,7 @@ módulos afectados, severidades y versiones de fix.
 Requiere el plugin Docker Scout (incluido en Docker Desktop), sesión iniciada
 en Docker Hub y la imagen construida:
 
-    docker build -t carflip:ci .
+    docker build -t carflip:ci -f docker/Dockerfile .
 
 Si Docker Desktop no está corriendo, el test intenta iniciarlo y espera a que
 el daemon responda antes de continuar.
@@ -67,7 +67,7 @@ def _requisito_faltante() -> str | None:
     if not _asegurar_docker_corriendo():
         return f"requiere Docker Desktop corriendo (no respondió tras {ESPERA_DOCKER_SEGUNDOS}s de espera)"
     if subprocess.run(["docker", "image", "inspect", IMAGEN], capture_output=True).returncode != 0:
-        return f"requiere la imagen construida: docker build -t {IMAGEN} ."
+        return f"requiere la imagen construida: docker build -t {IMAGEN} -f docker/Dockerfile ."
     if subprocess.run(["docker", "scout", "version"], capture_output=True).returncode != 0:
         return "requiere el plugin Docker Scout"
     return None
