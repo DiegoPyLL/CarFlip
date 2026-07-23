@@ -2,6 +2,7 @@
 import Base from '@layouts/Base.astro';
 import { rutaInterna, urlEntrar } from '@lib/auth/servidor';
 import { formatearFecha, formatearKm, formatearPrecio, signosDelta } from '@lib/formato';
+import { scriptJsonLd } from '@lib/jsonLd';
 import {
   obtenerAvisoPublico,
   telefonoDelVendedor,
@@ -104,7 +105,7 @@ const campoCls =
   urlImagen={portada ?? undefined}
   tipo="product"
 >
-  <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  <script is:inline nonce={Astro.locals.nonce} slot="head" type="application/ld+json" set:html={scriptJsonLd(jsonLd)} />
 
   <div class="max-w-4xl mx-auto">
     <a

@@ -9,6 +9,9 @@ interface ImportMetaEnv {
 
 declare namespace App {
   interface Locals {
+    // Nonce por request para la CSP: lo consume `Base.astro` en sus scripts
+    // `is:inline` y el middleware lo repite en la cabecera `script-src`.
+    nonce: string;
     // `null` solo si faltan las variables públicas de Supabase: el sitio
     // público sigue funcionando y la autenticación queda deshabilitada.
     supabase: import('@supabase/supabase-js').SupabaseClient | null;

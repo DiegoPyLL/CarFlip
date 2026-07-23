@@ -4,6 +4,7 @@ import CardAviso from '@components/avisos/CardAviso.astro';
 import FiltrosBarra from '@components/avisos/FiltrosBarra.astro';
 import FiltrosSidebar from '@components/avisos/FiltrosSidebar.astro';
 import Paginacion from '@components/avisos/Paginacion.astro';
+import AutoSubmit from '@components/AutoSubmit.astro';
 import { obtenerAvisos, obtenerFiltrosDisponibles } from '@lib/db';
 import { parsearFiltrosUrl } from '@lib/filtros';
 import { normalizarBusqueda } from '@lib/busqueda';
@@ -70,7 +71,7 @@ const ordenOptions = [
               id="orden"
               name="orden"
               aria-label="Ordenar por"
-              onchange="document.getElementById('filtros-form').submit()"
+              data-submits="filtros-form"
               class="text-base bg-canvas border border-line-strong px-3 py-2 text-ink appearance-none cursor-pointer focus:outline-hidden focus:border-scarlet-signal transition-colors"
             >
               {ordenOptions.map(({ value, label }) => (
@@ -119,4 +120,5 @@ const ordenOptions = [
     </div>
   </form>
 
+  <AutoSubmit />
 </Base>

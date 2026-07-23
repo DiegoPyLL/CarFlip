@@ -1,5 +1,6 @@
 ---
 import Base from '@layouts/Base.astro';
+import AutoSubmit from '@components/AutoSubmit.astro';
 import { obtenerDatosMercado } from '@lib/db';
 import { parsearFiltrosUrl } from '@lib/filtros';
 import { formatearPrecio } from '@lib/formato';
@@ -46,7 +47,7 @@ const pistaCls   = 'h-px w-full bg-line overflow-hidden';
   </div>
 
   <!-- Filtro de fuente -->
-  <form method="GET" action="/mercado" class="mb-block">
+  <form method="GET" action="/mercado" class="mb-block" data-autosubmit>
     <fieldset class="flex flex-wrap items-center gap-element">
       <legend class="sr-only">Fuente</legend>
       <span class="text-sm  uppercase tracking-wider shrink-0" aria-hidden="true">Fuente</span>
@@ -59,7 +60,6 @@ const pistaCls   = 'h-px w-full bg-line overflow-hidden';
               value={value}
               class="sr-only peer"
               checked={fuente === value || (!fuente && value === '')}
-              onchange="this.form.submit()"
             />
             <span class="block px-3 py-2 text-base border border-line-strong  peer-checked:bg-ink peer-checked:text-canvas peer-checked:border-ink peer-focus-visible:border-scarlet-signal hover:border-ink hover:text-ink transition-colors whitespace-nowrap">
               {label}
@@ -215,4 +215,5 @@ const pistaCls   = 'h-px w-full bg-line overflow-hidden';
     </div>
   </div>
 
+  <AutoSubmit />
 </Base>
