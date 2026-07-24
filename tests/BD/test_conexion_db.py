@@ -1,7 +1,7 @@
 """Tests de integración: verifica conectividad a la base de datos por tres vías.
 
 Requieren variables de entorno reales. Se saltan automáticamente si no están disponibles.
-Ejecutar con: pytest -m integration -v tests/test_conexion_db.py
+Ejecutar con: pytest -m integration -v tests/BD/test_conexion_db.py
 """
 
 import os

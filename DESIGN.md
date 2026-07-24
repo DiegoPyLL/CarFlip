@@ -356,15 +356,25 @@ Carrusel horizontal de `scroll-snap` (`snap-x snap-mandatory`) con las fotos a `
 
 ### Bloque de contacto
 
-Cierra el detalle de un aviso de particular, tras `border-t border-line`. Tiene tres estados y el servidor decide cuál pinta:
+Cierra el detalle de un aviso de particular, tras `border-t border-line`. **Tener sesión es la única condición**: el teléfono se pinta al abrir el aviso, sin un clic intermedio que lo pida. El servidor decide entre tres estados:
 
 | Estado             | Qué se ve                                                                 |
 | ------------------ | ------------------------------------------------------------------------- |
-| Anónimo            | CTA que lleva a `/entrar?volver=…`. El teléfono no está en el HTML         |
-| Con sesión         | CTA "Ver el teléfono del vendedor" (POST) y el aviso de que el vendedor verá el interés |
-| Ya revelado        | Nombre en `text-2xl`, número en `text-3xl sm:text-5xl tabular-nums`, y los botones Llamar y WhatsApp |
+| Con sesión         | Nombre en `text-2xl`, número en `text-3xl sm:text-5xl tabular-nums`, y los botones Escribir por WhatsApp y Llamar |
+| Anónimo            | La misma composición con el número enmascarado (`+56 9 •••• ••••`, `aria-hidden`) y el CTA a `/entrar?volver=…`. El teléfono no está en el HTML |
+| Sin cupo / sin dato | La misma composición con un bloque `role="alert"` de borde `scarlet-signal` en lugar del CTA: el tope de 25 al día, un error de registro o un vendedor que aún no cargó su teléfono (único caso sin máscara, porque no hay número que enmascarar) |
 
-El número escala recién en `sm:` porque sus 14 caracteres a `text-5xl` se salen de una pantalla de 320px. El teléfono nunca se renderiza oculto: si no corresponde mostrarlo, no llega al HTML — tampoco al JSON-LD, cuyo `seller` va sin nombre ni número.
+El número escala recién en `sm:` porque sus 14 caracteres a `text-5xl` se salen de una pantalla de 320px. El teléfono nunca se renderiza oculto: si no corresponde mostrarlo, no llega al HTML — tampoco al JSON-LD, cuyo `seller` va sin nombre ni número. La máscara del estado anónimo no lleva un solo dígito real; está para mostrar, en el tamaño exacto en que aparecerá, qué es lo que falta.
+
+### Insistencia con el visitante anónimo
+
+`CtaContacto` es el bloque —título, botón a `/entrar` y enlace a `/registro`— que el detalle de un particular repite **tres veces** para quien no tiene sesión, porque el contacto es lo único que la página no entrega y esa condición tiene que estar donde el lector la busque:
+
+1. **Cabecera**, en el botón de la columna derecha: `Inicia sesión para ver el teléfono` en vez de `Ver teléfono y WhatsApp`.
+2. **Bloque de contacto**, bajo el número enmascarado.
+3. **Cierre de página**, tras el `<details>` de reporte, para quien bajó del todo y ya perdió de vista el bloque.
+
+Los tres enlaces van `rel="nofollow"`: `/entrar` y `/registro` son `noindex` y no deben repartir señal desde una página indexable.
 
 ### Señales de variación de precio
 

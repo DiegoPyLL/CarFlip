@@ -10,10 +10,11 @@ export default defineConfig({
   // El default 'jsx' de Astro 7 colapsa espacios entre elementos inline y altera el texto renderizado.
   compressHTML: true,
   integrations: [
-    // Las páginas de sesión y de cuenta son `noindex`: listarlas en el sitemap
-    // sería contradictorio para los rastreadores.
+    // Las páginas de sesión, de cuenta y de error son `noindex`: listarlas en el
+    // sitemap sería contradictorio para los rastreadores.
     sitemap({
-      filter: (page) => !['/dashboard', '/entrar', '/registro', '/cuenta'].some((r) => page.includes(r)),
+      filter: (page) =>
+        !['/dashboard', '/entrar', '/registro', '/cuenta', '/403', '/500'].some((r) => page.includes(r)),
     }),
   ],
   vite: {

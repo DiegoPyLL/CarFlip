@@ -1,5 +1,5 @@
 import { supabase, POR_PAGINA } from './client';
-import { FUENTES, FUENTES_SCRAPEADAS, TABLA_POR_FUENTE, soloPublicados } from './fuentes';
+import { FUENTES, TABLA_POR_FUENTE, soloPublicados } from './fuentes';
 import type { Aviso, FiltrosAviso, PaginaResultado, FiltrosDisponibles } from '../tipos';
 
 type RawAviso = {
@@ -122,16 +122,13 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
 }
 
 /**
- * Escaneo por id sobre las tablas scrapeadas. Los particulares quedan fuera a
- * propósito: las secuencias son independientes por tabla, así que dos fuentes
- * pueden compartir id, y por eso tienen su propia ruta `/auto/p/[id]`.
+ * Un aviso por su par `(fuente, id)`. Hace falta la fuente: las secuencias son
+ * independientes por tabla, así que el mismo id existe en varias y buscar solo
+ * por id devolvía el auto de otro portal.
  */
-export async function obtenerAviso(id: number): Promise<Aviso | null> {
-  for (const fuente of FUENTES_SCRAPEADAS) {
-    const { data } = await supabase.from(TABLA_POR_FUENTE[fuente]).select('*').eq('id', id).maybeSingle();
-    if (data) return mapearAviso(data as RawAviso, fuente);
-  }
-  return null;
+export async function obtenerAviso(fuente: Aviso['fuente'], id: number): Promise<Aviso | null> {
+  const { data } = await desde(fuente, '*').eq('id', id).maybeSingle();
+  return data ? mapearAviso(data as RawAviso, fuente) : null;
 }
 
 export async function obtenerFiltrosDisponibles(): Promise<FiltrosDisponibles> {

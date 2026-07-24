@@ -10,7 +10,7 @@ import {
   puedeCrearAviso,
   puedeRevelarContacto,
   puedeSubirFoto,
-} from '../src/lib/publicaciones/limites';
+} from '../../src/lib/publicaciones/limites';
 
 describe('puedeCrearAviso', () => {
   it('permite publicar bajo ambos topes', () => {

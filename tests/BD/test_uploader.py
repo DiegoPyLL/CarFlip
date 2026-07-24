@@ -3,10 +3,10 @@
 El valor del uploader está en el SQL: el ON CONFLICT que detecta cambios de
 precio y el loteo que respeta el límite de parámetros de Postgres. Nada de eso
 se puede verificar con un mock, así que corren contra una BD real levantada
-para el test. Ver `sesion_bd` en conftest.py.
+para el test. Ver `sesion_bd` en tests/conftest.py.
 
 Ejecutar con:
-    CARFLIP_TEST_DATABASE_URL=postgresql+asyncpg://... pytest -m integration tests/test_uploader.py
+    CARFLIP_TEST_DATABASE_URL=postgresql+asyncpg://... pytest -m integration tests/BD/test_uploader.py
 """
 
 from decimal import Decimal
@@ -19,7 +19,7 @@ from carflip.database.models import AutocosmosListing
 from carflip.database.uploader import _MAX_PARAMETROS_POSTGRES, upsert_avisos
 from carflip.scrapers.base import AvisoAuto
 
-from .conftest import requiere_bd
+from ..conftest import requiere_bd
 
 
 def _aviso(id_externo: str, precio: int | None = 8_500_000, **extra) -> AvisoAuto:

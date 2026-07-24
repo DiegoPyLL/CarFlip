@@ -6,7 +6,7 @@ idempotente sobre (source, started_at) —el workflow puede reprocesar el mismo
 reporte— y que un reporte malformado no tumbe la corrida.
 
 Ejecutar con:
-    CARFLIP_TEST_DATABASE_URL=postgresql+asyncpg://... pytest -m integration tests/test_metricas.py
+    CARFLIP_TEST_DATABASE_URL=postgresql+asyncpg://... pytest -m integration tests/BD/test_metricas.py
 """
 
 from datetime import datetime, timezone
@@ -17,7 +17,7 @@ from sqlalchemy import func, select
 from carflip.database.metricas import _parsear_fecha, guardar_run_report
 from carflip.database.models import RunFailLog, ScrapedRun
 
-from .conftest import requiere_bd
+from ..conftest import requiere_bd
 
 _TIMESTAMP = "2026-07-23T10:00:00+00:00"
 

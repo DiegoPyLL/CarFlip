@@ -5,7 +5,7 @@ unión de las cinco fuentes, así que la verificación honesta es sembrar avisos
 con valores conocidos en una BD real y comparar la fila resultante.
 
 Ejecutar con:
-    CARFLIP_TEST_DATABASE_URL=postgresql+asyncpg://... pytest -m integration tests/test_snapshot.py
+    CARFLIP_TEST_DATABASE_URL=postgresql+asyncpg://... pytest -m integration tests/BD/test_snapshot.py
 """
 
 import uuid
@@ -25,7 +25,7 @@ from carflip.database.models import (
 )
 from carflip.database.snapshot import snapshot_market
 
-from .conftest import requiere_bd
+from ..conftest import requiere_bd
 
 
 def _listing(modelo, id_externo: str, precio: int | None, **extra):

@@ -1,15 +1,12 @@
 ---
+import CtaContacto from '@components/avisos/CtaContacto.astro';
 import PosicionMercado from '@components/avisos/PosicionMercado.astro';
 import Base from '@layouts/Base.astro';
 import { rutaInterna, urlEntrar } from '@lib/auth/servidor';
 import { formatearFecha, formatearKm, formatearPrecio, signosDelta } from '@lib/formato';
 import { scriptJsonLd } from '@lib/jsonLd';
-import {
-  obtenerAvisoPublico,
-  telefonoDelVendedor,
-  yaReveloContacto,
-} from '@lib/publicaciones/consultas';
-import { mensajeDeError } from '@lib/publicaciones/limites';
+import { obtenerAvisoPublico, revelarContacto } from '@lib/publicaciones/consultas';
+import { MENSAJE_ERROR, mensajeDeError } from '@lib/publicaciones/limites';
 import { MOTIVOS_REPORTE } from '@lib/publicaciones/opciones';
 
 // El parámetro admite un sufijo de slug (`123-toyota-yaris-2018`) para poder
@@ -26,24 +23,45 @@ if (!aviso) return Astro.rewrite('/404');
 const usuario = Astro.locals.usuario;
 const supabase = Astro.locals.supabase;
 const ruta = `/auto/p/${aviso.id}`;
+const urlAbsoluta = new URL(ruta, Astro.site ?? Astro.url.origin).href;
 
-// El teléfono solo se busca si este usuario ya lo reveló. El visitante anónimo
-// —todo el tráfico indexable— no paga ninguna consulta extra, y el número no
-// llega siquiera al HTML que ve un rastreador.
-const revelado = Boolean(usuario && supabase && (await yaReveloContacto(supabase, aviso.id, usuario.id)));
-const contacto = revelado ? await telefonoDelVendedor(aviso.id) : null;
+// Tener sesión es la única condición para ver al vendedor: el teléfono se pinta
+// al abrir el aviso, sin un clic intermedio. El visitante anónimo —todo el
+// tráfico indexable— no paga ninguna consulta extra, y el número no llega
+// siquiera al HTML que ve un rastreador.
+//
+// Recargar no gasta cupo: se paga una vez por aviso, no una por visita. Pero
+// esto escribe durante un GET, así que si alguna vez se activa el `prefetch` de
+// Astro hay que excluir esta ruta: un enlace precargado revelaría por su cuenta.
+const revelacion = usuario && supabase ? await revelarContacto(supabase, aviso.id, usuario.id) : null;
+const contacto = revelacion?.estado === 'ok' ? revelacion.contacto : null;
+
+// Un documento con un teléfono dentro no debe quedar en ninguna caché
+// compartida: la misma URL le responde otra cosa a cada sesión.
+if (contacto) Astro.response.headers.set('Cache-Control', 'private, no-store');
+
+// El enlace lleva la URL del aviso en el texto: el vendedor recibe el mensaje
+// en su teléfono sabiendo de cuál de sus autos le hablan.
 const textoWhatsapp = encodeURIComponent(
-  `Hola, vi tu ${aviso.titulo} publicado en CarFlip. ¿Sigue disponible?`,
+  `Hola, vi tu ${aviso.titulo} en CarFlip (${urlAbsoluta}). ¿Sigue disponible?`,
 );
 
 const volver = rutaInterna(Astro.url.searchParams.get('back'), '/avisos');
 const mensajeError = mensajeDeError(Astro.url.searchParams.get('error'));
 const reportado = Astro.url.searchParams.has('reportado');
 
+// Los tres estados con sesión en los que no hay teléfono que mostrar. Ninguno
+// vuelve al CTA de entrar: quien ya entró no tiene nada más que hacer ahí.
+const SIN_CONTACTO: Record<'sin_telefono' | 'tope' | 'error', string> = {
+  sin_telefono: 'Este vendedor todavía no ha cargado su teléfono.',
+  tope: MENSAJE_ERROR.tope_revelaciones,
+  error: MENSAJE_ERROR.servidor,
+};
+const avisoSinContacto = revelacion && revelacion.estado !== 'ok' ? SIN_CONTACTO[revelacion.estado] : null;
+
 const delta = signosDelta(aviso.delta_pct);
 const fotos = aviso.fotos;
 const portada = fotos[0]?.url ?? aviso.url_imagen;
-const urlAbsoluta = new URL(ruta, Astro.site ?? Astro.url.origin).href;
 
 const descripcionPage = [
   aviso.titulo,
@@ -196,12 +214,12 @@ const campoCls =
           ))}
         </dl>
 
-        <a
-          href="#contacto"
-          class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-3 hover:bg-ink hover:text-canvas transition-colors duration-150"
-        >
+        <!-- Primera de las tres apariciones del contacto: con sesión baja al
+             bloque, sin ella lleva a entrar. Un anónimo no llega a pensar que
+             el botón le va a dar el número. -->
+        <a href={usuario ? '#contacto' : urlEntrar(ruta)} rel={usuario ? undefined : 'nofollow'} class={botonCls}>
           <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
-          Contactar al vendedor
+          {usuario ? 'Ver teléfono y WhatsApp' : 'Inicia sesión para ver el teléfono'}
         </a>
 
         <div class="text-sm space-y-1 mt-element">
@@ -220,8 +238,8 @@ const campoCls =
       </div>
     )}
 
-    <!-- Contacto: el teléfono lo pinta el servidor solo a quien ya lo reveló.
-         Sin sesión no está en el HTML, ni siquiera oculto. -->
+    <!-- Contacto: el teléfono lo pinta el servidor a cualquier lector con
+         sesión. Sin sesión no está en el HTML, ni siquiera oculto. -->
     <section id="contacto" class="mt-section pt-block border-t border-line scroll-mt-16">
       <h2 class="text-base uppercase tracking-wider mb-element">Contacto</h2>
 
@@ -243,43 +261,52 @@ const campoCls =
           <!-- El número mide 14 caracteres: a text-5xl se sale de una pantalla
                de 320px, así que escala recién en sm. -->
           <p class="text-3xl sm:text-5xl text-ink tabular-nums leading-none mt-element">{contacto.telefono}</p>
+          <!-- WhatsApp va primero: es el canal por el que de verdad se
+               contesta, y el enlace llega con el mensaje ya escrito. -->
           <div class="flex flex-wrap gap-element mt-block">
-            <a href={contacto.tel} class={botonCls}>
-              <span class="w-1.5 h-1.5 bg-scarlet-signal" aria-hidden="true"></span>
-              Llamar
-            </a>
             <a
               href={`${contacto.whatsapp}?text=${textoWhatsapp}`}
               target="_blank"
               rel="noopener noreferrer"
               class={botonCls}
             >
-              WhatsApp
+              <span class="w-1.5 h-1.5 bg-scarlet-signal" aria-hidden="true"></span>
+              Escribir por WhatsApp
               <span aria-hidden="true">→</span>
             </a>
+            <a href={contacto.tel} class={botonCls}>Llamar</a>
           </div>
-        </div>
-      ) : usuario ? (
-        <form method="POST" action={`/api/publicacion/${aviso.id}/contacto`} class="max-w-md">
-          <input type="hidden" name="volver" value={ruta} />
-          <button type="submit" class={botonCls}>
-            <span class="w-1.5 h-1.5 bg-scarlet-signal" aria-hidden="true"></span>
-            Ver el teléfono del vendedor
-          </button>
           <p class="text-base leading-relaxed mt-element">
-            El vendedor verá cuántas personas pidieron su contacto.
+            El mensaje se envía con el aviso al que se refiere. El vendedor ve cuántas personas
+            pidieron su contacto.
           </p>
-        </form>
+        </div>
       ) : (
         <div class="max-w-md">
-          <a href={urlEntrar(ruta)} rel="nofollow" class={botonCls}>
-            <span class="w-1.5 h-1.5 bg-scarlet-signal" aria-hidden="true"></span>
-            Inicia sesión para ver el contacto
-          </a>
-          <p class="text-base leading-relaxed mt-element">
-            Pedimos sesión para que los teléfonos de quienes publican no terminen en manos de un
-            robot.
-          </p>
+          <p class="text-2xl text-ink">Vendedor particular</p>
+
+          <!-- La máscara no lleva un solo dígito real: está para mostrar qué es
+               exactamente lo que falta, en el tamaño en que va a aparecer. Con
+               un vendedor sin teléfono cargado no hay nada que enmascarar. -->
+          {revelacion?.estado !== 'sin_telefono' && (
+            <p class="text-3xl sm:text-5xl tabular-nums leading-none mt-element" aria-hidden="true">
+              +56 9 •••• ••••
+            </p>
+          )}
+
+          {avisoSinContacto ? (
+            <div class="mt-block px-6 py-2.5 border border-scarlet-signal text-base text-ink leading-relaxed" role="alert">
+              {avisoSinContacto}
+            </div>
+          ) : (
+            <div class="mt-block">
+              <CtaContacto
+                ruta={ruta}
+                titulo="El teléfono y el WhatsApp de este vendedor están a un clic."
+                detalle="Pedimos sesión para que los números de quienes publican no terminen en manos de un robot."
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -307,5 +334,17 @@ const campoCls =
         </form>
       </details>
     </section>
+
+    <!-- Tercera y última insistencia, para quien llegó al final del aviso sin
+         sesión: el bloque de contacto ya quedó arriba, fuera de pantalla. -->
+    {!usuario && (
+      <div class="mt-section pt-block border-t border-line">
+        <CtaContacto
+          ruta={ruta}
+          titulo="Este auto lo vende un particular: con la sesión abierta ves su teléfono aquí mismo."
+          detalle="Hablas directo con el dueño del auto, sin intermediarios."
+        />
+      </div>
+    )}
   </div>
 </Base>

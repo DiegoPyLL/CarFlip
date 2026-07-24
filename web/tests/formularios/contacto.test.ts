@@ -10,7 +10,7 @@ function crearRequest(campos: Record<string, string>): Request {
 
 async function importarPOST() {
   vi.resetModules();
-  const modulo = await import('../src/pages/api/contacto');
+  const modulo = await import('../../src/pages/api/contacto');
   return modulo.POST;
 }
 

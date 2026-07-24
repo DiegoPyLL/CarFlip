@@ -17,5 +17,5 @@ Todos los precios están en pesos chilenos (CLP) y el contenido está en españo
 
 ## Secciones dinámicas
 
-- Detalle de aviso (`https://carflip.cl/auto/{id}`): ficha de un auto con precio, kilometraje, año, combustible, ubicación, imágenes y enlace al aviso original en el portal de origen.
+- Detalle de aviso (`https://carflip.cl/auto/{fuente}-{id}`): ficha de un auto con precio, kilometraje, año, combustible, ubicación, imágenes y enlace al aviso original en el portal de origen.
 - Marca (`https://carflip.cl/marcas/{marca}`): avisos, precio promedio y modelos disponibles de una marca específica en Chile.

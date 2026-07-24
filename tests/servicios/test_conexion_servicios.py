@@ -1,9 +1,9 @@
 """Tests de integración: cada servicio externo del .env existe, conecta y responde.
 
-Complementa a `test_conexion_db.py`, que cubre Postgres y la REST API de Supabase.
-Aquí se verifican Cloudflare R2, el CDN público y Groq.
+Complementa a `tests/BD/test_conexion_db.py`, que cubre Postgres y la REST API
+de Supabase. Aquí se verifican Cloudflare R2, el CDN público y Groq.
 
-Ejecutar con: pytest -m integration -v tests/test_conexion_servicios.py
+Ejecutar con: pytest -m integration -v tests/servicios/test_conexion_servicios.py
 """
 
 import asyncio

@@ -16,7 +16,9 @@ export const LIMITES = {
   creacionesPor24h: 3,
   fotosPorAviso: 10,
   bytesPorFoto: 2 * 1024 * 1024,
-  revelacionesPorDia: 20,
+  // Se consume al abrir un aviso, no al pedir el teléfono: tiene que dar para
+  // una tarde de búsqueda y seguir cortándole el paso a quien recolecta números.
+  revelacionesPorDia: 25,
   /** Días sin actualizar tras los cuales un aviso pasa a `pausado`. */
   diasHastaExpirar: 60,
 } as const;
@@ -46,7 +48,7 @@ export const MENSAJE_ERROR: Record<MotivoError, string> = {
   tope_fotos: `Cada aviso admite hasta ${LIMITES.fotosPorAviso} fotos.`,
   foto_pesada: 'Cada foto debe pesar menos de 2 MB.',
   formato_foto: 'Formato no admitido: usa JPG, PNG o WebP.',
-  tope_revelaciones: `Alcanzaste el máximo de ${LIMITES.revelacionesPorDia} contactos por día.`,
+  tope_revelaciones: `Viste ${LIMITES.revelacionesPorDia} teléfonos en las últimas 24 horas, el máximo por día. Cada uno libera su cupo al cumplir las 24 horas, así que en un rato podrás ver este.`,
   email_sin_confirmar: 'Confirma tu correo antes de publicar. Revisa el mensaje que te enviamos.',
   perfil_incompleto: 'Completa tu nombre y teléfono en tu cuenta antes de publicar.',
   confirmacion: `Escribe ${PALABRA_ELIMINAR} para confirmar que quieres borrar tu cuenta.`,

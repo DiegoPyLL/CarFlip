@@ -11,6 +11,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { supabase as servicio } from '@lib/db/client';
 
+import { puedeRevelarContacto } from './limites';
 import type { EstadoAviso } from './opciones';
 
 export const TABLA_AVISOS = 'particulares_listings';
@@ -84,6 +85,13 @@ export interface ContactoVendedor {
   /** Base de wa.me sin el mensaje: quien la use le añade `?text=`. */
   whatsapp: string;
 }
+
+/** Lo que corresponde pintar en el bloque de contacto de un aviso. */
+export type ResultadoContacto =
+  | { estado: 'ok'; contacto: ContactoVendedor }
+  | { estado: 'sin_telefono' }
+  | { estado: 'tope' }
+  | { estado: 'error' };
 
 const CAMPOS_AVISO =
   'id,titulo,marca,modelo,version,anio,km,precio,combustible,transmision,ubicacion,descripcion,url_imagen,estado,vistas,publicado_en,actualizado_en';
@@ -257,6 +265,41 @@ export async function yaReveloContacto(
       .eq('usuario_id', usuarioId),
   );
   return total > 0;
+}
+
+/**
+ * Contacto del vendedor para un lector con sesión, registrando la revelación.
+ *
+ * El teléfono aparece con solo abrir el aviso: tener sesión es la única
+ * condición, no hay un segundo clic que dar. La revelación se registra igual
+ * porque es lo que alimenta el contador de interés del vendedor y el tope
+ * diario, que es la barrera real contra una cuenta que recorra el listado
+ * juntando números. Volver al mismo aviso no gasta cupo ni duplica el registro.
+ *
+ * Si el registro falla no se entrega el teléfono: sin auditoría no hay tope.
+ */
+export async function revelarContacto(
+  supabase: SupabaseClient,
+  avisoId: number,
+  usuarioId: string,
+): Promise<ResultadoContacto> {
+  const contacto = await telefonoDelVendedor(avisoId);
+  if (!contacto) return { estado: 'sin_telefono' };
+
+  if (await yaReveloContacto(supabase, avisoId, usuarioId)) return { estado: 'ok', contacto };
+
+  if (puedeRevelarContacto(await contarRevelacionesHoy(supabase, usuarioId))) return { estado: 'tope' };
+
+  const { error } = await supabase
+    .from(TABLA_REVELACIONES)
+    .insert({ aviso_id: avisoId, usuario_id: usuarioId });
+
+  if (error) {
+    console.error('No se pudo registrar la revelación de contacto:', error.message);
+    return { estado: 'error' };
+  }
+
+  return { estado: 'ok', contacto };
 }
 
 /**

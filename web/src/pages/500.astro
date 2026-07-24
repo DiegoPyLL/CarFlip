@@ -1,0 +1,21 @@
+---
+import PaginaError from '@layouts/PaginaError.astro';
+
+// Astro renderiza esta página ante cualquier error no capturado del servidor,
+// incluidos los del propio middleware. Por eso no consulta la base de datos ni
+// depende de `Astro.locals`: si fallara también ella, la respuesta quedaría en
+// manos de Vercel. El detalle del fallo llega en `Astro.props.error` y se deja
+// deliberadamente sin mostrar: puede filtrar rutas, consultas o credenciales, y
+// ya queda registrado en los logs del servidor.
+---
+
+<PaginaError
+  codigo={500}
+  titulo="Error del servidor"
+  descripcion="Algo falló de nuestro lado al preparar esta página."
+  encabezado="Algo se rompió de nuestro lado."
+  accion={{ href: '/', texto: 'Volver al inicio' }}
+>
+  No es culpa tuya. Vuelve a intentarlo en unos minutos y, si el problema sigue,
+  <a href="/contacto" class="underline underline-offset-4">cuéntanos qué estabas buscando</a>.
+</PaginaError>

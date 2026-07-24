@@ -1,0 +1,18 @@
+---
+import PaginaError from '@layouts/PaginaError.astro';
+
+// El middleware reescribe aquí las rutas de administración cuando la sesión no
+// tiene el rol: la URL se conserva y la respuesta va con estado 403. Quien
+// llega sin sesión no ve esta página, porque antes se le redirige a /entrar.
+---
+
+<PaginaError
+  codigo={403}
+  titulo="Acceso restringido"
+  descripcion="Tu cuenta no tiene permisos para ver esta página."
+  encabezado="No tienes acceso a esta página."
+  accion={{ href: '/cuenta', texto: 'Ir a mi cuenta' }}
+>
+  Esta sección está reservada al equipo de CarFlip. Si crees que deberías poder verla,
+  <a href="/contacto" class="underline underline-offset-4">escríbenos</a>.
+</PaginaError>

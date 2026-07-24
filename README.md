@@ -81,9 +81,9 @@ La quinta fuente no la alimenta ningún scraper: son avisos que publican persona
 
 El **rol de administrador** no es una columna: viaja en `app_metadata` del JWT, que solo escribe el servidor de Supabase. Se otorga en **Supabase → Authentication → Users → *usuario* → `app_metadata` = `{"rol":"admin"}`**. Sin él, `/dashboard` redirige a la home y las políticas `*_admin` no devuelven nada.
 
-**Anti-abuso** (la publicación es inmediata, sin cola de revisión): correo confirmado y perfil completo para publicar, 5 avisos activos, 3 creaciones por 24 h, 10 fotos de 2 MB por aviso y 20 revelaciones de contacto al día. Los topes están en `web/src/lib/publicaciones/limites.ts`. La defensa reactiva es la bandeja de reportes de `/dashboard`, desde donde se despublica un aviso.
+**Anti-abuso** (la publicación es inmediata, sin cola de revisión): correo confirmado y perfil completo para publicar, 5 avisos activos, 3 creaciones por 24 h, 10 fotos de 2 MB por aviso y 25 revelaciones de contacto al día —que ahora se consumen al abrir el aviso, no al pedir el teléfono—. Los topes están en `web/src/lib/publicaciones/limites.ts`. La defensa reactiva es la bandeja de reportes de `/dashboard`, desde donde se despublica un aviso.
 
-**El teléfono nunca sale en el HTML público:** se muestra solo a un usuario con sesión que lo pide explícitamente, y cada revelación queda registrada.
+**El teléfono nunca sale en el HTML público:** tener sesión es la única condición para verlo —aparece al abrir el aviso, sin un clic intermedio— y cada revelación queda registrada. Al visitante anónimo no le llega el número ni oculto: en su lugar ve la máscara `+56 9 •••• ••••` y la invitación a entrar, que el detalle repite tres veces.
 
 ---
 
@@ -266,7 +266,7 @@ uv sync                                            # instalar/actualizar depende
 alembic upgrade head                               # aplicar migraciones
 alembic revision --autogenerate -m "descripcion"  # nueva migración
 pytest                                             # correr tests
-pytest -x -v tests/test_price_tracker.py          # test específico
+pytest -x -v tests/BD/test_price_tracker.py       # test específico
 ```
 
 ### Agregar un nuevo scraper

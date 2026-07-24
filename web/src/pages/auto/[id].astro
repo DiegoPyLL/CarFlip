@@ -3,16 +3,19 @@ import PosicionMercado from '@components/avisos/PosicionMercado.astro';
 import Base from '@layouts/Base.astro';
 import { resolverUrlImagen } from '@lib/cdn';
 import { obtenerAviso } from '@lib/db';
+import { parsearRefAviso } from '@lib/enlaces';
 import { formatearPrecio, formatearKm, formatearFecha, signosDelta } from '@lib/formato';
 import { scriptJsonLd } from '@lib/jsonLd';
 
-const { id } = Astro.params;
-const idNum = parseInt(id ?? '');
+// El parámetro es el par `fuente-id` (`yapo-757`): el id solo no alcanza,
+// porque cada tabla tiene su propia secuencia y lo repite.
+const ref = parsearRefAviso(Astro.params.id ?? '');
+if (!ref) return Astro.rewrite('/404');
 
-if (isNaN(idNum)) return Astro.redirect('/404');
+const aviso = await obtenerAviso(ref.fuente, ref.id);
+if (!aviso) return Astro.rewrite('/404');
 
-const aviso = await obtenerAviso(idNum);
-if (!aviso) return Astro.redirect('/404');
+const ruta = `/auto/${ref.fuente}-${ref.id}`;
 
 const backRaw = Astro.url.searchParams.get('back') ?? '/';
 const urlVolver = backRaw.startsWith('/') && !backRaw.startsWith('//') ? backRaw : '/';
@@ -58,7 +61,7 @@ const jsonLd = {
 <Base
   titulo={`${titulo} — CarFlip`}
   descripcion={descripcionPage}
-  urlCanonica={Astro.url.href}
+  urlCanonica={ruta}
   urlImagen={urlImagen ?? undefined}
   tipo="product"
 >

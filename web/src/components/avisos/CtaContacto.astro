@@ -1,0 +1,38 @@
+---
+/**
+ * Llamada a iniciar sesión para ver el contacto de un vendedor particular.
+ *
+ * Se repite en el detalle del aviso —cabecera, bloque de contacto y cierre—
+ * porque el teléfono es lo único que la página no le entrega a un visitante
+ * anónimo: esa condición tiene que estar donde el lector la busque, no en un
+ * solo sitio que haya que ir a encontrar.
+ */
+import { urlEntrar } from '@lib/auth/servidor';
+
+interface Props {
+  /** Ruta a la que se vuelve tras entrar. */
+  ruta: string;
+  titulo: string;
+  detalle: string;
+}
+
+const { ruta, titulo, detalle } = Astro.props;
+---
+
+<div class="max-w-md">
+  <p class="text-base text-ink mb-element">{titulo}</p>
+  <a
+    href={urlEntrar(ruta)}
+    rel="nofollow"
+    class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-3 hover:bg-ink hover:text-canvas transition-colors duration-150"
+  >
+    <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+    Inicia sesión para ver el teléfono
+  </a>
+  <p class="text-base leading-relaxed mt-element">
+    {detalle}{' '}
+    <a href="/registro" rel="nofollow" class="text-ink underline underline-offset-4">
+      Crea una cuenta gratis
+    </a>: toma menos de un minuto.
+  </p>
+</div>

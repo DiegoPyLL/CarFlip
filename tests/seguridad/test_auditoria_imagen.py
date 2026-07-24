@@ -17,7 +17,7 @@ en Docker Hub y la imagen construida:
 Si Docker Desktop no está corriendo, el test intenta iniciarlo y espera a que
 el daemon responda antes de continuar.
 
-Ejecutar con: pytest -m integration -v tests/test_auditoria_imagen.py
+Ejecutar con: pytest -m integration -v tests/seguridad/test_auditoria_imagen.py
 """
 
 import json

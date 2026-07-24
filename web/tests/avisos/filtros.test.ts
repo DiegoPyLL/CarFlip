@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { FUENTES } from '../src/lib/db/fuentes';
-import { parsearFiltrosUrl } from '../src/lib/filtros';
+import { FUENTES } from '../../src/lib/db/fuentes';
+import { parsearFiltrosUrl } from '../../src/lib/filtros';
 
 const filtrosDe = (query: string) => parsearFiltrosUrl(new URLSearchParams(query));
 

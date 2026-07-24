@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { escaparHtml, normalizar, normalizarTelefonoCL } from '../src/lib/sanitizar';
+import { escaparHtml, normalizar, normalizarTelefonoCL } from '../../src/lib/sanitizar';
 
 describe('normalizar', () => {
   it('colapsa espacios y recorta al máximo indicado', () => {

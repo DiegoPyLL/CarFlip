@@ -40,11 +40,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return context.redirect(urlEntrar(context.url.pathname), 302);
   }
 
-  if (cuelgaDe(ruta, SOLO_ADMIN) && context.locals.usuario?.rol !== 'admin') {
+  // Sesión sin rol de administrador: la respuesta es un 403 sobre la misma URL
+  // en vez de un rebote mudo al home. `/api/moderacion` se invoca desde los
+  // formularios nativos del dashboard, donde una página de error no aporta y el
+  // redirect sigue siendo el mejor destino.
+  const sinPermiso = cuelgaDe(ruta, SOLO_ADMIN) && context.locals.usuario?.rol !== 'admin';
+  if (sinPermiso && ruta.startsWith('/api/')) {
     return context.redirect('/', 302);
   }
 
-  const respuesta = await next();
+  // Pasarle la ruta a `next` reescribe sin repetir la pasada de middleware, así
+  // que el 403 se renderiza con la sesión ya resuelta y su respuesta sigue
+  // recibiendo las cabeceras de seguridad de más abajo.
+  const respuesta = await next(sinPermiso ? '/403' : undefined);
 
   // Astro emite las respuestas SSR como `text/html` a secas. La declaración de
   // codificación queda entonces solo en el <meta charset> del layout y, aunque

@@ -9,7 +9,7 @@ privileges, y las tablas del pipeline no tienen RLS que lo contenga. La
 migración 0014 cierra eso; estos tests son su criterio de aceptación y la red
 que impide que una migración futura lo reabra sin que nadie se entere.
 
-Ejecutar con: pytest -m integration -v tests/test_privilegios_anon.py
+Ejecutar con: pytest -m integration -v tests/seguridad/test_privilegios_anon.py
 """
 
 import os

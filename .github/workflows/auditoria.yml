@@ -44,7 +44,7 @@ jobs:
       # Falla si hay vulnerabilidades en paquetes de PyPI (el gate del test)
       # y deja el escaneo completo en reports/auditoria_imagen.json.
       - name: Ejecutar tests de auditoría
-        run: uv run pytest -m integration tests/test_auditoria_imagen.py
+        run: uv run pytest -m integration tests/seguridad/test_auditoria_imagen.py
 
       - name: Publicar reporte
         if: always() && hashFiles('reports/auditoria_imagen.json') != ''
@@ -124,7 +124,7 @@ jobs:
             const cuerpo = {
               summary: TITULO,
               description: [
-                `Auditoría de \`${reporte.imagen}\` con Docker Scout (\`tests/test_auditoria_imagen.py\`), generada ${reporte.generado}.`,
+                `Auditoría de \`${reporte.imagen}\` con Docker Scout (\`tests/seguridad/test_auditoria_imagen.py\`), generada ${reporte.generado}.`,
                 '',
                 `**Módulos por actualizar (con fix disponible): ${porActualizar}**`,
                 `Módulos vulnerables sin fix: ${sinFix} · Vulnerabilidades totales: ${reporte.total}`,

@@ -11,7 +11,7 @@ interrogan el catálogo (`pg_policies`, `pg_class`, `information_schema`) y
 comprueban desde fuera, con la anon key, que la API pública no devuelve lo que
 no debe.
 
-Ejecutar con: pytest -m integration -v tests/test_perfiles_rls.py
+Ejecutar con: pytest -m integration -v tests/seguridad/test_perfiles_rls.py
 """
 
 import os
