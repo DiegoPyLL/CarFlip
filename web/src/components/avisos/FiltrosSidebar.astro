@@ -103,8 +103,12 @@ const hayFiltrosAvanzados = !!(
         step="any"
         value={filtros.km_max ?? ''}
         placeholder="Sin límite"
-        class={inputCls}
+        aria-describedby="err-km-max"
+        class={`${inputCls} campo`}
       />
+      <p id="err-km-max" class="campo-error text-sm text-scarlet-signal mt-1.5">
+        Ingresa un kilometraje en números, sin negativos.
+      </p>
     </div>
 
     <!-- Precio mínimo -->
@@ -118,8 +122,12 @@ const hayFiltrosAvanzados = !!(
         step="any"
         value={filtros.precio_min ?? ''}
         placeholder="$ 0"
-        class={inputCls}
+        aria-describedby="err-precio-min"
+        class={`${inputCls} campo`}
       />
+      <p id="err-precio-min" class="campo-error text-sm text-scarlet-signal mt-1.5">
+        Ingresa un monto en números, sin negativos.
+      </p>
     </div>
 
     <!-- Precio máximo -->
@@ -133,8 +141,12 @@ const hayFiltrosAvanzados = !!(
         step="any"
         value={filtros.precio_max ?? ''}
         placeholder="Sin límite"
-        class={inputCls}
+        aria-describedby="err-precio-max"
+        class={`${inputCls} campo`}
       />
+      <p id="err-precio-max" class="campo-error text-sm text-scarlet-signal mt-1.5">
+        Ingresa un monto en números, sin negativos.
+      </p>
     </div>
 
     <button

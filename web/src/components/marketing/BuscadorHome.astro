@@ -13,6 +13,10 @@ interface Props {
 
 const { disponibles } = Astro.props;
 
+// Tope del campo año. `parsearFiltrosUrl` acepta hasta el año siguiente, pero
+// acá no tiene sentido ofrecer más que el actual.
+const anioMax = new Date().getFullYear();
+
 const controlCls = [
   'w-full text-base bg-canvas border border-line-strong px-3 py-2',
   'text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors',
@@ -54,24 +58,39 @@ const labelCls = 'block text-sm text-ink/70 uppercase tracking-wider mb-2';
 
   <div>
     <label for="q-anio" class={labelCls}>Año</label>
-    <select id="q-anio" name="anio" class={selectCls}>
-      <option value="">Todos</option>
-      {disponibles.anios.map((a) => <option value={a}>{a}</option>)}
-    </select>
+    <input
+      id="q-anio"
+      type="number"
+      name="anio"
+      inputmode="numeric"
+      min="1950"
+      max={anioMax}
+      placeholder="2020"
+      aria-describedby="q-anio-error"
+      class={`${inputCls} campo`}
+    />
+    <p id="q-anio-error" class="campo-error text-sm text-scarlet-signal mt-1.5">
+      Ingresa un año entre 1950 y {anioMax}.
+    </p>
   </div>
 
   <div>
     <label for="q-precio" class={labelCls}>Precio máximo</label>
     <input
       id="q-precio"
-      type="number"
+      type="text"
       name="precio_max"
       inputmode="numeric"
-      min="0"
-      step="500000"
-      placeholder="$ CLP"
-      class={inputCls}
+      maxlength="12"
+      autocomplete="off"
+      placeholder="$10.000.000"
+      pattern="[0-9$.\s]*"
+      aria-describedby="q-precio-error"
+      class={`${inputCls} campo`}
     />
+    <p id="q-precio-error" class="campo-error text-sm text-scarlet-signal mt-1.5">
+      Ingresa solo números.
+    </p>
   </div>
 
   <button
@@ -83,13 +102,43 @@ const labelCls = 'block text-sm text-ink/70 uppercase tracking-wider mb-2';
 </form>
 
 <script>
+  const form = document.getElementById('buscador-home');
+  const precio = document.getElementById('q-precio');
+  const anio = document.getElementById('q-anio');
+
+  // `maxlength` no aplica a inputs numéricos: el recorte a 4 dígitos va por JS.
+  // El rango (1950 a año actual) lo valida el navegador con min/max al enviar.
+  if (anio instanceof HTMLInputElement) {
+    anio.addEventListener('input', () => {
+      if (anio.value.length > 4) anio.value = anio.value.slice(0, 4);
+    });
+  }
+
+  // Formato en vivo del precio: solo dígitos, con signo peso y puntos de miles
+  // ("$1.500.000"). Es mejora progresiva: sin JS el campo acepta el número plano,
+  // que es lo que `parsearFiltrosUrl` espera recibir en la URL.
+  const formatearPrecio = () => {
+    if (!(precio instanceof HTMLInputElement)) return;
+    const digitos = precio.value.replace(/\D/g, '').slice(0, 9);
+    precio.value = digitos ? `$${Number(digitos).toLocaleString('es-CL')}` : '';
+  };
+
+  if (precio instanceof HTMLInputElement) {
+    precio.addEventListener('input', formatearPrecio);
+    formatearPrecio(); // al volver con el botón atrás puede llegar sin formato
+  }
+
   // Mejora progresiva: deja los campos vacíos fuera de la URL, para compartir
   // /avisos?modelo=corolla y no /avisos?modelo=corolla&marca=&anio=&precio_max=.
   // Sin JS el formulario funciona igual, solo con la URL más sucia.
-  const form = document.getElementById('buscador-home');
-
   if (form instanceof HTMLFormElement) {
     form.addEventListener('submit', () => {
+      // El precio viaja como dígitos pelados: "$1.500.000" haría fallar el
+      // parseFloat del servidor y el filtro se perdería en silencio.
+      if (precio instanceof HTMLInputElement) {
+        precio.value = precio.value.replace(/\D/g, '');
+      }
+
       const vacios = [
         ...form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input[name], select[name]'),
       ].filter((control) => !control.value);
@@ -97,9 +146,11 @@ const labelCls = 'block text-sm text-ink/70 uppercase tracking-wider mb-2';
       for (const control of vacios) control.disabled = true;
 
       // Se reactivan en el tick siguiente —el navegador ya serializó el
-      // formulario— para que al volver con el botón atrás no queden inertes.
+      // formulario— para que al volver con el botón atrás no queden inertes,
+      // y el precio recupera su formato visible.
       setTimeout(() => {
         for (const control of vacios) control.disabled = false;
+        formatearPrecio();
       });
     });
   }

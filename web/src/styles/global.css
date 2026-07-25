@@ -270,3 +270,36 @@ h3 {
     animation: entrada 200ms ease-out;
   }
 }
+
+/*
+  Validación de formularios. Un campo participa marcándolo con `.campo` y
+  poniendo su mensaje en un `.campo-error` que lo siga dentro del mismo padre.
+
+  Dos disparadores para el mismo estado, en reglas separadas a propósito: una
+  lista de selectores se descarta entera si el navegador no entiende uno de sus
+  miembros, y aquí `.tocado` tiene que sobrevivir aunque `:user-invalid` no.
+
+  `.tocado` la pone el script del layout en la primera pulsación, así el error
+  aparece mientras se escribe. `:user-invalid` es el respaldo sin JavaScript,
+  donde el error llega al salir del campo. Ninguno de los dos marca los campos
+  vacíos en la carga inicial: el formulario parte limpio.
+*/
+.campo-error {
+  display: none;
+}
+
+.campo.tocado:invalid {
+  border-color: var(--color-scarlet-signal);
+}
+
+.campo.tocado:invalid ~ .campo-error {
+  display: block;
+}
+
+.campo:user-invalid {
+  border-color: var(--color-scarlet-signal);
+}
+
+.campo:user-invalid ~ .campo-error {
+  display: block;
+}

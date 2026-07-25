@@ -3,7 +3,7 @@ import Base from '@layouts/Base.astro';
 import CardDeal from '@components/deals/CardDeal.astro';
 import BuscadorHome from '@components/marketing/BuscadorHome.astro';
 import { obtenerDeals, obtenerEstadisticas, obtenerFiltrosDisponibles } from '@lib/db';
-import { formatearPrecio, formatearFecha } from '@lib/formato';
+import { formatearFecha } from '@lib/formato';
 import { parrafoCls } from '@lib/marketing';
 import { scriptJsonLd } from '@lib/jsonLd';
 
@@ -20,22 +20,6 @@ const [estadisticas, destacados, disponibles] = await Promise.all([
   obtenerDeals(undefined, undefined, 10),
   obtenerFiltrosDisponibles(),
 ]);
-
-const cifras = [
-  {
-    label: 'Precio promedio',
-    valor: estadisticas.precio_promedio
-      ? formatearPrecio(Math.round(estadisticas.precio_promedio))
-      : '—',
-  },
-  { label: 'Autocosmos',  valor: estadisticas.total_autocosmos.toLocaleString('es-CL') },
-  { label: 'Yapo',        valor: estadisticas.total_yapo.toLocaleString('es-CL') },
-  { label: 'AutosUsados', valor: estadisticas.total_autosusados.toLocaleString('es-CL') },
-  { label: 'Checkeados',  valor: estadisticas.total_checkeados.toLocaleString('es-CL') },
-  ...(estadisticas.ultima_actualizacion
-    ? [{ label: 'Actualizado', valor: formatearFecha(estadisticas.ultima_actualizacion) }]
-    : []),
-];
 
 // El origen sale de `site` (carflip.cl) y no del host: los deploys de preview no
 // deben declarar su propia URL como buscador del sitio.
@@ -93,16 +77,16 @@ const nonce = Astro.locals.nonce;
     <div class="mt-element pt-element border-t border-line flex flex-wrap gap-x-block gap-y-element">
       <div>
         <p class="text-base text-ink/70">Avisos activos</p>
-        <p class="text-2xl text-ink tabular-nums leading-none mt-1">
+        <p id="avisos-activos" data-valor={estadisticas.total_avisos} class="text-4xl text-ink tabular-nums leading-none mt-1">
           {estadisticas.total_avisos.toLocaleString('es-CL')}
         </p>
       </div>
-      {cifras.map(({ label, valor }) => (
+      {estadisticas.ultima_actualizacion && (
         <div>
-          <p class="text-base text-ink/70">{label}</p>
-          <p class="text-base text-ink tabular-nums">{valor}</p>
+          <p class="text-base text-ink/70">Actualizado</p>
+          <p class="text-base text-ink tabular-nums">{formatearFecha(estadisticas.ultima_actualizacion)}</p>
         </div>
-      ))}
+      )}
     </div>
   </section>
 
@@ -150,11 +134,36 @@ const nonce = Astro.locals.nonce;
 </style>
 
 <script>
+  const reducirMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Conteo ascendente de "Avisos activos". El HTML llega con la cifra final
+  // (SEO y sin JS); acá solo se anima el texto. El min-width se fija antes de
+  // partir de cero para que la tira de cifras no se mueva al cambiar los dígitos.
+  // El blur cae junto con la velocidad del conteo: se lee como desenfoque de
+  // movimiento y la cifra queda nítida justo al asentarse.
+  const contadorAvisos = document.getElementById('avisos-activos');
+  const totalAvisos = Number(contadorAvisos?.dataset.valor);
+  if (contadorAvisos && totalAvisos > 0 && !reducirMovimiento) {
+    const DURACION = 1400; // ms
+    const BLUR_MAX = 5;    // px
+    contadorAvisos.style.minWidth = `${contadorAvisos.offsetWidth}px`;
+    contadorAvisos.textContent = '0';
+    let inicioConteo = 0;
+    const contar = (ahora: number) => {
+      if (!inicioConteo) inicioConteo = ahora;
+      const avance = Math.min((ahora - inicioConteo) / DURACION, 1);
+      contadorAvisos.textContent = Math.round(totalAvisos * (1 - (1 - avance) ** 3)).toLocaleString('es-CL');
+      contadorAvisos.style.filter = avance < 1 ? `blur(${(BLUR_MAX * (1 - avance) ** 2).toFixed(2)}px)` : '';
+      if (avance < 1) requestAnimationFrame(contar);
+    };
+    requestAnimationFrame(contar);
+  }
+
   const contenedor = document.getElementById('deals-marquee');
   const pista = document.getElementById('deals-marquee-track');
   const grupo = document.getElementById('deals-marquee-grupo');
 
-  if (contenedor && pista && grupo && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  if (contenedor && pista && grupo && !reducirMovimiento) {
     const VELOCIDAD_BASE = 40; // px/s
     const SUAVIZADO = 0.06;    // fracción de la brecha hacia la velocidad objetivo que se recorre por frame
     const GAP = 16;            // debe calzar con gap-element

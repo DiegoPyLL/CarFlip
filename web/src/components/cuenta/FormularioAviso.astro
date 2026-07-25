@@ -87,15 +87,16 @@ const requerido = 'text-sm text-scarlet-signal';
 
     <div>
       <label for="region" class={labelCls}>Región <span class={requerido}>*Requerido</span></label>
-      <select id="region" name="region" required class={inputCls}>
+      <select id="region" name="region" required class={`${inputCls} campo`} aria-describedby="err-region">
         <option value="">Selecciona…</option>
         {REGIONES.map((r) => <option value={r} selected={regionActual === r}>{r}</option>)}
       </select>
+      <p id="err-region" class="campo-error text-sm text-scarlet-signal mt-1.5">Selecciona la región.</p>
     </div>
 
     <div>
       <label for="comuna" class={labelCls}>Comuna <span class={requerido}>*Requerido</span></label>
-      <select id="comuna" name="comuna" required class={inputCls}>
+      <select id="comuna" name="comuna" required class={`${inputCls} campo`} aria-describedby="err-comuna">
         <option value="">Selecciona…</option>
         {REGIONES.map((r) => (
           <optgroup label={r}>
@@ -105,6 +106,7 @@ const requerido = 'text-sm text-scarlet-signal';
           </optgroup>
         ))}
       </select>
+      <p id="err-comuna" class="campo-error text-sm text-scarlet-signal mt-1.5">Selecciona la comuna.</p>
     </div>
   </div>
 
@@ -129,15 +131,3 @@ const requerido = 'text-sm text-scarlet-signal';
     <span aria-hidden="true">→</span>
   </button>
 </form>
-
-<style>
-  .campo-error {
-    display: none;
-  }
-  .campo:user-invalid {
-    border-color: var(--color-scarlet-signal);
-  }
-  .campo:user-invalid ~ .campo-error {
-    display: block;
-  }
-</style>

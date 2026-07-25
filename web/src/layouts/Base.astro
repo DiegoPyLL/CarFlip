@@ -364,6 +364,54 @@ function esRutaActiva(href: string): boolean {
       })();
     </script>
 
+    <!--
+      Validación de formularios. Hace dos cosas que el navegador no da solo:
+
+      1. Marca `.tocado` en la primera pulsación, para que el error aparezca
+         mientras se escribe. `:user-invalid` —el respaldo en global.css— recién
+         se activa al salir del campo.
+      2. Cancela el globo nativo. `invalid` no burbujea, así que el listener va
+         en captura; cancelarlo suprime el globo pero no el bloqueo del envío,
+         que sigue siendo del navegador. A cambio hay que llevar el foco al
+         primer campo malo, porque el navegador ya no lo hace.
+    -->
+    <script is:inline nonce={Astro.locals.nonce}>
+      (() => {
+        document.addEventListener('input', (e) => {
+          const campo = e.target;
+          if (campo instanceof Element && campo.classList.contains('campo')) {
+            campo.classList.add('tocado');
+          }
+        });
+
+        // El navegador dispara un `invalid` por campo en orden de documento, así
+        // que el primero del lote es el primero del formulario. El foco se
+        // difiere para no competir con el resto de los eventos del mismo envío.
+        let primero = null;
+        document.addEventListener('invalid', (e) => {
+          e.preventDefault();
+
+          const campo = e.target;
+          if (!(campo instanceof HTMLElement)) return;
+          campo.classList.add('tocado');
+
+          if (primero) return;
+          primero = campo;
+          setTimeout(() => {
+            // El campo puede estar en una sección plegada —los filtros avanzados
+            // de /avisos bajo lg:— y ahí no hay nada que enfocar ni que leer: el
+            // envío quedaría bloqueado sin explicación. Se despliega primero.
+            if (!primero.offsetParent) {
+              primero.closest('.hidden')?.classList.remove('hidden');
+            }
+            primero.focus({ preventScroll: true });
+            primero.scrollIntoView({ block: 'center' });
+            primero = null;
+          });
+        }, true);
+      })();
+    </script>
+
     <Analytics />
   </body>
 </html>

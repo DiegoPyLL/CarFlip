@@ -44,55 +44,67 @@ const labelCls = 'text-sm text-muted uppercase tracking-wider';
 
     <div class="flex flex-col gap-2">
       <label for="q_marca" class={labelCls}>Marca</label>
-      <select id="q_marca" name="q_marca" class={selectCls} required>
+      <select id="q_marca" name="q_marca" class={`${selectCls} campo`} required aria-describedby="err-q-marca">
         <option value="">Elige…</option>
         {marcas.map((m) => (
           <option value={m} selected={consulta.marca === m}>{m}</option>
         ))}
       </select>
+      <p id="err-q-marca" class="campo-error text-sm text-scarlet-signal">Elige una marca.</p>
     </div>
 
     <div class="flex flex-col gap-2">
       <label for="q_modelo" class={labelCls}>Modelo</label>
       <input
         id="q_modelo"
+        type="text"
         name="q_modelo"
         list="modelos-consulta"
         value={consulta.modelo}
         placeholder="Ej. Corolla"
         autocomplete="off"
         maxlength="100"
-        class={inputCls}
+        class={`${inputCls} campo`}
         required
+        aria-describedby="err-q-modelo"
       />
       <datalist id="modelos-consulta">
         {modelos.map((m) => <option value={m} />)}
       </datalist>
+      <p id="err-q-modelo" class="campo-error text-sm text-scarlet-signal">Escribe un modelo.</p>
     </div>
 
     <div class="flex flex-col gap-2">
       <label for="q_anio" class={labelCls}>Año</label>
-      <select id="q_anio" name="q_anio" class={selectCls} required>
+      <select id="q_anio" name="q_anio" class={`${selectCls} campo`} required aria-describedby="err-q-anio">
         <option value="">Elige…</option>
         {anios.map((a) => (
           <option value={a} selected={consulta.anio === a}>{a}</option>
         ))}
       </select>
+      <p id="err-q-anio" class="campo-error text-sm text-scarlet-signal">Elige un año.</p>
     </div>
 
     <div class="flex flex-col gap-2">
       <label for="q_precio" class={labelCls}>Tu precio <span class="normal-case text-muted">(opcional)</span></label>
+      <!-- `step="any"` y no un salto de 100.000: con un step fijo el navegador
+           declara inválido cualquier precio que no sea múltiplo, y la validación
+           en vivo lo marcaría en rojo mientras se escribe un monto correcto. -->
       <input
         id="q_precio"
         name="q_precio"
         type="number"
         inputmode="numeric"
         min="0"
-        step="100000"
+        step="any"
         value={consulta.precio ?? ''}
         placeholder="$ CLP"
-        class={inputCls}
+        aria-describedby="err-q-precio"
+        class={`${inputCls} campo`}
       />
+      <p id="err-q-precio" class="campo-error text-sm text-scarlet-signal">
+        Ingresa un monto en números, sin negativos.
+      </p>
     </div>
 
     <button

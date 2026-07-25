@@ -144,21 +144,6 @@ const inputCls =
           Tus datos se usan únicamente para responder tu mensaje. No los utilizamos con otros fines.
         </p>
 
-        <style>
-          /* Validación en vivo sin JS: el mensaje y el borde rojo aparecen en
-             cuanto el usuario deja un campo mal (al salir o al escribir algo
-             inválido), no solo al enviar. `:user-invalid` no marca los campos
-             vacíos en la carga inicial, así el formulario parte limpio. */
-          .campo-error {
-            display: none;
-          }
-          .campo:user-invalid {
-            border-color: var(--color-scarlet-signal);
-          }
-          .campo:user-invalid ~ .campo-error {
-            display: block;
-          }
-        </style>
       </div>
     </div>
   )}

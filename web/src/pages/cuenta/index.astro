@@ -166,7 +166,7 @@ const enlaceCls =
             aria-describedby="err-nombre"
             class={`${inputCls} campo`}
           />
-          <p id="err-nombre" class="campo-error text-sm text-ink mt-1.5">
+          <p id="err-nombre" class="campo-error text-sm text-scarlet-signal mt-1.5">
             Ingresa tu nombre: solo letras y espacios.
           </p>
         </div>
@@ -189,7 +189,7 @@ const enlaceCls =
             aria-describedby="err-telefono"
             class={`${inputCls} campo tabular-nums`}
           />
-          <p id="err-telefono" class="campo-error text-sm text-ink mt-1.5">
+          <p id="err-telefono" class="campo-error text-sm text-scarlet-signal mt-1.5">
             Ingresa un móvil chileno válido.
           </p>
         </div>
@@ -198,19 +198,22 @@ const enlaceCls =
           <label for="region" class="flex items-baseline justify-between text-base text-ink mb-2">
             Región <span class="text-sm text-ink/70">*Requerido</span>
           </label>
-          <select id="region" name="region" required class={inputCls}>
+          <select id="region" name="region" required class={`${inputCls} campo`} aria-describedby="err-region">
             <option value="">Selecciona…</option>
             {REGIONES.map((r) => (
               <option value={r} selected={perfil?.region === r}>{r}</option>
             ))}
           </select>
+          <p id="err-region" class="campo-error text-sm text-scarlet-signal mt-1.5">
+            Selecciona tu región.
+          </p>
         </div>
 
         <div>
           <label for="comuna" class="flex items-baseline justify-between text-base text-ink mb-2">
             Comuna <span class="text-sm text-ink/70">*Requerido</span>
           </label>
-          <select id="comuna" name="comuna" required class={inputCls}>
+          <select id="comuna" name="comuna" required class={`${inputCls} campo`} aria-describedby="err-comuna">
             <option value="">Selecciona…</option>
             {REGIONES.map((r) => (
               <optgroup label={r}>
@@ -220,6 +223,9 @@ const enlaceCls =
               </optgroup>
             ))}
           </select>
+          <p id="err-comuna" class="campo-error text-sm text-scarlet-signal mt-1.5">
+            Selecciona tu comuna.
+          </p>
         </div>
       </div>
 
@@ -265,8 +271,12 @@ const enlaceCls =
               pattern={PALABRA_ELIMINAR}
               title={`Escribe ${PALABRA_ELIMINAR} en mayúsculas.`}
               placeholder={PALABRA_ELIMINAR}
+              aria-describedby="err-confirmacion"
               class={`${inputCls} campo`}
             />
+            <p id="err-confirmacion" class="campo-error text-sm text-scarlet-signal mt-1.5">
+              Escribe {PALABRA_ELIMINAR} en mayúsculas para confirmar.
+            </p>
           </div>
           <button
             type="submit"
@@ -279,16 +289,4 @@ const enlaceCls =
     </details>
   </section>
 
-  <style>
-    /* Misma validación en vivo sin JS que /contacto. */
-    .campo-error {
-      display: none;
-    }
-    .campo:user-invalid {
-      border-color: var(--color-scarlet-signal);
-    }
-    .campo:user-invalid ~ .campo-error {
-      display: block;
-    }
-  </style>
 </Base>

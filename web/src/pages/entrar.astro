@@ -134,18 +134,5 @@ const inputCls =
       <a href="/registro" class="text-ink underline underline-offset-4">Crea una</a>.
     </p>
 
-    <style>
-      /* Misma validación en vivo sin JS que /contacto: el error aparece cuando
-         el campo queda mal, no en la carga inicial. */
-      .campo-error {
-        display: none;
-      }
-      .campo:user-invalid {
-        border-color: var(--color-scarlet-signal);
-      }
-      .campo:user-invalid ~ .campo-error {
-        display: block;
-      }
-    </style>
   </div>
 </Base>
