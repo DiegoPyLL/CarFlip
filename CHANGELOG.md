@@ -17,6 +17,8 @@ y el proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Detalle público `/auto/p/[id]` con galería de scroll-snap sin JS, JSON-LD `Car` + `Offer` y `sitemap-avisos.xml`
   - El teléfono del vendedor solo se muestra a un usuario con sesión que lo pide explícitamente, y nunca llega al HTML anónimo ni al JSON-LD
   - Quinta fuente integrada en `/avisos`, `/mercado`, `/estadisticas` y `/deals`, con `deal_min_comparables_particular = 12` y un prompt que prefiere `revisar` ante un precio muy bajo sin explicación
+- **Patente obligatoria en avisos de particulares** (migración `0016`): se valida contra los cuatro formatos de la Ley 18.290 y el D.S. 17 del MTT —6 caracteres un auto, 5 una moto, series antigua y de 2007— y se guarda canónica (mayúsculas, sin separadores). Los avisos previos a la exigencia quedan válidos sin patente
+- **PatenteChilena**: el detalle de un particular muestra la patente bajo la galería como réplica de la placa física —FE-Schrift subseteada (3,8 KB), proporción 360:130, sello de seguridad y «CHILE»—, sin JavaScript. Es visible para cualquier visitante
 - **Moderación**: bandeja de reportes en `/dashboard` con acciones de despublicar y descartar, apoyada en las políticas de administrador de la migración `0011`. El rol vive en `app_metadata` del JWT
 - **Eliminación de cuenta** en `/cuenta`: borra perfil, avisos, fotos, revelaciones y reportes, y vacía la carpeta del bucket (Ley 21.719)
 - `PUBLIC_SUPABASE_URL` y `PUBLIC_SUPABASE_ANON_KEY`: segundo cliente de Supabase, sujeto a RLS, por el que pasan todas las escrituras del usuario

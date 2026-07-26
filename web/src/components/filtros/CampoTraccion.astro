@@ -1,0 +1,39 @@
+---
+/**
+ * Tracción como chips y no como `<select>`: un `<option>` nativo no puede
+ * pintar el icono del tren motriz, que es justo lo que hace legible la
+ * diferencia entre 4x4, delantera y trasera.
+ */
+import { TRACCIONES } from '@lib/publicaciones/opciones';
+
+import IconoTraccion from './IconoTraccion.astro';
+import { chipCls, labelCls } from './estilos';
+
+interface Props {
+  valor?: string;
+}
+
+const { valor } = Astro.props;
+---
+
+<fieldset>
+  <legend class={labelCls}>Tracción</legend>
+  <div class="flex flex-wrap gap-2">
+    <label class="cursor-pointer select-none">
+      <input type="radio" name="traccion" value="" class="sr-only peer" checked={!valor} />
+      <span class={chipCls}>Todas</span>
+    </label>
+
+    {
+      TRACCIONES.map((t) => (
+        <label class="cursor-pointer select-none">
+          <input type="radio" name="traccion" value={t} class="sr-only peer" checked={valor === t} />
+          <span class={`${chipCls} inline-flex items-center gap-2`}>
+            <IconoTraccion traccion={t} />
+            {t}
+          </span>
+        </label>
+      ))
+    }
+  </div>
+</fieldset>

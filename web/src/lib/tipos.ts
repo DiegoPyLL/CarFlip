@@ -14,6 +14,8 @@ export interface Aviso {
   km: number | null;
   ubicacion: string | null;
   combustible: string | null;
+  transmision: string | null;
+  traccion: string | null;
   descripcion: string | null;
   url_imagen: string | null;
   disponible: boolean | null;
@@ -25,13 +27,11 @@ export interface Aviso {
 
 export type CategoriaDeal = 'oportunidad_clara' | 'buen_precio' | 'revisar' | 'descartar';
 
-/** La tabla `deals` incluye MercadoLibre, que no tiene scraper ni listado propio. */
-export type FuenteDeal = 'autocosmos' | 'yapo' | 'mercadolibre' | 'particular';
-
 /** Fila de la tabla `deals`: snapshot del aviso + contexto de mercado + evaluación IA. */
 export interface Deal {
   id: number;
-  fuente: FuenteDeal;
+  /** Las mismas fuentes que un aviso: `deals` no tiene ninguna propia. */
+  fuente: Fuente;
   id_externo: string;
   url: string;
   titulo: string;
@@ -40,6 +40,8 @@ export interface Deal {
   anio: number | null;
   km: number | null;
   ubicacion: string | null;
+  transmision: string | null;
+  traccion: string | null;
   precio: number;
   moneda: string;
   url_imagen: string | null;
@@ -64,8 +66,23 @@ export interface FiltrosAviso {
   precio_max?: number;
   km_max?: number;
   combustible?: string;
+  /** Nombre de región de `REGIONES`; se busca dentro de `ubicacion`, que es texto libre. */
+  region?: string;
+  transmision?: string;
+  traccion?: string;
   orden?: 'reciente' | 'precio_asc' | 'precio_desc' | 'km_asc';
   pagina?: number;
+}
+
+/**
+ * Los filtros de /deals: los mismos campos base más los que solo existen en
+ * una selección curada por IA. `orden` no se expone —el ranking lo fija el
+ * algoritmo (puntaje, luego pct_vs_mercado)— ni `pagina`, que se resuelve en
+ * memoria sobre el top de la corrida.
+ */
+export interface FiltrosDeal extends Omit<FiltrosAviso, 'orden'> {
+  categoria?: CategoriaDeal;
+  puntaje_min?: number;
 }
 
 export interface PaginaResultado<T> {

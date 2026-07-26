@@ -2,7 +2,7 @@
 // usando '@lib/db' sigan funcionando sin cambios.
 
 export { obtenerAvisos, obtenerAviso, obtenerFiltrosDisponibles } from './avisos';
-export { obtenerDeals } from './deals';
+export { obtenerDeals, obtenerFiltrosDeals } from './deals';
 export {
   obtenerDatosMercado,
   obtenerDatosMarca,

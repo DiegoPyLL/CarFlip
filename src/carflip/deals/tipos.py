@@ -19,6 +19,8 @@ class CandidatoDeal:
     anio: int | None = None
     km: int | None = None
     ubicacion: str | None = None
+    transmision: str | None = None
+    traccion: str | None = None
     descripcion: str | None = None
     url_imagen: str | None = None
     delta_pct: float | None = None

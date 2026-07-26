@@ -39,6 +39,10 @@ class ListingMixin:
     km: Mapped[int | None] = mapped_column(Integer, nullable=True)
     ubicacion: Mapped[str | None] = mapped_column(String(200), nullable=True)
     combustible: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # Normalizadas al escribir (normalizar_transmision / normalizar_traccion en
+    # scrapers/base.py): valores canónicos o NULL, nunca texto libre.
+    transmision: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    traccion: Mapped[str | None] = mapped_column(String(20), nullable=True)
     descripcion: Mapped[str | None] = mapped_column(Text, nullable=True)
     url_imagen: Mapped[str | None] = mapped_column(Text, nullable=True)
     disponible: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
@@ -83,6 +87,8 @@ class Deal(Base):
     anio: Mapped[int | None] = mapped_column(Integer, nullable=True)
     km: Mapped[int | None] = mapped_column(Integer, nullable=True)
     ubicacion: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    transmision: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    traccion: Mapped[str | None] = mapped_column(String(20), nullable=True)
     precio: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     moneda: Mapped[str] = mapped_column(String(10), nullable=False, server_default="CLP")
     url_imagen: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -248,7 +254,10 @@ class ParticularListing(ListingMixin, Base):
     )
     estado: Mapped[str] = mapped_column(String(20), nullable=False, server_default="publicado", index=True)
     visible_en_deals: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
-    transmision: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # Canónica (mayúsculas, sin separadores): 6 caracteres un auto, 5 una moto.
+    # Nullable porque los avisos previos a la exigencia no la tienen; el
+    # formulario la exige desde la migración 0016.
+    patente: Mapped[str | None] = mapped_column(String(6), nullable=True)
     version: Mapped[str | None] = mapped_column(String(100), nullable=True)
     vistas: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     publicado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

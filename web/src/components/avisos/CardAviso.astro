@@ -1,4 +1,5 @@
 ---
+import IconoTraccion from '@components/filtros/IconoTraccion.astro';
 import type { Aviso } from '@lib/tipos';
 import { resolverUrlImagen } from '@lib/cdn';
 import { enlaceAviso } from '@lib/enlaces';
@@ -86,9 +87,15 @@ const metaItems = [
         }
       </p>
 
-      {metaItems.length > 0 && (
-        <p class="text-base  truncate">
-          {metaItems.join(' · ')}
+      {(metaItems.length > 0 || aviso.traccion) && (
+        <p class="text-base flex items-center gap-2 min-w-0">
+          {metaItems.length > 0 && <span class="truncate">{metaItems.join(' · ')}</span>}
+          {aviso.traccion && (
+            <span class="inline-flex items-center gap-1 shrink-0">
+              <IconoTraccion traccion={aviso.traccion} />
+              {aviso.traccion}
+            </span>
+          )}
         </p>
       )}
     </div>

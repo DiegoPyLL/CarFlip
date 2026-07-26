@@ -36,8 +36,10 @@ export interface AvisoPropio {
   anio: number | null;
   km: number | null;
   precio: number | null;
+  patente: string | null;
   combustible: string | null;
   transmision: string | null;
+  traccion: string | null;
   ubicacion: string | null;
   descripcion: string | null;
   url_imagen: string | null;
@@ -68,8 +70,10 @@ export interface AvisoPublico {
   moneda: string;
   precio_anterior: number | null;
   delta_pct: number | null;
+  patente: string | null;
   combustible: string | null;
   transmision: string | null;
+  traccion: string | null;
   ubicacion: string | null;
   descripcion: string | null;
   url_imagen: string | null;
@@ -95,7 +99,7 @@ export type ResultadoContacto =
   | { estado: 'error' };
 
 const CAMPOS_AVISO =
-  'id,titulo,marca,modelo,version,anio,km,precio,combustible,transmision,ubicacion,descripcion,url_imagen,estado,visible_en_deals,vistas,publicado_en,actualizado_en';
+  'id,titulo,marca,modelo,version,anio,km,precio,patente,combustible,transmision,traccion,ubicacion,descripcion,url_imagen,estado,visible_en_deals,vistas,publicado_en,actualizado_en';
 
 export async function obtenerPerfil(
   supabase: SupabaseClient,
@@ -145,7 +149,7 @@ export async function listarFotos(supabase: SupabaseClient, avisoId: number): Pr
 }
 
 const CAMPOS_PUBLICOS =
-  'id,titulo,marca,modelo,version,anio,km,precio,moneda,precio_anterior,delta_pct,combustible,transmision,ubicacion,descripcion,url_imagen,publicado_en,actualizado_en';
+  'id,titulo,marca,modelo,version,anio,km,precio,moneda,precio_anterior,delta_pct,patente,combustible,transmision,traccion,ubicacion,descripcion,url_imagen,publicado_en,actualizado_en';
 
 /** PostgREST devuelve las columnas `numeric` como texto. */
 function aNumero(valor: unknown): number | null {

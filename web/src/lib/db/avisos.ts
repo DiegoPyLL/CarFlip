@@ -15,6 +15,8 @@ type RawAviso = {
   km: number | null;
   ubicacion: string | null;
   combustible: string | null;
+  transmision: string | null;
+  traccion: string | null;
   descripcion: string | null;
   url_imagen: string | null;
   disponible: boolean | null;
@@ -44,7 +46,11 @@ function desde(fuente: Aviso['fuente'], columnas: string, opciones?: { count: 'e
   return soloPublicados(supabase.from(TABLA_POR_FUENTE[fuente]).select(columnas, opciones), fuente);
 }
 
-function aplicarFiltros(query: any, filtros: FiltrosAviso) {
+/**
+ * Traduce `FiltrosAviso` a cláusulas de PostgREST. Lo usan el listado y deals,
+ * que comparten estas columnas, así que un filtro nuevo se agrega una sola vez.
+ */
+export function aplicarFiltros(query: any, filtros: FiltrosAviso) {
   if (filtros.marca)      query = query.ilike('marca', `%${filtros.marca}%`);
   if (filtros.modelo) {
     const q = filtros.modelo.replace(/'/g, "''");
@@ -55,6 +61,13 @@ function aplicarFiltros(query: any, filtros: FiltrosAviso) {
   if (filtros.precio_max) query = query.lte('precio', filtros.precio_max);
   if (filtros.km_max)     query = query.lte('km', filtros.km_max);
   if (filtros.combustible) query = query.ilike('combustible', `%${filtros.combustible}%`);
+  // `ubicacion` es texto libre y significa cosas distintas según la fuente
+  // (región en Autosusados, "Comuna, Región" en particulares, sucursal en
+  // Checkeados): buscar la región dentro del texto es lo único que sirve para
+  // todas. Transmisión y tracción sí se guardan canónicas, así que van por `eq`.
+  if (filtros.region)      query = query.ilike('ubicacion', `%${filtros.region}%`);
+  if (filtros.transmision) query = query.eq('transmision', filtros.transmision);
+  if (filtros.traccion)    query = query.eq('traccion', filtros.traccion);
   return query;
 }
 

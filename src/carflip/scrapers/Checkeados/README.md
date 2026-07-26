@@ -35,6 +35,8 @@ de cards ni navegador headless.
 | `marca` / `modelo` | `brand` / `model` (`.title()`) |
 | `anio` / `km` | `year` / `kms` |
 | `combustible` | `fuel` |
+| `transmision` | `transmission` si viene; respaldo: siglas en el título (`normalizar_transmision`) |
+| `traccion` | `traction` si viene; respaldo: mención inequívoca en título/descripción |
 | `descripcion` | `description` |
 | `ubicacion` | `branch.name` (sucursal, ej. "Movicenter") |
 | `url_imagen` | `mainImageUrl` (fallback `images[0].url`); reemplazada por URL del CDN R2 tras conversión AVIF |

@@ -56,6 +56,7 @@ en `__NEXT_DATA__` y no requiere autenticación.
 | `anio` | `year` |
 | `km` | `kilometers` |
 | `combustible` | `fuelName` |
+| `transmision` / `traccion` | No vienen como campos: se leen del título-ficha (`"…DIESEL 4X2 AT8 5P"` → Automática; `4x2` no define tracción) |
 | `ubicacion` | `region` (número oficial de región de Chile → nombre) |
 | `url_imagen` | `photo` (reemplazada por URL del CDN R2 tras conversión AVIF) |
 | `fecha_publicacion` | No disponible en el listado → `None` |

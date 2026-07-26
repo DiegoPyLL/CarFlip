@@ -5,7 +5,10 @@ from decimal import Decimal
 from carflip.scrapers.base import (
     AvisoAuto,
     construir_id_externo,
+    normalizar_traccion,
+    normalizar_transmision,
     normalizar_url,
+    traccion_desde_texto,
 )
 
 
@@ -74,3 +77,61 @@ class TestNombreNormalizado:
         aviso = self._aviso(marca="Land Rover", modelo="Range Rover", anio=2021)
         assert "land_rover" in aviso.nombre_normalizado
         assert "range_rover" in aviso.nombre_normalizado
+
+
+class TestNormalizarTransmision:
+    """normalizar_transmision canoniza a 'Manual'/'Automática' o None."""
+
+    def test_variantes_automatica(self):
+        for texto in ["Automática", "automatica", "AUTOMATICO", "CVT", "DSG", "A/T", "Tiptronic"]:
+            assert normalizar_transmision(texto) == "Automática", texto
+
+    def test_variantes_manual(self):
+        # "Mecánica" es el uso chileno para manual.
+        for texto in ["Manual", "Mecánica", "mecanica", "M/T", "MT"]:
+            assert normalizar_transmision(texto) == "Manual", texto
+
+    def test_titulo_tipo_ficha(self):
+        # Autosusados publica la ficha en el título: "…DIESEL 4X2 AT8 5P".
+        assert normalizar_transmision("OPEL GRANDLAND 1.5 GS LINE DIESEL 4X2 AT8 5P") == "Automática"
+        assert normalizar_transmision("SUZUKI SWIFT 1.2 GL MT 5P") == "Manual"
+
+    def test_irreconocible_o_vacio_es_none(self):
+        assert normalizar_transmision("otra cosa") is None
+        assert normalizar_transmision("") is None
+        assert normalizar_transmision(None) is None
+
+
+class TestNormalizarTraccion:
+    """normalizar_traccion canoniza valores explícitos; '4x2' no dice qué eje."""
+
+    def test_variantes_4x4(self):
+        for texto in ["4x4", "4X4", "AWD", "4WD", "Tracción integral"]:
+            assert normalizar_traccion(texto) == "4x4", texto
+
+    def test_delantera_y_trasera(self):
+        assert normalizar_traccion("Delantera") == "Delantera"
+        assert normalizar_traccion("FWD") == "Delantera"
+        assert normalizar_traccion("Trasera") == "Trasera"
+        assert normalizar_traccion("RWD") == "Trasera"
+
+    def test_4x2_no_se_mapea(self):
+        assert normalizar_traccion("4x2") is None
+        assert normalizar_traccion(None) is None
+
+
+class TestTraccionDesdeTexto:
+    """traccion_desde_texto: solo menciones inequívocas en título/descripción."""
+
+    def test_ficha_con_4x4(self):
+        assert traccion_desde_texto("TOYOTA HILUX 2.8 SR 4X4 AT 4P") == "4x4"
+
+    def test_traccion_explicita_en_descripcion(self):
+        assert traccion_desde_texto(None, "Full equipo, tracción delantera, único dueño") == "Delantera"
+
+    def test_palabra_suelta_no_cuenta(self):
+        # "cámara delantera" no es tracción.
+        assert traccion_desde_texto("Sedán full", "cámara delantera y sensores") is None
+
+    def test_prioriza_4x4_sobre_otras_menciones(self):
+        assert traccion_desde_texto("Jeep 4x4 con tracción delantera desconectable") == "4x4"

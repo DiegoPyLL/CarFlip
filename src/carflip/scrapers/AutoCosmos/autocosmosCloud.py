@@ -28,7 +28,13 @@ from loguru import logger
 
 from carflip.config import settings
 from carflip.database.models import AutocosmosListing
-from carflip.scrapers.base import AvisoAuto, ScraperBase, construir_id_externo
+from carflip.scrapers.base import (
+    AvisoAuto,
+    ScraperBase,
+    construir_id_externo,
+    normalizar_transmision,
+    traccion_desde_texto,
+)
 from carflip.scrapers.image_utils import convertir_a_avif
 from carflip.storage.r2 import subir_objeto_con_retry, url_publica
 
@@ -296,6 +302,10 @@ def _parsear_aviso(tag: Tag) -> AvisoAuto | None:
         anio=_parsear_anio(texto),
         km=km,
         ubicacion=_parsear_ubicacion(texto),
+        # Mejor esfuerzo: el card a veces lista la transmisión entre sus chips
+        # y la tracción solo si es parte del nombre de la versión ("4x4").
+        transmision=normalizar_transmision(texto),
+        traccion=traccion_desde_texto(texto),
         url_imagen=url_imagen,
         disponible=True,
     )

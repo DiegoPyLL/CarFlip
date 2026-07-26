@@ -1,9 +1,10 @@
+import { aplicarFiltros } from './avisos';
 import { supabase } from './client';
-import type { CategoriaDeal, Deal, FuenteDeal } from '../tipos';
+import type { CategoriaDeal, Deal, FiltrosDeal, FiltrosDisponibles, Fuente } from '../tipos';
 
 type RawDeal = {
   id: number;
-  fuente: FuenteDeal;
+  fuente: Fuente;
   id_externo: string;
   url: string;
   titulo: string;
@@ -12,6 +13,8 @@ type RawDeal = {
   anio: number | null;
   km: number | null;
   ubicacion: string | null;
+  transmision: string | null;
+  traccion: string | null;
   precio: string;
   moneda: string;
   url_imagen: string | null;
@@ -42,24 +45,61 @@ function mapearDeal(row: RawDeal): Deal {
  * Deals activos de la tabla `deals` (detectados por candidatos.sql y
  * categorizados por IA). Excluye los "descartar"; los aún sin categorizar
  * (categoria null) se incluyen para no ocultar señal.
+ *
+ * El orden es el del algoritmo —puntaje, luego cuánto está bajo el mercado— y
+ * no se puede cambiar desde la URL: la selección es curada, no un listado.
+ * `limite` recorta ese ranking, así que lo que vuelve son siempre los mejores N
+ * que cumplen los filtros.
  */
-export async function obtenerDeals(
-  fuente?: FuenteDeal,
-  categoria?: CategoriaDeal,
-  limite = 48
-): Promise<Deal[]> {
+export async function obtenerDeals(filtros: FiltrosDeal, limite = 100): Promise<Deal[]> {
   let query = supabase
     .from('deals')
     .select('*')
     .eq('activo', true)
-    .or('categoria.is.null,categoria.neq.descartar')
+    .or('categoria.is.null,categoria.neq.descartar');
+
+  // Los campos que un deal comparte con un aviso se filtran con el mismo código
+  // que el listado; acá solo queda lo que existe únicamente en una selección IA.
+  query = aplicarFiltros(query, filtros);
+  if (filtros.fuente) query = query.eq('fuente', filtros.fuente);
+  if (filtros.categoria) query = query.eq('categoria', filtros.categoria);
+  if (filtros.puntaje_min) query = query.gte('puntaje', filtros.puntaje_min);
+
+  query = query
     .order('puntaje', { ascending: false, nullsFirst: false })
     .order('pct_vs_mercado', { ascending: true })
     .limit(limite);
 
-  if (fuente) query = query.eq('fuente', fuente);
-  if (categoria && categoria !== 'descartar') query = query.eq('categoria', categoria);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []).map((r) => mapearDeal(r as RawDeal));
+}
 
-  const { data } = await query;
-  return (data ?? []).map(r => mapearDeal(r as RawDeal));
+/**
+ * Marcas y años presentes en los deals activos, para poblar los selects.
+ *
+ * Se consulta la tabla `deals` y no las cinco de avisos: ofrecer una marca sin
+ * ningún deal solo lleva a una página vacía. Sin filtrar por los filtros
+ * activos, para que siempre se pueda ampliar la búsqueda y no solo estrecharla.
+ * `combustibles` va vacío: no es columna de `deals`.
+ */
+export async function obtenerFiltrosDeals(): Promise<FiltrosDisponibles> {
+  const { data } = await supabase
+    .from('deals')
+    .select('marca,anio')
+    .eq('activo', true)
+    .or('categoria.is.null,categoria.neq.descartar');
+
+  const marcas = new Set<string>();
+  const anios = new Set<number>();
+  for (const fila of (data ?? []) as { marca: string | null; anio: number | null }[]) {
+    if (fila.marca) marcas.add(fila.marca);
+    if (fila.anio) anios.add(fila.anio);
+  }
+
+  return {
+    marcas: [...marcas].sort(),
+    anios: [...anios].sort((a, b) => b - a),
+    combustibles: [],
+  };
 }

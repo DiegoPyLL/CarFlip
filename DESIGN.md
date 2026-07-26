@@ -144,7 +144,7 @@ Los nombres son **semánticos**, no cromáticos: el mismo token cambia de valor 
 | `--c-line`        | `line`            | `#dcdcdc` | `#484848` | Bordes de card, divisores, paginación deshabilitada             |
 | `--c-line-strong` | `line-strong`     | `#767676` | `#a0a0a0` | Bordes de inputs, selects y badges (necesitan 3:1 de contraste)  |
 | `--c-scarlet`     | `scarlet-signal`  | `#e4002b` | `#e4002b` | **Solo borde y objeto gráfico**: foco, campo inválido, botón destructivo |
-| `--c-blue`        | `blue-signal`     | `#1873b3` | `#1873b3` | Acento editorial: fondo de bloques de marca (footer, hero de `/quienes-somos`) y lavado rotativo del mosaico de principios de esa misma página |
+| `--c-blue`        | `blue-signal`     | `#1873b3` | `#7c3aed` | Acento editorial: fondo de bloques de marca (footer, hero de `/quienes-somos`) y lavado rotativo del mosaico de principios de esa misma página. **Es el único token cuyo nombre es cromático y cambia de familia con el tema**: azul en claro, morado en oscuro |
 | `--c-green`       | `green-signal`    | `#71db4c` | `#71db4c` | Acento editorial secundario, mismo régimen que `blue-signal`; reservado, sin implementación asignada |
 | `--c-ink-on-tint` | `ink-on-tint`     | `#ffffff` | `#ffffff` | Blanco fijo para texto sobre `blue-signal`/`green-signal`; no invierte con el tema |
 | `--c-github`      | `github-signal`   | `#181717` | `#181717` | Negro de marca de GitHub, solo para el ícono del footer; no es un acento del sistema |
@@ -174,16 +174,23 @@ De ahí sale la restricción del escarlata: como texto rinde **4.85:1 en claro y
 
 `blue-signal` y `green-signal` solo se usan como **fondo de bloque** (footer, hero de `/quienes-somos`), nunca como color de texto sobre `canvas`, y el texto que va encima siempre es blanco (`ink-on-tint`), no `ink`: `ink` es negro en tema claro y perdería contraste sobre estos fondos.
 
-| Fondo                              | Contraste con blanco |
-| ----------------------------------- | --------------------- |
-| `blue-signal` (`#1873b3`)           | 5.07:1 — pasa AA      |
-| `green-signal` (`#71db4c`, sin implementar) | 1.76:1 — fallaría AA  |
+| Fondo                              | Contraste con blanco | Contraste con su `canvas` |
+| ----------------------------------- | --------------------- | ------------------------- |
+| `blue-signal` claro (`#1873b3`)     | 5.07:1 — pasa AA      | 5.07:1 sobre `#ffffff`    |
+| `blue-signal` oscuro (`#7c3aed`)    | 5.70:1 — pasa AA      | 3.69:1 sobre `#000000` — sobre el 3:1 de objeto gráfico |
+| `green-signal` (`#71db4c`, sin texto encima) | 1.76:1 — fallaría AA  | —                |
 
 `blue-signal` se profundizó a propósito desde el azul pedido originalmente (`#43a8ee`): ese tono solo daba 2.6:1 con blanco, bajo el 4.5:1 que exige AA. `#1873b3` conserva la misma familia de azul pero con luminancia suficiente para que el texto blanco cumpla. Si `green-signal` llega a implementarse con texto encima, necesita el mismo ajuste antes de usarse — el `#71db4c` documentado es el tono pedido, no uno ya verificado para texto.
+
+**Por qué el acento vira a morado en oscuro.** Era el último bloque grande que quedaba congelado al alternar de tema: footer y hero de `/quienes-somos` se veían idénticos en claro y en oscuro, y el reveal circular del toggle pasaba por encima sin cambiar nada. El morado `#7c3aed` recoge el tono de la luna del toggle (`--c-moon`, `#a78bfa`), el único otro color del chrome que solo existe en este tema, y se separa lo suficiente de `viz-4` (`#8a3fb0`, violeta de la paleta de datos) como para que no se lean como la misma categoría cuando conviven en `/mercado`. El velo de `/quienes-somos` lo hereda: al 60% sobre negro queda algo más oscuro que el azul (Y 0.029 vs 0.034), así que el piso de contraste del texto blanco sobre la foto se mantiene.
 
 ### Cambio de tema
 
 El tema se aplica con `data-theme="dark"` en `<html>` y se persiste en `localStorage` bajo la clave `tema` (`'claro' | 'oscuro'`). Un script inline y bloqueante en `<head>` lo aplica antes del primer pintado para evitar el flash. La variante `dark:` de Tailwind está redefinida con `@custom-variant` para seguir el atributo, no el media query del sistema: manda la preferencia guardada. El cross-fade al alternar es la quinta capa de movimiento (sección 3).
+
+`<meta name="theme-color">` va **sin** `media`: lo escriben los mismos dos scripts que aplican el tema. Con el media query seguía al SO y no al sitio, así que el caso más común —SO en oscuro, sitio en su tema claro por defecto— dejaba la barra del navegador negra sobre una página blanca.
+
+**Regla:** nada del chrome se queda quieto al alternar. La única excepción son las fotografías, que son las mismas en los dos temas; todo lo que las acompaña —velos, mezclas y acentos— sí cambia. Cuando un color no puede invertirse (marcas ajenas como el logo de Google en `/entrar`), va en su valor de marca y no cuenta como token del sistema.
 
 ---
 
@@ -354,7 +361,11 @@ Los avisos publicados en el sitio llevan el mismo badge de fuente que los recopi
 
 Carrusel horizontal de `scroll-snap` (`snap-x snap-mandatory`) con las fotos a `aspect-[16/9] object-cover`, y miniaturas debajo que son `<a href="#foto-n">` sobre los `<li>` del carrusel. **Cero JavaScript y cero layout shift**: cada foto lleva `width`/`height` explícitos y la caja no depende de la imagen. La primera va `loading="eager"` + `fetchpriority="high"` + `decoding="sync"` porque es el LCP —y por eso mismo nunca lleva animación de entrada—; el resto, `lazy`. El desplazamiento suave va tras `motion-safe:`.
 
-### Bloque de contacto
+### PatenteChilena
+
+Réplica de la placa patente chilena vigente, bajo la galería del detalle de un particular (`/auto/p/[id]`), solo si el aviso tiene patente. Es una **ilustración de un objeto físico, no chrome del producto**, y por eso carga con dos excepciones deliberadas al sistema: colores fijos `#fff`/`#000` en ambos temas (misma lógica que `--c-github`) y esquinas redondeadas — la única pieza del sitio exenta de la regla de radio 0.
+
+La fidelidad sale de cuatro detalles de la placa real: tipografía **FE-Schrift** (la anti-falsificación que Chile adoptó en 2014), subseteada a A–Z 0–9 en un woff2 de 3,8 KB (`public/fonts/fe-schrift.woff2`, `font-display: swap`, solo se descarga en páginas que pintan una placa); proporción **360:130** con «CHILE» al pie en autos y formato compacto con «CHILE» arriba en motos; grupos en pares con puntos separadores; y el **sello de seguridad** (roseta SVG inline) en el límite letras→dígitos. Cero JavaScript.
 
 Cierra el detalle de un aviso de particular, tras `border-t border-line`. **Tener sesión es la única condición**: el teléfono se pinta al abrir el aviso, sin un clic intermedio que lo pida. El servidor decide entre tres estados:
 
@@ -426,7 +437,7 @@ Primera sección de `/dashboard`, anclada en `#reportes` y **fuera** del bloque 
 
 ### Footer
 
-`mt-section`, fondo `bg-blue-signal` (el único bloque del sitio con este acento). Todo el texto encima usa `ink-on-tint`, no `ink` ni `ink/70`. Tres zonas en `py-block`: wordmark + tagline + una línea de misión que enlaza a `/quienes-somos`; tres columnas de navegación (Producto: Avisos/Deals/Mercado; Compañía: Quiénes somos/Cómo funciona/Preguntas Frecuentes/Contáctanos/Github, con el ícono de Github inline en `github-signal` — el único color de marca ajeno al sistema, ver sección 4; Legal: Condiciones de Uso/Términos de privacidad/Legales); barra inferior con `border-t border-ink-on-tint/15` y el copyright. Sin CTAs.
+`mt-section`, fondo `bg-blue-signal` (el único bloque del sitio con este acento: azul en claro, morado en oscuro). Todo el texto encima usa `ink-on-tint`, no `ink` ni `ink/70`. Tres zonas en `py-block`: wordmark + tagline + una línea de misión que enlaza a `/quienes-somos`; tres columnas de navegación (Producto: Avisos/Deals/Mercado; Compañía: Quiénes somos/Cómo funciona/Preguntas Frecuentes/Contáctanos/Github, con el ícono de Github inline en `github-signal` — el único color de marca ajeno al sistema, ver sección 4; Legal: Condiciones de Uso/Términos de privacidad/Legales); barra inferior con `border-t border-ink-on-tint/15` y el copyright. Sin CTAs.
 
 ---
 
@@ -456,7 +467,7 @@ El sistema es mayormente acromático. Hay tres acentos cromáticos y cada uno ti
 | Acento           | Rol                                                                       | Dónde                                                      |
 | ---------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | `scarlet-signal` | Funcional: marca el estado de un control, nunca decora ni etiqueta.        | Borde de foco, borde de campo inválido, borde del botón destructivo |
-| `blue-signal`    | Editorial/institucional: identifica los bloques de marca, no de producto.  | Fondo del footer, hero de `/quienes-somos`, y como lavado de baja opacidad (16%) que rota entre las celdas del mosaico de principios de esa página |
+| `blue-signal`    | Editorial/institucional: identifica los bloques de marca, no de producto.  | Fondo del footer, hero de `/quienes-somos`, y como lavado de baja opacidad que rota entre las celdas del mosaico de principios de esa página (16% en claro, 30% en oscuro: sobre negro el lavado compone contra el fondo y a 16% desaparece) |
 | `green-signal`   | Editorial secundario, mismo régimen que `blue-signal`.                     | Reservado — sin implementación asignada todavía              |
 
 Las páginas de producto (`/avisos`, `/deals`, `/mercado`, `/auto/[id]`, cards) son acromáticas de punta a punta: el escarlata solo asoma cuando el usuario enfoca un control o deja un campo inválido, es decir, en respuesta a una acción y nunca en reposo. `blue-signal`/`green-signal` no aparecen ahí — quedan reservados a los bloques editoriales/de marca.

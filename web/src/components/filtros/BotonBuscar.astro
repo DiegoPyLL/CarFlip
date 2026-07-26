@@ -1,0 +1,30 @@
+---
+/**
+ * El botón de envío de todo formulario de filtros. Antes cada página tenía el
+ * suyo con otra etiqueta —"Buscar" en la portada, "Filtrar" y "Aplicar filtros"
+ * en el listado, ninguno en deals—, así que la misma acción se veía y se
+ * llamaba distinto en cada pantalla.
+ */
+interface Props {
+  /** `true` en la barra lateral, donde el botón ocupa el ancho de la columna. */
+  ancho?: boolean;
+  class?: string;
+}
+
+const { ancho = false, class: clase = '' } = Astro.props;
+---
+
+<button
+  type="submit"
+  class:list={[
+    'inline-flex items-center justify-center gap-2 text-base text-ink',
+    'border border-ink px-5 py-2',
+    'hover:bg-ink hover:text-canvas focus:outline-hidden focus:border-scarlet-signal',
+    'transition-colors duration-150',
+    ancho && 'w-full',
+    clase,
+  ]}
+>
+  <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+  Buscar
+</button>

@@ -36,7 +36,13 @@ from loguru import logger
 
 from carflip.config import settings
 from carflip.database.models import AutosusadosListing
-from carflip.scrapers.base import AvisoAuto, ScraperBase, construir_id_externo
+from carflip.scrapers.base import (
+    AvisoAuto,
+    ScraperBase,
+    construir_id_externo,
+    normalizar_transmision,
+    traccion_desde_texto,
+)
 from carflip.scrapers.image_utils import convertir_a_avif
 from carflip.storage.r2 import subir_objeto_con_retry, url_publica
 
@@ -329,6 +335,10 @@ def _parsear_post(post: dict) -> AvisoAuto | None:
         km=km,
         ubicacion=ubicacion,
         combustible=combustible,
+        # El JSON no trae transmisión ni tracción como campos; el título es una
+        # ficha técnica ("…DIESEL 4X2 AT8 5P") de donde sí se pueden leer.
+        transmision=normalizar_transmision(titulo),
+        traccion=traccion_desde_texto(titulo),
         descripcion=descripcion,
         url_imagen=url_imagen,
         disponible=True,

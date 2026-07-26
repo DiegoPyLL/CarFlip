@@ -274,11 +274,12 @@ const proximosPasos = [
 
     <!-- Cierre: los dos bloques comparten una misma foto de fondo, separados
          por una línea en vez de por espacio. El velo (.cierre-velo) es lo que
-         hace legible el texto sobre una foto de día: mezcla blue-signal con
-         negro al 88%, dejando la foto como textura y no como imagen. Ese 88%
-         es el punto donde el blanco fijo (ink-on-tint) todavía rinde 4.59:1
-         sobre el píxel más claro de la foto — el mínimo AA. El fondo aquí no
-         depende del tema, porque es la misma foto en los dos. Los dos bloques
+         hace legible el texto sobre una foto de día: mezcla el acento de marca
+         con negro al 88%, dejando la foto como textura y no como imagen. Ese
+         88% es el punto donde el blanco fijo (ink-on-tint) todavía rinde
+         4.59:1 sobre el píxel más claro de la foto — el mínimo AA. La foto es
+         la misma en los dos temas; lo que cambia es el velo, que sigue al
+         acento (azul en claro, morado en oscuro). Los dos bloques
          se ponen lado a lado desde md: apilados a 720px de ancho las líneas
          pasaban de 75 caracteres. -->
     <div class="cierre relative isolate text-ink-on-tint grid grid-cols-1 md:grid-cols-2 md:divide-x divide-white/25">
@@ -372,10 +373,21 @@ const proximosPasos = [
     .principio-celda:hover {
       background-color: color-mix(in oklab, var(--c-blue) 16%, transparent);
     }
+
+    /* Sobre canvas negro un 16% se apaga hasta desaparecer (el lavado compone
+       contra el fondo, no contra blanco). El tono sube hasta que el hover
+       vuelve a leerse, sin acercarse al régimen de fondo de bloque —el texto
+       sigue en ink, no en ink-on-tint. */
+    :global(:root[data-theme="dark"]) .principio-celda:hover {
+      background-color: color-mix(in oklab, var(--c-blue) 30%, transparent);
+    }
   }
 
-  /* Velo del cierre: azul de marca virado a negro, casi opaco. Ver el
-     comentario del bloque .cierre en el markup. */
+  /* Velo del cierre: acento de marca virado a negro, casi opaco. Ver el
+     comentario del bloque .cierre en el markup. Sigue al tema junto con
+     --c-blue: el morado al 60% sobre negro queda incluso algo más oscuro que
+     el azul (Y 0.029 vs 0.034), así que el piso de contraste del texto blanco
+     sobre la foto se mantiene. */
   .cierre-velo {
     background-color: color-mix(in oklab, var(--c-blue) 60%, #000000);
     opacity: 0.88;

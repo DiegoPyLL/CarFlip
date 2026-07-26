@@ -1,0 +1,67 @@
+---
+/**
+ * Chasis visto desde arriba con el tren motriz destacado: las ruedas que
+ * traccionan van rellenas y su eje dibujado; las que solo ruedan quedan en
+ * contorno. Así "4x4", "Delantera" y "Trasera" se distinguen de un vistazo sin
+ * depender del color, que en esta paleta es acromático.
+ *
+ * Siempre `aria-hidden`: quien lo use pone al lado la etiqueta de texto, que es
+ * la que lee el lector de pantalla.
+ */
+import { TRACCIONES } from '@lib/publicaciones/opciones';
+
+interface Props {
+  traccion: string;
+  /** Lado del icono en px. 16 en las tarjetas, 20 en el detalle. */
+  size?: number;
+  class?: string;
+}
+
+const { traccion, size = 16, class: clase = '' } = Astro.props;
+
+// El frente del vehículo es la parte de arriba del icono.
+const TRENES: Record<string, { delantero: boolean; trasero: boolean }> = {
+  '4x4': { delantero: true, trasero: true },
+  Delantera: { delantero: true, trasero: false },
+  Trasera: { delantero: false, trasero: true },
+};
+
+const tren = TRENES[traccion];
+const valido = (TRACCIONES as readonly string[]).includes(traccion) && tren !== undefined;
+
+// Ruedas: dos por eje, pegadas a la carrocería central.
+const ejes = [
+  { y: 4.5, motriz: tren?.delantero ?? false },
+  { y: 14.5, motriz: tren?.trasero ?? false },
+];
+---
+
+{
+  valido && (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+      class={`shrink-0 ${clase}`}
+    >
+      {/* Carrocería */}
+      <rect x="8" y="2.5" width="8" height="19" rx="2.5" />
+
+      {ejes.map(({ y, motriz }) => (
+        <>
+          {/* El eje solo se dibuja si transmite fuerza: es el "tren motriz". */}
+          {motriz && <line x1="5" y1={y + 2.5} x2="19" y2={y + 2.5} />}
+          <rect x="2.5" y={y} width="3.5" height="5" rx="1.25" fill={motriz ? 'currentColor' : 'none'} />
+          <rect x="18" y={y} width="3.5" height="5" rx="1.25" fill={motriz ? 'currentColor' : 'none'} />
+        </>
+      ))}
+    </svg>
+  )
+}

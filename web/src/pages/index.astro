@@ -1,6 +1,7 @@
 ---
 import Base from '@layouts/Base.astro';
 import CardDeal from '@components/deals/CardDeal.astro';
+import MejorasFiltros from '@components/filtros/MejorasFiltros.astro';
 import BuscadorHome from '@components/marketing/BuscadorHome.astro';
 import { obtenerDeals, obtenerEstadisticas, obtenerFiltrosDisponibles } from '@lib/db';
 import { formatearFecha } from '@lib/formato';
@@ -17,7 +18,7 @@ if (Astro.url.search) {
 // tablas y domina el tiempo, así que las opciones del buscador no cuestan TTFB.
 const [estadisticas, destacados, disponibles] = await Promise.all([
   obtenerEstadisticas(),
-  obtenerDeals(undefined, undefined, 10),
+  obtenerDeals({}, 10),
   obtenerFiltrosDisponibles(),
 ]);
 
@@ -73,6 +74,7 @@ const nonce = Astro.locals.nonce;
     </p>
 
     <BuscadorHome disponibles={disponibles} />
+    <MejorasFiltros />
 
     <div class="mt-element pt-element border-t border-line flex flex-wrap gap-x-block gap-y-element">
       <div>

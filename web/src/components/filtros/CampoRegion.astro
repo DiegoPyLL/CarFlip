@@ -1,0 +1,22 @@
+---
+// Región del aviso. Las 16 salen de la constante, no de la BD: son fijas y
+// consultarlas costaría cinco queries por render para el mismo resultado.
+import { REGIONES } from '@lib/publicaciones/opciones';
+
+import { labelCls, selectCls } from './estilos';
+
+interface Props {
+  valor?: string;
+  id?: string;
+}
+
+const { valor, id = 'region' } = Astro.props;
+---
+
+<div>
+  <label for={id} class={labelCls}>Región</label>
+  <select id={id} name="region" class={selectCls}>
+    <option value="">Todas</option>
+    {REGIONES.map((r) => <option value={r} selected={valor === r}>{r}</option>)}
+  </select>
+</div>

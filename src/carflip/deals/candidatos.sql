@@ -20,30 +20,30 @@
 
 WITH avisos AS (
     SELECT 'autocosmos' AS fuente, id_externo, url, titulo, marca, modelo, anio, km,
-           precio, moneda, ubicacion, descripcion, url_imagen, delta_pct, disponible
+           precio, moneda, ubicacion, transmision, traccion, descripcion, url_imagen, delta_pct, disponible
     FROM autocosmos_listings
     UNION ALL
     SELECT 'yapo', id_externo, url, titulo, marca, modelo, anio, km,
-           precio, moneda, ubicacion, descripcion, url_imagen, delta_pct, disponible
+           precio, moneda, ubicacion, transmision, traccion, descripcion, url_imagen, delta_pct, disponible
     FROM yapo_listings
     UNION ALL
     SELECT 'mercadolibre', id_externo, url, titulo, marca, modelo, anio, km,
-           precio, moneda, ubicacion, descripcion, url_imagen, delta_pct, disponible
+           precio, moneda, ubicacion, transmision, traccion, descripcion, url_imagen, delta_pct, disponible
     FROM mercadolibre_listings
     UNION ALL
     SELECT 'autosusados', id_externo, url, titulo, marca, modelo, anio, km,
-           precio, moneda, ubicacion, descripcion, url_imagen, delta_pct, disponible
+           precio, moneda, ubicacion, transmision, traccion, descripcion, url_imagen, delta_pct, disponible
     FROM autosusados_listings
     UNION ALL
     SELECT 'checkeados', id_externo, url, titulo, marca, modelo, anio, km,
-           precio, moneda, ubicacion, descripcion, url_imagen, delta_pct, disponible
+           precio, moneda, ubicacion, transmision, traccion, descripcion, url_imagen, delta_pct, disponible
     FROM checkeados_listings
     UNION ALL
     -- Avisos de particulares: solo los publicados y que el dueño no sacó de
     -- Deals (visible_en_deals). Los pausados, vendidos y opt-out no son ofertas
     -- vigentes de Deals y tampoco deben pesar en la mediana del grupo.
     SELECT 'particular', id_externo, url, titulo, marca, modelo, anio, km,
-           precio, moneda, ubicacion, descripcion, url_imagen, delta_pct, disponible
+           precio, moneda, ubicacion, transmision, traccion, descripcion, url_imagen, delta_pct, disponible
     FROM particulares_listings
     WHERE estado = 'publicado' AND visible_en_deals
 ),
@@ -85,6 +85,8 @@ SELECT v.fuente,
        v.precio,
        v.moneda,
        v.ubicacion,
+       v.transmision,
+       v.traccion,
        v.descripcion,
        v.url_imagen,
        v.delta_pct,

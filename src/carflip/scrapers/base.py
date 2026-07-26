@@ -25,6 +25,71 @@ def construir_id_externo(url: str) -> str:
     return hashlib.sha256(normalizar_url(url).encode()).hexdigest()
 
 
+# Sirven sobre valores explícitos ("Automática", "AT") y sobre títulos tipo
+# ficha ("…DIESEL 4X2 AT8 5P"). No usar sobre descripciones largas: ahí
+# "climatizador automático" daría falso positivo.
+_PATRONES_TRANSMISION: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"autom[aá]tic|\bA/?T\d?\b|\bAUT\b|\bCVT\b|\bDSG\b|tiptronic|secuencial", re.IGNORECASE), "Automática"),
+    (re.compile(r"mec[aá]nic|\bmanual\b|\bM/?T\d?\b|\bMEC\b", re.IGNORECASE), "Manual"),
+]
+
+
+def normalizar_transmision(texto: str | None) -> str | None:
+    """Canoniza la transmisión a 'Manual' / 'Automática', los valores exactos
+    que guarda el formulario de particulares (TRANSMISIONES en la web): así el
+    filtro cruzado compara por igualdad, sin variantes ni tildes perdidas.
+
+    Cubre el uso chileno real ("Mecánica" = manual) y las siglas de caja.
+    Ante texto irreconocible devuelve None en vez de guardar basura.
+    """
+    if not texto:
+        return None
+    for patron, canonico in _PATRONES_TRANSMISION:
+        if patron.search(texto):
+            return canonico
+    return None
+
+
+def normalizar_traccion(valor: str | None) -> str | None:
+    """Canoniza la tracción a '4x4' / 'Delantera' / 'Trasera' desde un valor
+    explícito de la fuente (atributo del aviso o campo de API).
+
+    "4x2" no se mapea: dice que un solo eje traicona pero no cuál.
+    """
+    if not valor:
+        return None
+    v = valor.strip().lower()
+    if re.search(r"4\s?x\s?4|4wd|awd|integral|total", v):
+        return "4x4"
+    if "delanter" in v or "fwd" in v or "front" in v:
+        return "Delantera"
+    if "traser" in v or "rwd" in v or "propulsi" in v or "rear" in v:
+        return "Trasera"
+    return None
+
+
+# Solo menciones inequívocas: una palabra suelta como "delantera" no cuenta
+# ("cámara delantera" no es tracción). El orden importa: 4x4 primero, porque
+# un aviso puede decir "4x4, tracción delantera desconectable".
+_PATRONES_TRACCION: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"\b4\s?x\s?4\b|\b4wd\b|\bawd\b|tracci[oó]n\s+(?:integral|total)", re.IGNORECASE), "4x4"),
+    (re.compile(r"tracci[oó]n\s+delantera", re.IGNORECASE), "Delantera"),
+    (re.compile(r"tracci[oó]n\s+trasera|propulsi[oó]n\s+trasera", re.IGNORECASE), "Trasera"),
+]
+
+
+def traccion_desde_texto(*textos: str | None) -> str | None:
+    """Respaldo cuando la fuente no publica la tracción como dato estructurado:
+    la busca en título/descripción (ej. "…DIESEL 4X4 AT8…")."""
+    for texto in textos:
+        if not texto:
+            continue
+        for patron, canonico in _PATRONES_TRACCION:
+            if patron.search(texto):
+                return canonico
+    return None
+
+
 @dataclass
 class AvisoAuto:
     """Datos normalizados de un aviso de auto."""
@@ -41,6 +106,8 @@ class AvisoAuto:
     km: int | None = None
     ubicacion: str | None = None
     combustible: str | None = None
+    transmision: str | None = None
+    traccion: str | None = None
     descripcion: str | None = None
     url_imagen: str | None = None
     disponible: bool | None = None

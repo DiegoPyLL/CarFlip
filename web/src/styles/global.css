@@ -23,12 +23,12 @@
   --c-scarlet: #e4002b;
 
   /* Acentos editoriales: solo válidos como fondo de bloque (footer,
-     /quienes-somos), nunca como texto sobre canvas — ver DESIGN.md. El mismo
-     valor en ambos temas, igual que scarlet; el texto que va encima usa
-     --c-ink-on-tint (blanco fijo) en vez de --c-ink, que en tema claro sería
-     negro y perdería contraste sobre este azul.
+     /quienes-somos), nunca como texto sobre canvas — ver DESIGN.md. El texto
+     que va encima usa --c-ink-on-tint (blanco fijo) en vez de --c-ink, que en
+     tema claro sería negro y perdería contraste sobre este fondo.
      --c-blue se profundizó desde el azul pedido originalmente (#43a8ee, solo
-     2.6:1 con blanco) para que el texto blanco llegue a AA (5.07:1). */
+     2.6:1 con blanco) para que el texto blanco llegue a AA (5.07:1). En tema
+     oscuro el acento vira a morado (ver el bloque de abajo). */
   --c-blue: #1873b3;
   --c-green: #71db4c;
   --c-ink-on-tint: #ffffff;
@@ -74,6 +74,16 @@
   --c-line: #484848;
   --c-line-strong: #a0a0a0;
   --c-scarlet: #e4002b;
+
+  /* El acento editorial vira a morado en oscuro. El azul era el último bloque
+     grande que quedaba congelado al alternar de tema —footer y hero de
+     /quienes-somos se veían idénticos en claro y en oscuro—; el morado recoge
+     además el tono de la luna del toggle (--c-moon), que es el único otro
+     color del chrome que solo existe en este tema.
+     Sobre este morado, ink-on-tint (blanco fijo) rinde 5.70:1 → AA de texto
+     normal, y el bloque se despega del canvas negro con 3.69:1 → sobre el 3:1
+     que pide AA para objetos gráficos. */
+  --c-blue: #7c3aed;
 }
 
 /*
@@ -368,4 +378,64 @@ h3 {
 
 .campo:user-invalid ~ .campo-error {
   display: block;
+}
+
+/*
+  Vista y densidad de los listados. Los selectores cuelgan de <html>, donde
+  Base deja la preferencia guardada, así que viven acá y no en un componente.
+
+  Dos marcas distintas y no una: `data-grid-listado` habilita la densidad, que
+  es puro grid y funciona con cualquier tarjeta; `data-lista-ok` habilita además
+  la vista lista, que necesita las anclas internas de CardAviso. Sin esa segunda
+  marca, la grilla de /deals heredaría el `data-avisos-vista='lista'` guardado
+  desde /avisos y acostaría tarjetas que no saben acostarse.
+*/
+
+/* Vista lista: la tarjeta se acuesta y el listado pasa a una sola columna.
+   La fila a ancho completo tiene sitio de sobra a la derecha, así que la
+   procedencia baja del overlay de la foto al costado, alineada al final. */
+@media (min-width: 640px) {
+  :root[data-avisos-vista='lista'] [data-grid-listado][data-lista-ok] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  :root[data-avisos-vista='lista'] [data-grid-listado][data-lista-ok] [data-card-link] {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr) auto;
+    align-items: center;
+  }
+  :root[data-avisos-vista='lista'] [data-grid-listado][data-lista-ok] [data-fuente='badge'] { display: none; }
+  :root[data-avisos-vista='lista'] [data-grid-listado][data-lista-ok] [data-fuente='lado']  { display: block; }
+}
+
+/* Densidad: solo desde xl, donde una cuarta columna sigue dejando el precio
+   en una línea. Cada vista muestra su propio grupo de columnas. */
+@media (min-width: 1280px) {
+  :root:not([data-avisos-vista='lista']) [data-para='cuadricula'] { display: flex; }
+  :root[data-avisos-vista='lista'] [data-para='lista'] { display: flex; }
+
+  /* En un listado sin vista lista solo existe el grupo de la cuadrícula, que
+     debe seguir visible aunque la preferencia guardada sea 'lista'. */
+  [data-para='siempre'] { display: flex; }
+
+  :root[data-avisos-cols='2'] [data-grid-listado] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :root[data-avisos-cols='3'] [data-grid-listado] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  :root[data-avisos-cols='4'] [data-grid-listado] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+  /* Las dos densidades de la lista se declaran completas —no heredan de la
+     cuadrícula— porque su selector de dos atributos es el que gana sobre la
+     densidad guardada para la otra vista. */
+  :root[data-avisos-vista='lista'][data-avisos-cols-lista='1'] [data-grid-listado][data-lista-ok] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  :root[data-avisos-vista='lista'][data-avisos-cols-lista='2'] [data-grid-listado][data-lista-ok] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Dos por línea parte la fila a la mitad: ahí ya no hay ancho para la
+     procedencia al costado y vuelve a la foto. */
+  :root[data-avisos-vista='lista'][data-avisos-cols-lista='2'] [data-grid-listado][data-lista-ok] [data-card-link] {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+  :root[data-avisos-vista='lista'][data-avisos-cols-lista='2'] [data-grid-listado][data-lista-ok] [data-fuente='badge'] { display: block; }
+  :root[data-avisos-vista='lista'][data-avisos-cols-lista='2'] [data-grid-listado][data-lista-ok] [data-fuente='lado']  { display: none; }
 }

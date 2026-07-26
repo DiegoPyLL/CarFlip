@@ -6,9 +6,10 @@
  * llegar sin pasar por el formulario.
  */
 
+import { normalizarPatente } from '@lib/patente';
 import { normalizar } from '@lib/sanitizar';
 
-import { ANIO_MINIMO, COMBUSTIBLES, COMUNAS, REGIONES, TRANSMISIONES, anioMaximo } from './opciones';
+import { ANIO_MINIMO, COMBUSTIBLES, COMUNAS, REGIONES, TRACCIONES, TRANSMISIONES, anioMaximo } from './opciones';
 
 export interface CamposAviso {
   titulo: string;
@@ -18,8 +19,10 @@ export interface CamposAviso {
   anio: number;
   km: number;
   precio: number;
+  patente: string;
   combustible: string | null;
   transmision: string | null;
+  traccion: string | null;
   ubicacion: string;
   descripcion: string | null;
   visible_en_deals: boolean;
@@ -53,12 +56,14 @@ export function camposDelFormulario(datos: FormData): CamposAviso | null {
   const anio = entero(datos.get('anio'));
   const km = entero(datos.get('km'));
   const precio = entero(datos.get('precio'));
+  const patente = normalizarPatente(datos.get('patente'));
   const region = deLista(datos.get('region'), REGIONES);
   const comuna = deLista(datos.get('comuna'), COMUNAS);
   const combustible = deLista(datos.get('combustible'), COMBUSTIBLES);
   const transmision = deLista(datos.get('transmision'), TRANSMISIONES);
+  const traccion = deLista(datos.get('traccion'), TRACCIONES);
 
-  if (!marca || !modelo || !comuna || !region) return null;
+  if (!marca || !modelo || !comuna || !region || !patente) return null;
   if (anio === null || anio < ANIO_MINIMO || anio > anioMaximo()) return null;
   if (km === null || km > KM_MAXIMO) return null;
   if (precio === null || precio <= 0 || precio > PRECIO_MAXIMO) return null;
@@ -71,8 +76,10 @@ export function camposDelFormulario(datos: FormData): CamposAviso | null {
     anio,
     km,
     precio,
+    patente,
     combustible,
     transmision,
+    traccion,
     ubicacion: `${comuna}, ${region}`,
     descripcion: descripcion || null,
     // Un checkbox solo se envía cuando está marcado; su ausencia es el opt-out.

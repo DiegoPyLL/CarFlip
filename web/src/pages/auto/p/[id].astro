@@ -1,6 +1,8 @@
 ---
 import CtaContacto from '@components/avisos/CtaContacto.astro';
+import PatenteChilena from '@components/avisos/PatenteChilena.astro';
 import PosicionMercado from '@components/avisos/PosicionMercado.astro';
+import IconoTraccion from '@components/filtros/IconoTraccion.astro';
 import Base from '@layouts/Base.astro';
 import { rutaInterna, urlEntrar } from '@lib/auth/servidor';
 import { formatearFecha, formatearKm, formatearPrecio, signosDelta } from '@lib/formato';
@@ -81,6 +83,7 @@ const ficha = [
   { label: 'Kilometraje', valor: aviso.km !== null ? formatearKm(aviso.km) : null },
   { label: 'Combustible', valor: aviso.combustible },
   { label: 'Transmisión', valor: aviso.transmision },
+  { label: 'Tracción', valor: aviso.traccion, icono: true },
   { label: 'Ubicación', valor: aviso.ubicacion },
 ].filter((f) => f.valor);
 
@@ -94,6 +97,7 @@ const jsonLd = {
   model: aviso.modelo ?? undefined,
   modelDate: aviso.anio ?? undefined,
   vehicleTransmission: aviso.transmision ?? undefined,
+  driveWheelConfiguration: aviso.traccion ?? undefined,
   mileageFromOdometer: aviso.km !== null ? { '@type': 'QuantitativeValue', value: aviso.km, unitCode: 'KMT' } : undefined,
   fuelType: aviso.combustible ?? undefined,
   image: fotos.length ? fotos.map((f) => f.url) : undefined,
@@ -143,8 +147,9 @@ const campoCls =
       <!-- Galería: carrusel de scroll-snap con miniaturas ancladas. Cero JS y
            cero layout shift, porque cada foto lleva su proporción fija.
            `min-w-0` evita que el carrusel ensanche su columna del grid. -->
+      <div class="min-w-0">
       {fotos.length > 0 ? (
-        <div class="min-w-0">
+        <div>
           <ul class="flex overflow-x-auto snap-x snap-mandatory motion-safe:scroll-smooth">
             {fotos.map((foto, i) => (
               <li id={`foto-${i + 1}`} class="snap-start shrink-0 w-full">
@@ -182,6 +187,13 @@ const campoCls =
         <div class="aspect-[16/9] bg-surface flex items-center justify-center text-base">Sin fotos</div>
       )}
 
+      {aviso.patente && (
+        <div class="mt-element">
+          <PatenteChilena patente={aviso.patente} />
+        </div>
+      )}
+      </div>
+
       <div>
         <div class="flex flex-wrap gap-2 mb-element">
           <span class="text-base px-3 py-1 border border-line">Particular</span>
@@ -206,10 +218,13 @@ const campoCls =
         </div>
 
         <dl class="grid grid-cols-2 gap-x-element gap-y-element mb-element">
-          {ficha.map(({ label, valor }) => (
+          {ficha.map(({ label, valor, icono }) => (
             <div>
               <dt class="text-base">{label}</dt>
-              <dd class="text-base text-ink">{valor}</dd>
+              <dd class="text-base text-ink flex items-center gap-2">
+                {icono && valor && <IconoTraccion traccion={valor} size={20} />}
+                {valor}
+              </dd>
             </div>
           ))}
         </dl>

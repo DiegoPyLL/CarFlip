@@ -1,0 +1,112 @@
+---
+/**
+ * Controles de vista y densidad de un listado. Son preferencias del cliente
+ * (localStorage), no filtros: no viajan en la URL ni tocan la query. El
+ * servidor siempre pinta el default —cuadrícula de 3— y el CSS reacciona al
+ * atributo que Base deja en <html> antes del primer pintado.
+ *
+ * Funciona sobre cualquier grilla marcada con `data-grid-listado`; las reglas
+ * están en global.css.
+ */
+import { chipBotonCls } from '@components/filtros/estilos';
+
+interface Props {
+  /**
+   * La vista lista necesita que la tarjeta traiga sus anclas (`data-card-link`,
+   * `data-fuente`), que hoy solo tiene CardAviso. Con `false` se muestra únicamente
+   * la densidad, que es puro grid y sirve con cualquier tarjeta.
+   */
+  conVista?: boolean;
+}
+
+const { conVista = true } = Astro.props;
+
+const vistas = [
+  { valor: 'cuadricula', label: 'Cuadrícula' },
+  { valor: 'lista',      label: 'Lista' },
+];
+
+// La densidad depende de la vista: la cuadrícula elige entre 2, 3 y 4 columnas;
+// la lista, entre una fila a ancho completo o dos por línea. Solo se muestra el
+// grupo de la vista activa, y solo desde xl (ver el CSS).
+const densidades = [
+  { vista: 'cuadricula', opciones: [2, 3, 4], porDefecto: 3, rotulo: 'Columnas de la cuadrícula' },
+  { vista: 'lista',      opciones: [1, 2],    porDefecto: 2, rotulo: 'Columnas de la lista' },
+];
+
+const gruposDensidad = conVista ? densidades : densidades.filter((d) => d.vista === 'cuadricula');
+---
+
+
+<!--
+  Vista. Desde sm: bajo 640px la cuadrícula ya es de una columna, así que la
+  lista no aportaría nada y el toolbar no tiene espacio.
+-->
+{
+  conVista && (
+    <div id="vista" role="group" aria-label="Vista del listado" class="hidden sm:flex items-center gap-2">
+      <span class="text-base shrink-0">Vista</span>
+      {vistas.map(({ valor, label }) => (
+        <button type="button" data-valor={valor} aria-pressed={valor === 'cuadricula' ? 'true' : 'false'} class={chipBotonCls}>
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+<!--
+  Densidad: un grupo por vista, ambos ocultos hasta xl. Bajo 1280px no hay ancho
+  que repartir —la cuarta columna dejaría tarjetas de ~176px, donde el precio ya
+  no cabe en una línea.
+-->
+{
+  gruposDensidad.map(({ vista, opciones, porDefecto, rotulo }) => (
+    <div
+      id={`densidad-${vista}`}
+      data-para={conVista ? vista : 'siempre'}
+      role="group"
+      aria-label={rotulo}
+      class="hidden items-center gap-2"
+    >
+      <span class="text-base shrink-0">Columnas</span>
+      {opciones.map((n) => (
+        <button type="button" data-valor={n} aria-pressed={n === porDefecto ? 'true' : 'false'} class={`${chipBotonCls} tabular-nums`}>
+          {n}
+        </button>
+      ))}
+    </div>
+  ))
+}
+
+<script>
+  const raiz = document.documentElement;
+
+  // Cada grupo de chips guarda su valor en <html> y en localStorage; el CSS
+  // hace el resto. `atributo` es la forma camelCase del data-* de <html>.
+  const conectar = (id: string, atributo: string, clave: string, porDefecto: string) => {
+    const grupo = document.getElementById(id);
+    if (!grupo) return;
+    const botones = grupo.querySelectorAll<HTMLButtonElement>('button[data-valor]');
+    const marcar = () => {
+      const activo = raiz.dataset[atributo] || porDefecto;
+      for (const boton of botones) {
+        boton.setAttribute('aria-pressed', String(boton.dataset.valor === activo));
+      }
+    };
+    marcar();
+    for (const boton of botones) {
+      boton.addEventListener('click', () => {
+        const valor = boton.dataset.valor;
+        if (!valor) return;
+        raiz.dataset[atributo] = valor;
+        try { localStorage.setItem(clave, valor); } catch (_) {}
+        marcar();
+      });
+    }
+  };
+
+  conectar('vista', 'avisosVista', 'avisos-vista', 'cuadricula');
+  conectar('densidad-cuadricula', 'avisosCols', 'avisos-columnas', '3');
+  conectar('densidad-lista', 'avisosColsLista', 'avisos-columnas-lista', '2');
+</script>

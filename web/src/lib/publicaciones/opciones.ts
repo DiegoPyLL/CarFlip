@@ -397,6 +397,8 @@ export const COMBUSTIBLES = ['Bencina', 'Diésel', 'Híbrido', 'Eléctrico', 'Ga
 
 export const TRANSMISIONES = ['Manual', 'Automática'] as const;
 
+export const TRACCIONES = ['4x4', 'Delantera', 'Trasera'] as const;
+
 export const ESTADOS_AVISO = ['publicado', 'pausado', 'vendido'] as const;
 export type EstadoAviso = (typeof ESTADOS_AVISO)[number];
 

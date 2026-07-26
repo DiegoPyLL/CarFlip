@@ -1,5 +1,6 @@
 ---
 import PosicionMercado from '@components/avisos/PosicionMercado.astro';
+import IconoTraccion from '@components/filtros/IconoTraccion.astro';
 import Base from '@layouts/Base.astro';
 import { resolverUrlImagen } from '@lib/cdn';
 import { obtenerAviso } from '@lib/db';
@@ -40,6 +41,8 @@ const ficha = [
   { label: 'Año',         valor: aviso.anio ? String(aviso.anio) : null },
   { label: 'Kilometraje', valor: aviso.km !== null ? formatearKm(aviso.km) : null },
   { label: 'Combustible', valor: aviso.combustible },
+  { label: 'Transmisión', valor: aviso.transmision },
+  { label: 'Tracción',    valor: aviso.traccion, icono: true },
   { label: 'Ubicación',   valor: aviso.ubicacion },
 ].filter(f => f.valor);
 
@@ -52,6 +55,8 @@ const jsonLd = {
   modelDate: aviso.anio ?? undefined,
   mileageFromOdometer: aviso.km ? { '@type': 'QuantitativeValue', value: aviso.km, unitCode: 'KMT' } : undefined,
   fuelType: aviso.combustible ?? undefined,
+  vehicleTransmission: aviso.transmision ?? undefined,
+  driveWheelConfiguration: aviso.traccion ?? undefined,
   offers: aviso.precio ? { '@type': 'Offer', price: aviso.precio, priceCurrency: aviso.moneda, url: aviso.url } : undefined,
   image: urlImagen ?? undefined,
   description: aviso.descripcion ?? undefined,
@@ -144,10 +149,13 @@ const jsonLd = {
 
         <!-- Ficha técnica: pares label/valor apilados, sin cajas -->
         <dl class="grid grid-cols-2 gap-x-element gap-y-element mb-element">
-          {ficha.map(({ label, valor }) => (
+          {ficha.map(({ label, valor, icono }) => (
             <div>
               <dt class="text-base ">{label}</dt>
-              <dd class="text-base text-ink">{valor}</dd>
+              <dd class="text-base text-ink flex items-center gap-2">
+                {icono && valor && <IconoTraccion traccion={valor} size={20} />}
+                {valor}
+              </dd>
             </div>
           ))}
         </dl>

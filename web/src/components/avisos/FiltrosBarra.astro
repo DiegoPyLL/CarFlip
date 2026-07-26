@@ -1,5 +1,13 @@
 ---
-import type { FiltrosAviso, FiltrosDisponibles } from '@lib/tipos';
+// Barra superior del listado: expone el mismo set primario que el buscador de
+// la portada, para que filtrar signifique lo mismo en ambas pantallas.
+import BotonBuscar from '@components/filtros/BotonBuscar.astro';
+import CampoRegion from '@components/filtros/CampoRegion.astro';
+import CampoTraccion from '@components/filtros/CampoTraccion.astro';
+import CampoTransmision from '@components/filtros/CampoTransmision.astro';
+import { chipCls, labelCls, selectCls } from '@components/filtros/estilos';
+import { FUENTES } from '@lib/db/fuentes';
+import type { Aviso, FiltrosAviso, FiltrosDisponibles } from '@lib/tipos';
 
 interface Props {
   filtros: FiltrosAviso;
@@ -8,34 +16,31 @@ interface Props {
 
 const { filtros, disponibles } = Astro.props;
 
+// Los nombres visibles de las fuentes; las claves salen de TABLA_POR_FUENTE, así
+// que una fuente nueva aparece sola en el filtro en vez de faltar en silencio.
+const ETIQUETA_FUENTE: Record<Aviso['fuente'], string> = {
+  autocosmos: 'Autocosmos',
+  yapo: 'Yapo',
+  autosusados: 'AutosUsados',
+  checkeados: 'Checkeados',
+  particular: 'Particulares',
+};
+
 const fuentes = [
   { value: '', label: 'Todas' },
-  { value: 'autocosmos', label: 'Autocosmos' },
-  { value: 'yapo', label: 'Yapo' },
-  { value: 'autosusados', label: 'AutosUsados' },
-  { value: 'checkeados', label: 'Checkeados' },
-  { value: 'particular', label: 'Particulares' },
+  ...FUENTES.map((f) => ({ value: f, label: ETIQUETA_FUENTE[f] })),
 ];
-
-const selectCls = [
-  'text-base bg-canvas border border-line-strong px-3 py-2',
-  'text-ink appearance-none cursor-pointer',
-  'focus:outline-hidden focus:border-scarlet-signal',
-  'transition-colors',
-].join(' ');
-
-const labelCls = 'text-sm  uppercase tracking-wider';
 ---
 
 <!--
-  A 16px las seis opciones de fuente más los dos selects no caben en una sola fila:
-  se apila en dos bloques, igual que los filtros de /deals.
+  A 16px las seis opciones de fuente más los selects no caben en una sola fila:
+  se apila en bloques, igual que los filtros de /deals.
 -->
 <div class="pb-block mb-block border-b border-line space-y-element">
 
   <!-- Fuente: toggle buttons -->
   <fieldset>
-    <legend class={`${labelCls} mb-2`}>Fuente</legend>
+    <legend class={labelCls}>Fuente</legend>
     <div class="flex flex-wrap gap-2">
       {fuentes.map(({ value, label }) => (
         <label class="cursor-pointer select-none">
@@ -46,18 +51,15 @@ const labelCls = 'text-sm  uppercase tracking-wider';
             class="sr-only peer"
             checked={filtros.fuente === value || (!filtros.fuente && value === '')}
           />
-          <span class="block px-3 py-2 text-base border border-line-strong  peer-checked:bg-ink peer-checked:text-canvas peer-checked:border-ink peer-focus-visible:border-scarlet-signal hover:border-ink hover:text-ink transition-colors whitespace-nowrap">
-            {label}
-          </span>
+          <span class={chipCls}>{label}</span>
         </label>
       ))}
     </div>
   </fieldset>
 
-  <div class="flex flex-wrap items-end gap-element">
-
+  <div class="grid gap-element sm:grid-cols-2 lg:grid-cols-4">
     <!-- Marca -->
-    <div class="flex flex-col gap-2">
+    <div>
       <label for="marca" class={labelCls}>Marca</label>
       <select id="marca" name="marca" class={selectCls}>
         <option value="">Todas</option>
@@ -68,7 +70,7 @@ const labelCls = 'text-sm  uppercase tracking-wider';
     </div>
 
     <!-- Año -->
-    <div class="flex flex-col gap-2">
+    <div>
       <label for="anio" class={labelCls}>Año</label>
       <select id="anio" name="anio" class={selectCls}>
         <option value="">Todos</option>
@@ -78,19 +80,18 @@ const labelCls = 'text-sm  uppercase tracking-wider';
       </select>
     </div>
 
+    <CampoRegion valor={filtros.region} />
+
+    <CampoTransmision valor={filtros.transmision} />
+  </div>
+
+  <div class="flex flex-wrap items-end justify-between gap-element">
+    <CampoTraccion valor={filtros.traccion} />
+
     <!-- Acciones: sin relleno de color, pero con borde y target táctil suficiente -->
     <div class="flex items-end gap-element ml-auto">
-      <button
-        type="submit"
-        class="inline-flex items-center gap-2 text-base text-ink border border-ink px-5 py-2 hover:bg-ink hover:text-canvas focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150"
-      >
-        <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
-        Filtrar
-      </button>
-      <a
-        href="/avisos"
-        class="text-base  hover:text-ink transition-colors py-2"
-      >
+      <BotonBuscar />
+      <a href="/avisos" class="text-base hover:text-ink transition-colors py-2">
         Limpiar
       </a>
     </div>

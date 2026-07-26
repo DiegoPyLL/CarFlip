@@ -24,11 +24,11 @@ class Settings(BaseSettings):
 
     # Yapo — tuning ajustable por entorno (CI vs. local). Los valores por
     # defecto están calibrados para GitHub Actions (2 vCPU, sin créditos de CPU).
-    yapo_concurrencia_detalles: int = 2      # páginas de detalle en paralelo
-    yapo_max_avisos: int = 1_000             # tope de publicaciones por corrida
+    yapo_concurrencia_detalles: int = 4      # páginas de detalle en paralelo
+    yapo_max_avisos: int = 0                 # tope de publicaciones por corrida (0 = sin tope)
     yapo_pausa_lote_seg: float = 0.0         # pausa entre lotes (0 = sin pausa)
     yapo_reciclar_cada: int = 50             # recrear el navegador cada N detalles
-    yapo_presupuesto_min: float = 180.0      # tope de minutos de ingesta antes de cerrar ordenado
+    yapo_presupuesto_min: float = 240.0      # tope de minutos de ingesta antes de cerrar ordenado
 
     # Reintentos de subida a R2. Backoff exponencial: base * 2**(intento-1).
     # Corto por diseño: una foto no debe poder colgar un run de CI.

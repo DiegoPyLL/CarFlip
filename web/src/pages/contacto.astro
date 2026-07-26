@@ -152,10 +152,10 @@ const inputCls =
     <>
       <style>
         /* Confirmación animada: dos núcleos que van y vienen y dos arcos que
-           orbitan en sentidos opuestos. Los cruces mezclan color con multiply
-           dentro de un contexto aislado (isolation), así el arco-arco y el
-           núcleo-núcleo se oscurecen igual en tema claro y oscuro, sin tocar
-           el fondo de la página. */
+           orbitan en sentidos opuestos. Los cruces mezclan color dentro de un
+           contexto aislado (isolation), así el arco-arco y el núcleo-núcleo se
+           destacan sin tocar el fondo de la página. La mezcla se invierte con
+           el tema: multiply sobre canvas claro, screen sobre el oscuro. */
         .logo-anim { isolation: isolate; }
         .logo-anim circle { fill: none; }
         .arco circle { stroke-width: 6; stroke-linecap: round; }
@@ -164,6 +164,14 @@ const inputCls =
         .nucleo-azul circle { fill: var(--color-blue-signal); }
         .nucleo-verde circle { fill: var(--color-green-signal); }
         .arco, .nucleo { mix-blend-mode: multiply; }
+
+        /* En oscuro el multiply hunde los cruces hasta el negro del canvas y la
+           figura parece cortada donde se tocan. Screen es su espejo: aclara en
+           vez de oscurecer y el cruce vuelve a leerse.
+           Sin `:global()`: este bloque vive dentro de una expresión, así que
+           Astro lo emite tal cual y sus selectores ya son globales. */
+        :root[data-theme="dark"] .arco,
+        :root[data-theme="dark"] .nucleo { mix-blend-mode: screen; }
 
         .arco { transform-box: view-box; transform-origin: 100px 100px; }
         .arco-azul { animation: girar-azul 4.5s linear infinite; }

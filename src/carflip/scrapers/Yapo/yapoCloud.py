@@ -30,7 +30,10 @@ from carflip.scrapers.base import (
     AvisoAuto,
     ScraperBase,
     construir_id_externo,
+    normalizar_traccion,
+    normalizar_transmision,
     normalizar_url,
+    traccion_desde_texto,
 )
 from carflip.scrapers.image_utils import convertir_a_avif
 from carflip.storage.r2 import cliente_objetos_opcional, subir_objeto_con_retry, url_publica
@@ -38,8 +41,21 @@ from carflip.storage.r2 import cliente_objetos_opcional, subir_objeto_con_retry,
 CODIGO_FUENTE = 101  # identificador único de yapo (ver ScraperBase.codigo_fuente)
 
 YAPO_BASE = "https://www.yapo.cl"
+
+# Categorías de vehículos de Yapo, en orden de recorrido. Todas comparten el
+# mismo DOM de listado (`div.d3-ad-tile`) y de detalle, así que el pipeline es
+# el mismo; solo cambia el slug de la URL. Quedan fuera a propósito las que no
+# venden vehículos: accesorios y repuestos, arriendo y "yo busco".
+_CATEGORIAS = (
+    "autos-usados",            # ~1.150 páginas
+    "autos-camiones-y-buses",  # ~125 páginas
+    "autos-motos",             # ~80 páginas
+    "autos-nuevos",
+)
+
 _AÑO_MINIMO = 1970
 _PRECIO_MINIMO = 500_000
+_PRECIO_MINIMO_MOTOS = 150_000   # una moto usada cae muy por debajo del piso de un auto
 _PRECIO_MAXIMO = 250_000_000
 _PATRON_FECHA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -115,9 +131,10 @@ def _validar_aviso(aviso: AvisoAuto) -> list[str]:
             errores.append(f"anio {aviso.anio} fuera de rango [{_AÑO_MINIMO}, {anio_actual}]")
 
     if aviso.precio is not None:
-        if not (_PRECIO_MINIMO <= float(aviso.precio) <= _PRECIO_MAXIMO):
+        minimo = _PRECIO_MINIMO_MOTOS if "/autos-motos/" in aviso.url else _PRECIO_MINIMO
+        if not (minimo <= float(aviso.precio) <= _PRECIO_MAXIMO):
             errores.append(
-                f"precio {aviso.precio} fuera de rango [{_PRECIO_MINIMO:,}, {_PRECIO_MAXIMO:,}] CLP"
+                f"precio {aviso.precio} fuera de rango [{minimo:,}, {_PRECIO_MAXIMO:,}] CLP"
             )
 
     return errores
@@ -368,95 +385,111 @@ class ScraperYapoCloud(ScraperBase):
                 await page.route("**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,otf}", lambda route: route.abort())
 
                 # ── INGESTA: listado ──────────────────────────────────────────
-                pagina = 0
-                while True:
-                    pagina += 1
-                    if self.max_paginas and pagina > self.max_paginas:
+                # Una categoría a la vez; el tope de avisos y el presupuesto son
+                # globales, así que agotarlos en una categoría corta el recorrido.
+                for categoria in _CATEGORIAS:
+                    if _presupuesto_agotado() or (max_avisos and len(avisos_info) >= max_avisos):
                         break
-                    if _presupuesto_agotado():
-                        log_ingesta.warning(
-                            f"[yapo] Presupuesto de {settings.yapo_presupuesto_min:.0f} min alcanzado"
-                            f" en listado, deteniendo paginación"
-                        )
-                        break
-                    url = f"{YAPO_BASE}/autos-usados.{pagina}"
-                    log_ingesta.info(f"[yapo] Listado página {pagina}: {url}")
-                    # Retry con backoff: un timeout transitorio ya no corta toda la
-                    # paginación (sólo un listado realmente vacío la termina).
-                    cargada = False
-                    for intento in range(1, _GOTO_MAX_INTENTOS + 1):
-                        try:
-                            await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-                            await page.wait_for_selector("div.d3-ads-grid", timeout=20_000)
-                            cargada = True
+                    log_ingesta.info(f"[yapo] ── Categoría {categoria} ──")
+                    pagina = 0
+                    while True:
+                        pagina += 1
+                        if self.max_paginas and pagina > self.max_paginas:
                             break
-                        except Exception as e:
-                            if intento < _GOTO_MAX_INTENTOS:
-                                backoff = _GOTO_BACKOFF_BASE * intento + random.uniform(0, 1)
-                                log_ingesta.warning(
-                                    f"[yapo] Listado página {pagina} intento {intento}/{_GOTO_MAX_INTENTOS}"
-                                    f" falló: {e}. Reintentando en {backoff:.1f}s"
-                                )
-                                await asyncio.sleep(backoff)
-                            else:
-                                log_ingesta.warning(
-                                    f"[yapo] Listado página {pagina} falló tras {_GOTO_MAX_INTENTOS}"
-                                    f" intentos: {e}. Fin de paginación"
-                                )
-                    if not cargada:
-                        break
-
-                    await page.wait_for_timeout(2_000)
-                    cards = await page.query_selector_all("div.d3-ad-tile")
-                    if not cards:
-                        log_ingesta.info(f"[yapo] Página {pagina}: sin resultados, fin paginación")
-                        break
-
-                    count_antes = len(avisos_info)
-                    for card in cards:
-                        link = await card.query_selector("a[href^='/autos-usados']")
-                        if not link:
-                            continue
-                        href = await link.get_attribute("href")
-                        if not href:
-                            continue
-
-                        url_aviso = YAPO_BASE + href
-                        async with lock_vistos_urls:
-                            if url_aviso in vistos_urls:
-                                continue
-                            vistos_urls.add(url_aviso)
-
-                        async def _safe(sel: str) -> str:
+                        if _presupuesto_agotado():
+                            log_ingesta.warning(
+                                f"[yapo] Presupuesto de {settings.yapo_presupuesto_min:.0f} min alcanzado"
+                                f" en listado, deteniendo paginación"
+                            )
+                            break
+                        url = f"{YAPO_BASE}/{categoria}.{pagina}"
+                        log_ingesta.info(f"[yapo] Listado {categoria} página {pagina}: {url}")
+                        # Retry con backoff: un timeout transitorio ya no corta toda la
+                        # paginación (sólo un listado realmente vacío la termina).
+                        cargada = False
+                        for intento in range(1, _GOTO_MAX_INTENTOS + 1):
                             try:
-                                n = await card.query_selector(sel)
-                                return (await n.inner_text()).strip() if n else ""
-                            except Exception:
-                                return ""
+                                await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+                                await page.wait_for_selector("div.d3-ads-grid", timeout=20_000)
+                                cargada = True
+                                break
+                            except Exception as e:
+                                if intento < _GOTO_MAX_INTENTOS:
+                                    backoff = _GOTO_BACKOFF_BASE * intento + random.uniform(0, 1)
+                                    log_ingesta.warning(
+                                        f"[yapo] Listado {categoria} página {pagina} intento"
+                                        f" {intento}/{_GOTO_MAX_INTENTOS} falló: {e}."
+                                        f" Reintentando en {backoff:.1f}s"
+                                    )
+                                    await asyncio.sleep(backoff)
+                                else:
+                                    log_ingesta.warning(
+                                        f"[yapo] Listado {categoria} página {pagina} falló tras"
+                                        f" {_GOTO_MAX_INTENTOS} intentos: {e}. Fin de paginación"
+                                    )
+                        if not cargada:
+                            break
 
-                        # Extraer fecha desde atributo datetime del elemento time
-                        # (inner_text() retorna "hace 2 días", no YYYY-MM-DD)
-                        fecha_card = datetime.now().strftime("%Y-%m-%d")
-                        time_el = await card.query_selector("time[datetime]")
-                        if time_el:
-                            dt_attr = await time_el.get_attribute("datetime") or ""
-                            if re.match(r"^\d{4}-\d{2}-\d{2}", dt_attr):
-                                fecha_card = dt_attr[:10]
+                        await page.wait_for_timeout(2_000)
+                        cards = await page.query_selector_all("div.d3-ad-tile")
+                        if not cards:
+                            log_ingesta.info(
+                                f"[yapo] {categoria} página {pagina}: sin resultados, fin de la categoría"
+                            )
+                            break
 
-                        avisos_info.append({
-                            "url": url_aviso,
-                            "precio": await _safe("[class*='d3-ad-tile__price']"),
-                            "region": await _safe("[class*='d3-ad-tile__location']"),
-                            "fecha": fecha_card,
-                        })
+                        count_antes = len(avisos_info)
+                        for card in cards:
+                            link = await card.query_selector(f"a[href^='/{categoria}']")
+                            if not link:
+                                continue
+                            href = await link.get_attribute("href")
+                            if not href:
+                                continue
 
-                    nuevos = len(avisos_info) - count_antes
-                    log_ingesta.info(f"[yapo] Página {pagina}: {nuevos} URLs recolectadas (total {len(avisos_info)})")
+                            url_aviso = YAPO_BASE + href
+                            async with lock_vistos_urls:
+                                if url_aviso in vistos_urls:
+                                    continue
+                                vistos_urls.add(url_aviso)
 
-                    if len(avisos_info) >= max_avisos:
-                        avisos_info = avisos_info[:max_avisos]
-                        log_ingesta.info(f"[yapo] Límite de {max_avisos} publicaciones alcanzado, deteniendo paginación")
-                        break
+                            async def _safe(sel: str) -> str:
+                                try:
+                                    n = await card.query_selector(sel)
+                                    return (await n.inner_text()).strip() if n else ""
+                                except Exception:
+                                    return ""
+
+                            # Extraer fecha desde atributo datetime del elemento time
+                            # (inner_text() retorna "hace 2 días", no YYYY-MM-DD)
+                            fecha_card = datetime.now().strftime("%Y-%m-%d")
+                            time_el = await card.query_selector("time[datetime]")
+                            if time_el:
+                                dt_attr = await time_el.get_attribute("datetime") or ""
+                                if re.match(r"^\d{4}-\d{2}-\d{2}", dt_attr):
+                                    fecha_card = dt_attr[:10]
+
+                            avisos_info.append({
+                                "url": url_aviso,
+                                "categoria": categoria,
+                                "precio": await _safe("[class*='d3-ad-tile__price']"),
+                                "region": await _safe("[class*='d3-ad-tile__location']"),
+                                "fecha": fecha_card,
+                            })
+
+                        nuevos = len(avisos_info) - count_antes
+                        log_ingesta.info(
+                            f"[yapo] {categoria} página {pagina}: {nuevos} URLs recolectadas"
+                            f" (total {len(avisos_info)})"
+                        )
+
+                        if max_avisos and len(avisos_info) >= max_avisos:
+                            avisos_info = avisos_info[:max_avisos]
+                            log_ingesta.info(
+                                f"[yapo] Límite de {max_avisos} publicaciones alcanzado,"
+                                f" deteniendo paginación"
+                            )
+                            break
 
                 # ── INGESTA: detalles (pool de `concurrencia` páginas en paralelo) ──
                 sem_detalles = asyncio.Semaphore(concurrencia)
@@ -547,6 +580,8 @@ class ScraperYapoCloud(ScraperBase):
                                 modelo = self._get_attr(attrs, "Modelo") or None
                                 img_url = attrs.get("imagen_url", "") or None
 
+                                estado = "nuevo" if info["categoria"] == "autos-nuevos" else "usado"
+
                                 log_ingesta.debug(f"[yapo] Parseando aviso id={aviso_id}")
                                 if precio_raw is None:
                                     log_ingesta.warning(f"[yapo] id={aviso_id} sin precio")
@@ -559,7 +594,7 @@ class ScraperYapoCloud(ScraperBase):
                                     fuente=self.fuente,
                                     id_externo=aviso_id,
                                     url=url_det,
-                                    titulo=f"{marca or ''} {modelo or ''} {anio_s} usado precio {info['precio'].split(chr(10))[0]}".strip(),
+                                    titulo=f"{marca or ''} {modelo or ''} {anio_s} {estado} precio {info['precio'].split(chr(10))[0]}".strip(),
                                     precio=Decimal(precio_raw) if precio_raw is not None else None,
                                     moneda="CLP",
                                     marca=marca,
@@ -568,6 +603,11 @@ class ScraperYapoCloud(ScraperBase):
                                     km=km,
                                     ubicacion=info["region"] or None,
                                     combustible=self._normalizar_combustible(self._get_attr(attrs, "Combustible")),
+                                    transmision=normalizar_transmision(
+                                        self._get_attr(attrs, "Transmision", "Caja de cambios")
+                                    ),
+                                    traccion=normalizar_traccion(self._get_attr(attrs, "Traccion"))
+                                    or traccion_desde_texto(modelo),
                                     url_imagen=img_url,
                                     disponible=True,
                                     fecha_publicacion=info["fecha"],

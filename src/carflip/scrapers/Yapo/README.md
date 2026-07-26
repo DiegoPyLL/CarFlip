@@ -80,23 +80,25 @@ La ingesta tiene dos fases separadas: primero se recolectan las URLs de los avis
 
 #### Fase 1a — Recolección de URLs desde el listado
 
-El scraper abre un navegador Chromium en modo headless (sin ventana visible) y navega por las páginas de listado de autos usados:
+El scraper abre un navegador Chromium en modo headless (sin ventana visible) y recorre, una tras otra, las páginas de listado de las cuatro categorías de vehículos de Yapo (`_CATEGORIAS`):
 
 ```
-https://www.yapo.cl/autos-usados.1
-https://www.yapo.cl/autos-usados.2
-https://www.yapo.cl/autos-usados.3
-...
+https://www.yapo.cl/autos-usados.1              ~1.150 páginas (~34.400 avisos)
+https://www.yapo.cl/autos-camiones-y-buses.1      ~125 páginas
+https://www.yapo.cl/autos-motos.1                  ~80 páginas (~2.400 avisos)
+https://www.yapo.cl/autos-nuevos.1                 pocas decenas de avisos
 ```
+
+Las cuatro comparten el mismo DOM de listado y de detalle, así que el pipeline es idéntico: solo cambia el slug de la URL (que es también el prefijo del enlace de cada card). Quedan fuera a propósito las categorías que no venden vehículos: accesorios y repuestos, arriendo de autos y "yo busco".
 
 Para reducir el tiempo de carga y el consumo de red, el navegador bloquea automáticamente todas las solicitudes de recursos estáticos (imágenes, fuentes, íconos) durante la navegación del listado — solo descarga el HTML y el JavaScript necesarios para renderizar la grilla de avisos.
 
 Por cada página de listado:
 1. Espera a que aparezca el selector `div.d3-ads-grid` (la grilla de avisos).
 2. Lee todos los cards (`div.d3-ad-tile`) y extrae el enlace al aviso, el precio mostrado, la ubicación y la fecha.
-3. Descarta URLs ya vistas (deduplicación temprana por URL).
-4. Si la página no tiene resultados, detiene la paginación.
-5. Si se alcanza el límite de **1.000 publicaciones** (`_MAX_AVISOS`), detiene la paginación y descarta el excedente.
+3. Descarta URLs ya vistas (deduplicación temprana por URL, compartida entre categorías).
+4. Si la página no tiene resultados, pasa a la categoría siguiente.
+5. Si `YAPO_MAX_AVISOS` está definido y se alcanza, detiene el recorrido y descarta el excedente. Con el valor por defecto (`0`, sin tope) lo que corta la corrida es `YAPO_PRESUPUESTO_MIN`.
 
 #### Fase 1b — Extracción de datos en cada aviso
 
@@ -144,7 +146,7 @@ Cada aviso pasa por una validación de dos niveles antes de ser aceptado:
 | Campo | Rango aceptado |
 |---|---|
 | `anio` | Entre 1970 y el año actual |
-| `precio` | Entre $500.000 y $250.000.000 CLP |
+| `precio` | Entre $500.000 y $250.000.000 CLP; en motos el piso baja a $150.000 (una moto usada cae muy por debajo del de un auto) |
 
 **Advertencia no bloqueante**: si un auto del año 2022 o posterior tiene más de 100.000 km, se registra un `logger.warning`, pero el aviso igual pasa la validación (no se descarta).
 
@@ -222,6 +224,8 @@ El scraper mapea la información del sitio al dataclass `AvisoAuto`:
 | `km` | DOM / JSON-LD del detalle | Atributo `"Kilómetros"` / `mileageFromOdometer` en JSON-LD |
 | `ubicacion` | Texto del card de listado | Región del aviso |
 | `combustible` | DOM / JSON-LD del detalle | Normalizado a: `"bencina"`, `"diesel"`, `"hibrido"`, `"electrico"` |
+| `transmision` | DOM / JSON-LD del detalle | Atributo `"Transmisión"` / `vehicleTransmission`; normalizado a `"Manual"` / `"Automática"` |
+| `traccion` | DOM del detalle | Atributo `"Tracción"` si existe; si no, mención inequívoca en el modelo (ej. `"4x4"`) |
 | `descripcion` | — | No extraído; queda como `None` |
 | `url_imagen` | Galería del aviso | Primer `<img>` con `t_or_fh` en su `src` |
 | `disponible` | — | Siempre `True` (si aparece en el listado, está activo) |
@@ -268,7 +272,7 @@ ScraperYapoCloud(max_paginas=None, guardar_raw=True)
 
 | Parámetro | Tipo | Default | Descripción |
 |---|---|---|---|
-| `max_paginas` | `int \| None` | `None` | Límite de páginas de listado a recorrer. `None` = pagina sin límite hasta alcanzar `YAPO_MAX_AVISOS` (1.000 por defecto). Si se especifica un valor, se detiene al llegar al mínimo entre ese número de páginas y ese tope. Para pruebas usar `3` |
+| `max_paginas` | `int \| None` | `None` | Límite de páginas de listado **por categoría**. `None` = pagina hasta agotar cada categoría (o hasta `YAPO_MAX_AVISOS` si está definido). Para pruebas usar `3` |
 | `guardar_raw` | `bool` | `True` | Si escribe archivos en disco, descarga fotos y las sube a R2 (en segundo plano). No afecta la carga a PostgreSQL. Si R2 no está configurado, el scraper sigue funcionando sin subir fotos |
 
 ### Tuning por entorno (`.env` / `config.py`)
@@ -277,11 +281,11 @@ Los defaults están calibrados para **GitHub Actions** (2 vCPU, sin créditos de
 
 | Variable | Default | Descripción |
 |---|---|---|
-| `YAPO_CONCURRENCIA_DETALLES` | `2` | Páginas de detalle procesadas en paralelo |
-| `YAPO_MAX_AVISOS` | `1000` | Tope de publicaciones por corrida |
+| `YAPO_CONCURRENCIA_DETALLES` | `4` | Páginas de detalle procesadas en paralelo |
+| `YAPO_MAX_AVISOS` | `0` | Tope de publicaciones por corrida (`0` = sin tope: recorre todo el listado de Yapo) |
 | `YAPO_PAUSA_LOTE_SEG` | `0` | Pausa entre lotes (0 = sin pausa; útil solo en hosts burstable) |
 | `YAPO_RECICLAR_CADA` | `50` | Recrea el navegador cada N detalles (acota memoria de Chromium) |
-| `YAPO_PRESUPUESTO_MIN` | `180` | Minutos máximos de ingesta antes de cerrar ordenado |
+| `YAPO_PRESUPUESTO_MIN` | `240` | Minutos máximos de ingesta antes de cerrar ordenado (el job de CI corta a los 350) |
 | `R2_MAX_REINTENTOS` | `4` | Reintentos de subida a R2 |
 | `R2_BACKOFF_BASE_SEG` | `5` | Base del backoff exponencial de R2 (5/10/20 s) |
 
@@ -328,8 +332,7 @@ playwright install chromium
 
 ## Limitaciones conocidas
 
-- **Límite de publicaciones por run**: `YAPO_MAX_AVISOS` (1.000 por defecto) controla el tope de avisos recolectados por ejecución. Ajustar si se necesita más cobertura.
-- **Presupuesto de tiempo**: para no exceder el tope del job de CI, la ingesta se detiene ordenadamente al llegar a `YAPO_PRESUPUESTO_MIN` (180 min). Los avisos ya procesados quedan cargados (upsert incremental por lote).
+- **El presupuesto de tiempo es el límite real**: sin tope de avisos (`YAPO_MAX_AVISOS=0`), lo que corta la corrida es `YAPO_PRESUPUESTO_MIN`. La ingesta se detiene ordenadamente al llegar a ese límite y los avisos ya procesados quedan cargados (upsert incremental por lote). El listado completo de Yapo ronda los 34.000 avisos en ~1.150 páginas, muy por encima de lo que alcanza a recorrer una sola corrida.
 - **Rendimiento más lento que httpx**: al usar un navegador real, cada aviso de detalle tarda ~3–5 segundos en cargar, más 1,5 segundos de espera explícita. Con concurrencia 2 y sin pausas, 1.000 avisos rondan los ~45–70 minutos.
 - **JavaScript dependiente del DOM de Yapo**: si Yapo rediseña su interfaz y cambia los selectores (`.d3-ad-tile`, `.d3-property-insight__attribute-details`, etc.), el scraper dejará de extraer datos correctamente. Actualizar el script `_JS_ATTRS` y los selectores de Playwright en `scrape()`.
 - **`fecha_publicacion` con fallback a fecha actual**: Yapo no siempre muestra la fecha de publicación de forma parseable. Cuando el elemento `<time>` no está disponible o su texto no es una fecha, se usa la fecha del día del run como fallback.

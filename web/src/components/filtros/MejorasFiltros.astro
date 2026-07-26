@@ -1,0 +1,59 @@
+---
+/**
+ * Mejoras progresivas de los formularios de filtro, hermano de AutoSubmit:
+ * sin `onchange` inline (que la CSP bloquea) y dirigido por `data-*`.
+ *
+ *   <input data-precio>             → formato en vivo "$1.500.000"
+ *   <form data-limpiar-vacios>      → los campos sin valor no viajan en la URL
+ *
+ * Sin JavaScript los formularios siguen funcionando: solo se pierde el formato
+ * del precio y la URL queda con parámetros vacíos.
+ */
+---
+
+<script>
+  const formatear = (campo: HTMLInputElement) => {
+    const digitos = campo.value.replace(/\D/g, '').slice(0, 9);
+    campo.value = digitos ? `$${Number(digitos).toLocaleString('es-CL')}` : '';
+  };
+
+  const precios = [...document.querySelectorAll<HTMLInputElement>('input[data-precio]')];
+  for (const campo of precios) {
+    campo.addEventListener('input', () => formatear(campo));
+    formatear(campo); // al volver con el botón atrás puede llegar sin formato
+  }
+
+  // `maxlength` no aplica a inputs numéricos: el recorte a 4 dígitos va por JS.
+  // El rango (1950 al año actual) lo valida el navegador con min/max al enviar.
+  for (const anio of document.querySelectorAll<HTMLInputElement>('input[data-anio]')) {
+    anio.addEventListener('input', () => {
+      if (anio.value.length > 4) anio.value = anio.value.slice(0, 4);
+    });
+  }
+
+  for (const form of document.querySelectorAll<HTMLFormElement>('form[data-limpiar-vacios]')) {
+    form.addEventListener('submit', () => {
+      // El precio viaja como dígitos pelados: "$1.500.000" haría fallar el
+      // parseFloat del servidor y el filtro se perdería en silencio.
+      for (const campo of precios) {
+        if (form.contains(campo)) campo.value = campo.value.replace(/\D/g, '');
+      }
+
+      // Deja los campos vacíos fuera de la URL, para compartir
+      // /avisos?modelo=corolla y no /avisos?modelo=corolla&marca=&anio=.
+      const vacios = [
+        ...form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input[name], select[name]'),
+      ].filter((control) => !control.value);
+
+      for (const control of vacios) control.disabled = true;
+
+      // Se reactivan en el tick siguiente —el navegador ya serializó el
+      // formulario— para que al volver con el botón atrás no queden inertes,
+      // y el precio recupera su formato visible.
+      setTimeout(() => {
+        for (const control of vacios) control.disabled = false;
+        for (const campo of precios) formatear(campo);
+      });
+    });
+  }
+</script>

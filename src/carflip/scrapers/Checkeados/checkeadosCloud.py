@@ -38,7 +38,14 @@ from loguru import logger
 
 from carflip.config import settings
 from carflip.database.models import CheckeadosListing
-from carflip.scrapers.base import AvisoAuto, ScraperBase, construir_id_externo
+from carflip.scrapers.base import (
+    AvisoAuto,
+    ScraperBase,
+    construir_id_externo,
+    normalizar_traccion,
+    normalizar_transmision,
+    traccion_desde_texto,
+)
 from carflip.scrapers.image_utils import convertir_a_avif
 from carflip.storage.r2 import subir_objeto_con_retry, url_publica
 
@@ -303,6 +310,11 @@ def _parsear_vehicle(vehicle: dict, url: str) -> AvisoAuto | None:
         km=km,
         ubicacion=ubicacion,
         combustible=combustible,
+        # `transmission`/`traction` no están documentados en el JSON vehicle;
+        # si no vienen, el título ("marca modelo versión año") es el respaldo.
+        transmision=normalizar_transmision(str(vehicle.get("transmission") or "") or titulo),
+        traccion=normalizar_traccion(str(vehicle.get("traction") or ""))
+        or traccion_desde_texto(titulo, descripcion),
         descripcion=descripcion,
         url_imagen=url_imagen,
         disponible=disponible,

@@ -1,4 +1,9 @@
 ---
+// Filtros avanzados: los que no caben en la barra primaria. Comparten el mismo
+// form que FiltrosBarra (un único set de inputs, sin duplicados al enviar).
+import BotonBuscar from '@components/filtros/BotonBuscar.astro';
+import CampoPrecio from '@components/filtros/CampoPrecio.astro';
+import { inputCls, labelCls, selectCls } from '@components/filtros/estilos';
 import type { FiltrosAviso, FiltrosDisponibles } from '@lib/tipos';
 
 interface Props {
@@ -7,24 +12,6 @@ interface Props {
 }
 
 const { filtros, disponibles } = Astro.props;
-
-const inputCls = [
-  'w-full text-base',
-  'bg-canvas border border-line-strong px-3 py-2',
-  'text-ink placeholder-muted',
-  'focus:outline-hidden focus:border-scarlet-signal',
-  'transition-colors',
-].join(' ');
-
-const selectCls = [
-  'w-full text-base',
-  'bg-canvas border border-line-strong px-3 py-2',
-  'text-ink appearance-none cursor-pointer',
-  'focus:outline-hidden focus:border-scarlet-signal',
-  'transition-colors',
-].join(' ');
-
-const labelCls = 'text-sm  uppercase tracking-wider block mb-1';
 
 const hayFiltrosAvanzados = !!(
   filtros.modelo ||
@@ -40,7 +27,9 @@ const hayFiltrosAvanzados = !!(
   <button
     type="button"
     id="sidebar-toggle"
-    class="flex items-center gap-2 text-base  hover:text-ink transition-colors py-2"
+    aria-expanded="false"
+    aria-controls="filtros-sidebar"
+    class="flex items-center gap-2 text-base hover:text-ink transition-colors py-2"
   >
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M3 6h18M7 12h10M10 18h4"/>
@@ -63,7 +52,7 @@ const hayFiltrosAvanzados = !!(
   class="hidden lg:block w-full lg:w-48 lg:shrink-0 lg:sticky lg:top-20 lg:self-start"
 >
   <div class="border border-line p-element space-y-element">
-    <p class="text-sm  uppercase tracking-wider hidden lg:block">
+    <p class="text-sm uppercase tracking-wider hidden lg:block">
       Filtros avanzados
     </p>
 
@@ -104,57 +93,17 @@ const hayFiltrosAvanzados = !!(
         value={filtros.km_max ?? ''}
         placeholder="Sin límite"
         aria-describedby="err-km-max"
-        class={`${inputCls} campo`}
+        class={`${inputCls} campo tabular-nums`}
       />
       <p id="err-km-max" class="campo-error text-sm text-scarlet-signal mt-1.5">
         Ingresa un kilometraje en números, sin negativos.
       </p>
     </div>
 
-    <!-- Precio mínimo -->
-    <div>
-      <label for="precio_min" class={labelCls}>Precio mínimo</label>
-      <input
-        id="precio_min"
-        type="number"
-        name="precio_min"
-        min="0"
-        step="any"
-        value={filtros.precio_min ?? ''}
-        placeholder="$ 0"
-        aria-describedby="err-precio-min"
-        class={`${inputCls} campo`}
-      />
-      <p id="err-precio-min" class="campo-error text-sm text-scarlet-signal mt-1.5">
-        Ingresa un monto en números, sin negativos.
-      </p>
-    </div>
+    <CampoPrecio nombre="precio_min" etiqueta="Precio mínimo" valor={filtros.precio_min} placeholder="$ 0" />
+    <CampoPrecio nombre="precio_max" etiqueta="Precio máximo" valor={filtros.precio_max} placeholder="Sin límite" />
 
-    <!-- Precio máximo -->
-    <div>
-      <label for="precio_max" class={labelCls}>Precio máximo</label>
-      <input
-        id="precio_max"
-        type="number"
-        name="precio_max"
-        min="0"
-        step="any"
-        value={filtros.precio_max ?? ''}
-        placeholder="Sin límite"
-        aria-describedby="err-precio-max"
-        class={`${inputCls} campo`}
-      />
-      <p id="err-precio-max" class="campo-error text-sm text-scarlet-signal mt-1.5">
-        Ingresa un monto en números, sin negativos.
-      </p>
-    </div>
-
-    <button
-      type="submit"
-      class="w-full border border-line-strong text-ink text-base py-2 hover:border-ink hover:bg-ink hover:text-canvas focus:outline-hidden focus:border-scarlet-signal transition-colors mt-1"
-    >
-      Aplicar filtros
-    </button>
+    <BotonBuscar ancho />
   </div>
 </aside>
 
@@ -164,8 +113,9 @@ const hayFiltrosAvanzados = !!(
   const label = document.getElementById('toggle-label');
 
   btn?.addEventListener('click', () => {
-    const hidden = panel?.classList.contains('hidden') ?? true;
-    panel?.classList.toggle('hidden', !hidden);
-    if (label) label.textContent = hidden ? 'Ocultar filtros' : 'Más filtros';
+    const oculto = panel?.classList.contains('hidden') ?? true;
+    panel?.classList.toggle('hidden', !oculto);
+    btn.setAttribute('aria-expanded', String(oculto));
+    if (label) label.textContent = oculto ? 'Ocultar filtros' : 'Más filtros';
   });
 </script>

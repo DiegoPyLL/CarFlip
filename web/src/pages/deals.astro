@@ -1,55 +1,71 @@
 ---
 import Base from '@layouts/Base.astro';
-import AutoSubmit from '@components/AutoSubmit.astro';
+import Paginacion from '@components/avisos/Paginacion.astro';
+import ToolbarVista from '@components/avisos/ToolbarVista.astro';
 import CardDeal from '@components/deals/CardDeal.astro';
-import { obtenerDeals } from '@lib/db';
-import type { CategoriaDeal, FuenteDeal } from '@lib/tipos';
+import BotonBuscar from '@components/filtros/BotonBuscar.astro';
+import CampoPrecio from '@components/filtros/CampoPrecio.astro';
+import CampoRegion from '@components/filtros/CampoRegion.astro';
+import CampoTraccion from '@components/filtros/CampoTraccion.astro';
+import CampoTransmision from '@components/filtros/CampoTransmision.astro';
+import MejorasFiltros from '@components/filtros/MejorasFiltros.astro';
+import { chipCls, labelCls, selectCls } from '@components/filtros/estilos';
+import { obtenerDeals, obtenerFiltrosDeals } from '@lib/db';
+import { POR_PAGINA } from '@lib/db/client';
+import { FUENTES } from '@lib/db/fuentes';
+import { parsearFiltrosDeals } from '@lib/filtros';
+import type { Aviso } from '@lib/tipos';
+
+// El tope es parte de la promesa de la página, no un detalle de implementación:
+// Deals es una selección curada, no el catálogo completo.
+const TOPE = 100;
 
 const params = Astro.url.searchParams;
+const filtros = parsearFiltrosDeals(params);
 
-// Filtros propios de esta página (la tabla deals incluye mercadolibre,
-// a diferencia de FiltrosAviso del listado general).
-const fuentesValidas: FuenteDeal[] = ['autocosmos', 'yapo', 'mercadolibre', 'particular'];
-const categoriasValidas: CategoriaDeal[] = ['oportunidad_clara', 'buen_precio', 'revisar'];
+const [deals, disponibles] = await Promise.all([
+  obtenerDeals(filtros, TOPE),
+  obtenerFiltrosDeals(),
+]);
 
-const fuenteParam = params.get('fuente') ?? '';
-const fuente = fuentesValidas.includes(fuenteParam as FuenteDeal)
-  ? (fuenteParam as FuenteDeal)
-  : undefined;
-
-const categoriaParam = params.get('categoria') ?? '';
-const categoria = categoriasValidas.includes(categoriaParam as CategoriaDeal)
-  ? (categoriaParam as CategoriaDeal)
-  : undefined;
-
-const deals = await obtenerDeals(fuente, categoria, 48);
-
-// Stats para el header
+// Las stats describen la selección completa, no la página que se está viendo:
+// calcularlas sobre las 24 visibles haría que cambiaran al pasar de página.
 const totalDeals = deals.length;
-const totalOportunidades = deals.filter(d => d.categoria === 'oportunidad_clara').length;
-const conPuntaje = deals.filter(d => d.puntaje !== null);
+const totalOportunidades = deals.filter((d) => d.categoria === 'oportunidad_clara').length;
+const conPuntaje = deals.filter((d) => d.puntaje !== null);
 const puntajePromedio = conPuntaje.length > 0
   ? conPuntaje.reduce((acc, d) => acc + (d.puntaje ?? 0), 0) / conPuntaje.length
   : null;
 
-// Ambos grupos de filtros comparten markup: se declaran como datos y se recorren.
-const gruposFiltro = [
+// Paginación en memoria: son 100 filas ya cargadas, así que partirlas acá evita
+// una segunda consulta y mantiene el ranking intacto entre páginas.
+const totalPaginas = Math.ceil(totalDeals / POR_PAGINA);
+const pagina = Math.min(filtros.pagina ?? 1, Math.max(totalPaginas, 1));
+const visibles = deals.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
+
+const ETIQUETA_FUENTE: Record<Aviso['fuente'], string> = {
+  autocosmos: 'Autocosmos',
+  yapo: 'Yapo',
+  autosusados: 'AutosUsados',
+  checkeados: 'Checkeados',
+  particular: 'Particulares',
+};
+
+// Fuente y categoría comparten markup de chips: se declaran como datos.
+const gruposChips = [
   {
     name: 'fuente',
     label: 'Fuente',
-    activo: fuente ?? '',
+    activo: filtros.fuente ?? '',
     opciones: [
       { value: '', label: 'Todas' },
-      { value: 'autocosmos', label: 'Autocosmos' },
-      { value: 'yapo', label: 'Yapo' },
-      { value: 'mercadolibre', label: 'MercadoLibre' },
-      { value: 'particular', label: 'Particulares' },
+      ...FUENTES.map((f) => ({ value: f as string, label: ETIQUETA_FUENTE[f] })),
     ],
   },
   {
     name: 'categoria',
     label: 'Categoría',
-    activo: categoria ?? '',
+    activo: filtros.categoria ?? '',
     opciones: [
       { value: '', label: 'Todas' },
       { value: 'oportunidad_clara', label: 'Oportunidad' },
@@ -58,20 +74,25 @@ const gruposFiltro = [
     ],
   },
 ];
+
+const puntajes = [60, 70, 80, 90];
 ---
 
 <Base
-  titulo="Deals — Oportunidades de compra detectadas con IA"
-  descripcion="Autos en Chile con precio bajo su valor de mercado, evaluados por IA: categoría, puntaje y riesgos detectados en el aviso."
+  titulo="Deals — Los mejores 100 vehículos de CarFlip"
+  descripcion="Los 100 autos mejor evaluados de Chile: publicados bajo su valor de mercado y analizados por IA, con categoría, puntaje y riesgos detectados en el aviso."
 >
 
   <!-- Header de sección -->
   <div class="mb-section">
-    <p class="text-base  uppercase tracking-widest mb-element">Oportunidades de compra</p>
-    <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-element">Deals</h1>
-    <p class="text-base  max-w-xl">
+    <p class="text-base uppercase tracking-widest mb-element">Oportunidades de compra</p>
+    <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-element text-balance max-w-3xl">
+      Los mejores 100 vehículos de CarFlip
+    </h1>
+    <p class="text-base max-w-xl">
       Autos publicados bajo su precio de mercado (comparados contra avisos similares de la misma
-      marca, modelo y año). Cada deal es evaluado por IA, que lee el aviso para detectar riesgos.
+      marca, modelo y año). Cada deal es evaluado por IA, que lee el aviso para detectar riesgos,
+      y el ranking lo ordena por ese puntaje.
     </p>
   </div>
 
@@ -79,71 +100,132 @@ const gruposFiltro = [
   {totalDeals > 0 && (
     <div class="flex flex-wrap gap-x-block gap-y-element mb-block pb-block border-b border-line">
       <div>
-        <p class="text-base ">Deals activos</p>
+        <p class="text-base">Deals en la selección</p>
         <p class="text-base text-ink tabular-nums">{totalDeals}</p>
       </div>
       <div>
-        <p class="text-base ">Oportunidades claras</p>
+        <p class="text-base">Oportunidades claras</p>
         <p class="text-base text-ink tabular-nums">{totalOportunidades}</p>
       </div>
       {puntajePromedio !== null && (
         <div>
-          <p class="text-base ">Puntaje promedio</p>
+          <p class="text-base">Puntaje promedio</p>
           <p class="text-base text-ink tabular-nums">{puntajePromedio.toFixed(0)}/100</p>
         </div>
       )}
     </div>
   )}
 
-  <!-- Filtros -->
-  <form method="GET" action="/deals" class="mb-block space-y-element" data-autosubmit>
-    {gruposFiltro.map(({ name, label, activo, opciones }) => (
-      <fieldset class="flex flex-wrap items-center gap-element">
-        <legend class="sr-only">{label}</legend>
-        <span class="text-sm  uppercase tracking-wider shrink-0 w-full sm:w-24" aria-hidden="true">{label}</span>
+  <!--
+    Mismos campos y mismo botón que la portada y el listado. Sin `data-autosubmit`:
+    con campos de texto y número dispararía un envío en cada pulsación de tecla.
+  -->
+  <form method="GET" action="/deals" id="filtros-deals" data-limpiar-vacios class="mb-block space-y-element">
+    {gruposChips.map(({ name, label, activo, opciones }) => (
+      <fieldset>
+        <legend class={labelCls}>{label}</legend>
         <div class="flex flex-wrap gap-2">
           {opciones.map(({ value, label: opcion }) => (
-            <label class="cursor-pointer select-none shrink-0">
-              <input
-                type="radio"
-                name={name}
-                value={value}
-                class="sr-only peer"
-                checked={activo === value}
-              />
-              <span class="block px-3 py-2 text-base border border-line-strong  peer-checked:bg-ink peer-checked:text-canvas peer-checked:border-ink peer-focus-visible:border-scarlet-signal hover:border-ink hover:text-ink transition-colors whitespace-nowrap">
-                {opcion}
-              </span>
+            <label class="cursor-pointer select-none">
+              <input type="radio" name={name} value={value} class="sr-only peer" checked={activo === value} />
+              <span class={chipCls}>{opcion}</span>
             </label>
           ))}
         </div>
       </fieldset>
     ))}
+
+    <div class="grid gap-element sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div>
+        <label for="d-marca" class={labelCls}>Marca</label>
+        <select id="d-marca" name="marca" class={selectCls}>
+          <option value="">Todas</option>
+          {disponibles.marcas.map((m) => (
+            <option value={m} selected={filtros.marca === m}>{m}</option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label for="d-anio" class={labelCls}>Año</label>
+        <select id="d-anio" name="anio" class={selectCls}>
+          <option value="">Todos</option>
+          {disponibles.anios.map((a) => (
+            <option value={a} selected={filtros.anio === a}>{a}</option>
+          ))}
+        </select>
+      </div>
+
+      <CampoRegion id="d-region" valor={filtros.region} />
+
+      <CampoTransmision id="d-transmision" valor={filtros.transmision} />
+
+      <CampoPrecio nombre="precio_max" etiqueta="Precio máximo" valor={filtros.precio_max} placeholder="Sin límite" />
+
+      <!-- Puntaje mínimo: propio de deals, no existe en el listado general. -->
+      <div>
+        <label for="d-puntaje" class={labelCls}>Puntaje mínimo</label>
+        <select id="d-puntaje" name="puntaje_min" class={selectCls}>
+          <option value="">Cualquiera</option>
+          {puntajes.map((p) => (
+            <option value={p} selected={filtros.puntaje_min === p}>{p} o más</option>
+          ))}
+        </select>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-end justify-between gap-element">
+      <CampoTraccion valor={filtros.traccion} />
+      <div class="flex items-end gap-element ml-auto">
+        <BotonBuscar />
+        <a href="/deals" class="text-base hover:text-ink transition-colors py-2">Limpiar</a>
+      </div>
+    </div>
   </form>
 
   <!-- Grid de deals -->
   {totalDeals > 0 ? (
-    <div
-      id="deals-grid"
-      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-element"
-    >
-      {deals.map((deal) => (
-        <CardDeal deal={deal} />
-      ))}
-    </div>
+    <>
+      <div class="flex flex-wrap items-center justify-between gap-element mb-element">
+        <p class="text-base">
+          <span class="text-ink tabular-nums">{totalDeals}</span> {totalDeals === 1 ? 'deal' : 'deals'}
+        </p>
+        <div class="flex items-center gap-element">
+          <ToolbarVista conVista={false} />
+        </div>
+      </div>
+
+      <div
+        data-grid-listado
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-element"
+      >
+        {visibles.map((deal) => (
+          <CardDeal deal={deal} />
+        ))}
+      </div>
+
+      <Paginacion pagina={pagina} total_paginas={totalPaginas} params={params} />
+    </>
   ) : (
     <div class="py-section border border-line p-element">
-      <p class="text-2xl text-ink">Sin deals disponibles ahora</p>
-      <p class="text-base  mt-element max-w-md">
+      <p class="text-2xl text-ink">Sin deals para estos filtros</p>
+      <p class="text-base mt-element max-w-md">
         Los deals aparecen cuando detectamos un aviso publicado bajo el precio de mercado
-        de vehículos comparables. Vuelve a revisar después de la próxima actualización.
+        de vehículos comparables. Prueba con menos filtros, o vuelve a revisar después de
+        la próxima actualización.
       </p>
-      <a href="/avisos" class="mt-block inline-flex items-center gap-2 text-base text-ink hover: transition-colors">
-        <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
-        Ver todos los avisos
-      </a>
+      <div class="mt-block flex flex-wrap gap-element">
+        <a href="/deals" class="inline-flex items-center gap-2 text-base text-ink hover:text-ink/70 transition-colors">
+          <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+          Quitar filtros
+        </a>
+        <a href="/avisos" class="inline-flex items-center gap-2 text-base text-ink hover:text-ink/70 transition-colors">
+          <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+          Ver todos los avisos
+        </a>
+      </div>
     </div>
   )}
 
-  <AutoSubmit />
+  <MejorasFiltros />
 </Base>

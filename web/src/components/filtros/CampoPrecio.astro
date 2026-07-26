@@ -1,0 +1,41 @@
+---
+/**
+ * Campo de dinero. Es `type="text"` y no `type="number"` a propósito: los
+ * puntos de miles del formato chileno hacen que un input numérico se considere
+ * inválido y descarte lo tipeado. `MejorasFiltros` le da el formato en vivo
+ * ("$1.500.000") y lo devuelve a dígitos pelados al enviar, que es lo que
+ * `parsearFiltrosUrl` espera. Sin JavaScript acepta el número plano.
+ */
+import { inputCls, labelCls } from './estilos';
+
+interface Props {
+  nombre: 'precio_min' | 'precio_max';
+  etiqueta: string;
+  valor?: number;
+  placeholder?: string;
+}
+
+const { nombre, etiqueta, valor, placeholder } = Astro.props;
+const id = `f-${nombre}`;
+---
+
+<div>
+  <label for={id} class={labelCls}>{etiqueta}</label>
+  <input
+    id={id}
+    type="text"
+    name={nombre}
+    value={valor ?? ''}
+    placeholder={placeholder}
+    inputmode="numeric"
+    maxlength="12"
+    autocomplete="off"
+    pattern="[0-9$.\s]*"
+    data-precio
+    aria-describedby={`err-${nombre}`}
+    class={`${inputCls} campo tabular-nums`}
+  />
+  <p id={`err-${nombre}`} class="campo-error text-sm text-scarlet-signal mt-1.5">
+    Ingresa solo números.
+  </p>
+</div>

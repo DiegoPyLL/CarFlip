@@ -66,8 +66,11 @@ function esRutaActiva(href: string): boolean {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <!-- Sin `media`: el color de la barra del navegador sigue al tema del sitio
+         (data-theme), no al del SO. Con el media query, tener el SO en oscuro y
+         el sitio en claro —el caso por defecto— dejaba la barra negra sobre una
+         página blanca. Lo escriben los mismos scripts que aplican el tema. -->
+    <meta name="theme-color" content="#ffffff" />
 
     <!--
       Bloqueante y en <head> a propósito: aplica el tema guardado antes del
@@ -79,7 +82,26 @@ function esRutaActiva(href: string): boolean {
       try {
         if (localStorage.getItem('tema') === 'oscuro') {
           document.documentElement.dataset.theme = 'dark';
+          document.querySelector('meta[name="theme-color"]').content = '#000000';
         }
+      } catch (_) {}
+
+      // Vista y densidad de los listados (/avisos, /deals), por el mismo motivo
+      // que el tema: aplicadas antes del primer pintado, el grid no salta de 3
+      // a 2 ó 4 columnas al cargar. Viven acá y no en la página porque un
+      // `slot="head"` no atraviesa el componente que dibuja el toolbar.
+      try {
+        const cols = localStorage.getItem('avisos-columnas');
+        if (cols === '2' || cols === '3' || cols === '4') {
+          document.documentElement.dataset.avisosCols = cols;
+        }
+        if (localStorage.getItem('avisos-vista') === 'lista') {
+          document.documentElement.dataset.avisosVista = 'lista';
+        }
+        // Este sí se escribe siempre: al pasar a lista el CSS ya necesita saber
+        // si va a una o dos por línea, sin esperar a que se toque el control.
+        document.documentElement.dataset.avisosColsLista =
+          localStorage.getItem('avisos-columnas-lista') === '1' ? '1' : '2';
       } catch (_) {}
     </script>
 
@@ -190,9 +212,9 @@ function esRutaActiva(href: string): boolean {
     </main>
 
     <!-- Único bloque del sitio con el acento blue-signal: identifica el footer
-         como bloque de marca, no de producto. Todo el texto usa ink-on-tint
-         (blanco fijo), no ink, que en tema claro sería negro y perdería
-         contraste sobre este azul. -->
+         como bloque de marca, no de producto. El acento sigue al tema (azul en
+         claro, morado en oscuro). Todo el texto usa ink-on-tint (blanco fijo),
+         no ink, que en tema claro sería negro y perdería contraste sobre él. -->
     <footer class="mt-section bg-blue-signal">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-block">
         <div class="flex flex-col gap-block lg:flex-row lg:justify-between">
@@ -360,6 +382,11 @@ function esRutaActiva(href: string): boolean {
           const oscuro = raiz.dataset.theme === 'dark';
           if (oscuro) delete raiz.dataset.theme;
           else raiz.dataset.theme = 'dark';
+          // La barra del navegador cambia con el resto: es el único trozo de
+          // chrome que no vive dentro del documento y quedaría fuera del cambio.
+          document.querySelector('meta[name="theme-color"]')?.setAttribute(
+            'content', oscuro ? '#ffffff' : '#000000',
+          );
           try { localStorage.setItem('tema', oscuro ? 'claro' : 'oscuro'); } catch (_) {}
           rotular();
         };

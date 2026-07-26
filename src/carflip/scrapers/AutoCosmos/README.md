@@ -195,6 +195,8 @@ El scraper mapea la información del HTML al dataclass `AvisoAuto`:
 | `km` | Texto del card | Regex sobre `N km` |
 | `ubicacion` | Texto del card | Primera parte sin números del texto separado por `\|` |
 | `combustible` | — | No disponible en el listado; queda como `None` |
+| `transmision` | Texto del card | Mejor esfuerzo (`normalizar_transmision`); suele quedar `None` |
+| `traccion` | Texto del card | Solo menciones inequívocas (`"4x4"`, `"tracción delantera"`); suele quedar `None` |
 | `descripcion` | — | No disponible en el listado; queda como `None` |
 | `url_imagen` | Atributo `src` o `data-src` de `<img>` | Thumbnail de portada del aviso |
 | `disponible` | — | Siempre `True` (si aparece en el listado, está activo) |

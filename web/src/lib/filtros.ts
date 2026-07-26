@@ -1,5 +1,12 @@
 import { esFuente } from './db/fuentes';
-import type { FiltrosAviso } from './tipos';
+import { REGIONES, TRACCIONES, TRANSMISIONES } from './publicaciones/opciones';
+import type { CategoriaDeal, FiltrosAviso, FiltrosDeal } from './tipos';
+
+/** Whitelist por coincidencia exacta: lo que no está en la lista no llega a la query. */
+function deLista(valor: string | null, lista: readonly string[]): string | undefined {
+  const texto = valor?.trim();
+  return texto && lista.includes(texto) ? texto : undefined;
+}
 
 export function parsearFiltrosUrl(params: URLSearchParams): FiltrosAviso {
   const filtros: FiltrosAviso = {};
@@ -33,6 +40,18 @@ export function parsearFiltrosUrl(params: URLSearchParams): FiltrosAviso {
   const combustible = params.get('combustible')?.trim().slice(0, 50);
   if (combustible) filtros.combustible = combustible;
 
+  // Región, transmisión y tracción son listas cerradas: se validan contra las
+  // mismas constantes que llena el formulario de particulares, así que la web
+  // nunca manda a la consulta un valor que la BD no pueda tener.
+  const region = deLista(params.get('region'), REGIONES);
+  if (region) filtros.region = region;
+
+  const transmision = deLista(params.get('transmision'), TRANSMISIONES);
+  if (transmision) filtros.transmision = transmision;
+
+  const traccion = deLista(params.get('traccion'), TRACCIONES);
+  if (traccion) filtros.traccion = traccion;
+
   const orden = params.get('orden');
   if (orden === 'reciente' || orden === 'precio_asc' || orden === 'precio_desc' || orden === 'km_asc') {
     filtros.orden = orden;
@@ -40,6 +59,31 @@ export function parsearFiltrosUrl(params: URLSearchParams): FiltrosAviso {
 
   const pagina = parseInt(params.get('pagina') ?? '1');
   filtros.pagina = !isNaN(pagina) && pagina >= 1 ? pagina : 1;
+
+  return filtros;
+}
+
+const CATEGORIAS_DEAL: readonly CategoriaDeal[] = ['oportunidad_clara', 'buen_precio', 'revisar'];
+
+/**
+ * Filtros de /deals: los mismos campos base que el listado, más categoría y
+ * puntaje mínimo. `descartar` no es opción — esos deals no se muestran nunca,
+ * así que aceptarla como filtro solo produciría una página vacía.
+ */
+export function parsearFiltrosDeals(params: URLSearchParams): FiltrosDeal {
+  const filtros: FiltrosDeal = parsearFiltrosUrl(params);
+  // El ranking de deals lo fija el algoritmo; un ?orden= en la URL se ignora.
+  delete (filtros as FiltrosAviso).orden;
+
+  const categoria = params.get('categoria')?.trim();
+  if (categoria && (CATEGORIAS_DEAL as readonly string[]).includes(categoria)) {
+    filtros.categoria = categoria as CategoriaDeal;
+  }
+
+  const puntajeMin = parseInt(params.get('puntaje_min') ?? '');
+  if (!isNaN(puntajeMin) && puntajeMin > 0 && puntajeMin <= 100) {
+    filtros.puntaje_min = puntajeMin;
+  }
 
   return filtros;
 }

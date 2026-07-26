@@ -1,4 +1,5 @@
 ---
+import IconoTraccion from '@components/filtros/IconoTraccion.astro';
 import type { CategoriaDeal, Deal } from '@lib/tipos';
 import { resolverUrlImagen } from '@lib/cdn';
 import { formatearPrecio, formatearKm } from '@lib/formato';
@@ -17,7 +18,8 @@ const esInterno = deal.fuente === 'particular';
 const fuenteLabels: Record<Deal['fuente'], string> = {
   autocosmos: 'Autocosmos',
   yapo: 'Yapo',
-  mercadolibre: 'MercadoLibre',
+  autosusados: 'AutosUsados',
+  checkeados: 'Checkeados',
   particular: 'Particular',
 };
 
@@ -138,8 +140,16 @@ const metaItems = [
         <p class="text-base  line-clamp-2 mt-3 mb-1">{deal.resumen}</p>
       )}
 
-      {metaItems.length > 0 && (
-        <p class="text-base  truncate mt-3">{metaItems.join(' · ')}</p>
+      {(metaItems.length > 0 || deal.traccion) && (
+        <p class="text-base flex items-center gap-2 min-w-0 mt-3">
+          {metaItems.length > 0 && <span class="truncate">{metaItems.join(' · ')}</span>}
+          {deal.traccion && (
+            <span class="inline-flex items-center gap-1 shrink-0">
+              <IconoTraccion traccion={deal.traccion} />
+              {deal.traccion}
+            </span>
+          )}
+        </p>
       )}
     </div>
   </a>
