@@ -189,3 +189,37 @@ const nonce = Astro.locals.nonce;
 
   </div>
 </Base>
+
+<!-- Apertura suave de cada pregunta sobre el <details> nativo, sin JS. El
+     contenido se despliega animando la altura de `::details-content` de 0 a
+     `auto`; `interpolate-size: allow-keywords` (heredado desde la card) es lo
+     que permite transicionar hacia esa palabra clave. `content-visibility` con
+     allow-discrete mantiene la respuesta pintada durante el cierre, para que
+     también se repliegue en vez de desaparecer de golpe. La misma curva
+     exponencial del resto del sitio: sale rápido y frena largo.
+
+     Bajo prefers-reduced-motion la regla no existe: el navegador abre y cierra
+     al instante, que es justo lo que pide quien desactivó el movimiento. En
+     navegadores sin ::details-content la card sigue abriendo, solo que seca. -->
+<style>
+  @media (prefers-reduced-motion: no-preference) {
+    .faq-card {
+      interpolate-size: allow-keywords;
+    }
+
+    .faq-card::details-content {
+      height: 0;
+      overflow: hidden;
+      opacity: 0;
+      transition:
+        height 260ms cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 200ms ease,
+        content-visibility 260ms allow-discrete;
+    }
+
+    .faq-card[open]::details-content {
+      height: auto;
+      opacity: 1;
+    }
+  }
+</style>

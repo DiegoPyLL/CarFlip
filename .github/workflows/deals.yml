@@ -1,0 +1,50 @@
+name: Carflip Deals
+
+on:
+  schedule:
+    - cron: "0 10 * * *" # 06:00 UTC (scrapeo) + 4 h = 10:00 UTC = 06:00/07:00 en Chile
+  workflow_dispatch:
+
+# Mismo grupo que scrape.yml: si el scrapeo todavía corre a las 10:00, esta
+# corrida espera en cola hasta que termine, así la selección lee una base completa.
+concurrency:
+  group: Carflip Scraper
+  cancel-in-progress: false
+
+jobs:
+  deals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Construir imagen
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          load: true
+          tags: carflip:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # La detección de deals solo consulta PostgreSQL y llama a Groq: no toca R2/CDN,
+      # así que el .env se limita a esos dos secrets (el resto usa los defaults de config.py).
+      - name: Generar .env desde secrets
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          printf '%s\n' \
+            "DATABASE_URL=$DATABASE_URL" \
+            "USE_SSL=true" \
+            "GROQ_API_KEY=$GROQ_API_KEY" \
+            > .env
+
+      - name: Aplicar migraciones
+        run: docker run --rm --env-file .env --entrypoint uv carflip:ci run alembic upgrade head
+
+      - name: Detectar deals
+        run: docker run --rm --env-file .env carflip:ci deals

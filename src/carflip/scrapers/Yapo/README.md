@@ -110,7 +110,7 @@ También extrae la URL de la imagen de portada desde la galería del aviso (busc
 Por cada aviso, si se encontró una imagen de portada:
 1. La descarga con `httpx` (cliente HTTP directo, más eficiente que Playwright para archivos binarios).
 2. La convierte a **formato AVIF** usando `image_utils.convertir_a_avif()`.
-3. La sube a **S3** con hasta 12 reintentos de 10 minutos cada uno (ventana de 2 horas).
+3. La sube a **R2 en segundo plano** (sin bloquear la extracción de avisos), con reintentos cortos de backoff exponencial (`R2_MAX_REINTENTOS`, `R2_BACKOFF_BASE_SEG`). La URL pública de CDN es determinística a partir de la clave, así que el aviso se puede cargar a BD aunque la subida termine después.
 
 > **¿Por qué AVIF?** Es el formato de imagen moderno más eficiente: misma calidad visual con archivos entre 30% y 50% más pequeños que JPEG. Esto reduce el costo de almacenamiento en Cloudflare R2 y el tiempo de carga en el frontend.
 
@@ -268,8 +268,22 @@ ScraperYapoCloud(max_paginas=None, guardar_raw=True)
 
 | Parámetro | Tipo | Default | Descripción |
 |---|---|---|---|
-| `max_paginas` | `int \| None` | `None` | Límite de páginas de listado a recorrer. `None` = pagina sin límite de páginas hasta alcanzar 1.000 publicaciones (`_MAX_AVISOS`). Si se especifica un valor, se detiene al llegar al mínimo entre ese número de páginas y 1.000 avisos. Para pruebas usar `3` |
-| `guardar_raw` | `bool` | `True` | Si escribe archivos en disco, descarga fotos y sube a S3. No afecta la carga a PostgreSQL |
+| `max_paginas` | `int \| None` | `None` | Límite de páginas de listado a recorrer. `None` = pagina sin límite hasta alcanzar `YAPO_MAX_AVISOS` (1.000 por defecto). Si se especifica un valor, se detiene al llegar al mínimo entre ese número de páginas y ese tope. Para pruebas usar `3` |
+| `guardar_raw` | `bool` | `True` | Si escribe archivos en disco, descarga fotos y las sube a R2 (en segundo plano). No afecta la carga a PostgreSQL. Si R2 no está configurado, el scraper sigue funcionando sin subir fotos |
+
+### Tuning por entorno (`.env` / `config.py`)
+
+Los defaults están calibrados para **GitHub Actions** (2 vCPU, sin créditos de CPU burstable):
+
+| Variable | Default | Descripción |
+|---|---|---|
+| `YAPO_CONCURRENCIA_DETALLES` | `2` | Páginas de detalle procesadas en paralelo |
+| `YAPO_MAX_AVISOS` | `1000` | Tope de publicaciones por corrida |
+| `YAPO_PAUSA_LOTE_SEG` | `0` | Pausa entre lotes (0 = sin pausa; útil solo en hosts burstable) |
+| `YAPO_RECICLAR_CADA` | `50` | Recrea el navegador cada N detalles (acota memoria de Chromium) |
+| `YAPO_PRESUPUESTO_MIN` | `180` | Minutos máximos de ingesta antes de cerrar ordenado |
+| `R2_MAX_REINTENTOS` | `4` | Reintentos de subida a R2 |
+| `R2_BACKOFF_BASE_SEG` | `5` | Base del backoff exponencial de R2 (5/10/20 s) |
 
 ---
 
@@ -314,8 +328,9 @@ playwright install chromium
 
 ## Limitaciones conocidas
 
-- **Límite de 1.000 publicaciones por run**: la constante `_MAX_AVISOS = 1_000` en `yapoCloud.py` controla el tope de avisos recolectados por ejecución. Ajustar ese valor si se necesita más cobertura.
-- **Rendimiento más lento que httpx**: al usar un navegador real, cada aviso de detalle tarda ~3–5 segundos en cargar, más 1,5 segundos de espera explícita. Con 1.000 avisos el scrape completo puede tardar entre 90 y 120 minutos.
+- **Límite de publicaciones por run**: `YAPO_MAX_AVISOS` (1.000 por defecto) controla el tope de avisos recolectados por ejecución. Ajustar si se necesita más cobertura.
+- **Presupuesto de tiempo**: para no exceder el tope del job de CI, la ingesta se detiene ordenadamente al llegar a `YAPO_PRESUPUESTO_MIN` (180 min). Los avisos ya procesados quedan cargados (upsert incremental por lote).
+- **Rendimiento más lento que httpx**: al usar un navegador real, cada aviso de detalle tarda ~3–5 segundos en cargar, más 1,5 segundos de espera explícita. Con concurrencia 2 y sin pausas, 1.000 avisos rondan los ~45–70 minutos.
 - **JavaScript dependiente del DOM de Yapo**: si Yapo rediseña su interfaz y cambia los selectores (`.d3-ad-tile`, `.d3-property-insight__attribute-details`, etc.), el scraper dejará de extraer datos correctamente. Actualizar el script `_JS_ATTRS` y los selectores de Playwright en `scrape()`.
 - **`fecha_publicacion` con fallback a fecha actual**: Yapo no siempre muestra la fecha de publicación de forma parseable. Cuando el elemento `<time>` no está disponible o su texto no es una fecha, se usa la fecha del día del run como fallback.
 

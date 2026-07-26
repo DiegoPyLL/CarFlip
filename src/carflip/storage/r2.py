@@ -11,9 +11,6 @@ from loguru import logger
 
 from carflip.config import settings
 
-_MAX_REINTENTOS = 12
-_INTERVALO_SEG = 600
-
 _TIPOS_MIME: dict[str, str] = {
     ".avif": "image/avif",
     ".webp": "image/webp",
@@ -92,7 +89,8 @@ async def subir_objeto_con_retry(
             except ClientError:
                 pass
 
-        for intento in range(1, _MAX_REINTENTOS + 1):
+        max_reintentos = settings.r2_max_reintentos
+        for intento in range(1, max_reintentos + 1):
             try:
                 await c.put_object(  # type: ignore[attr-defined]
                     Bucket=settings.r2_bucket,
@@ -104,15 +102,17 @@ async def subir_objeto_con_retry(
                 logger.debug(f"[{etiqueta_log}] R2 upload OK: {clave} ({content_type})")
                 return True
             except (ClientError, Exception) as exc:
-                if intento < _MAX_REINTENTOS:
+                if intento < max_reintentos:
+                    # Backoff exponencial en segundos: base * 2**(intento-1).
+                    espera = settings.r2_backoff_base_seg * (2 ** (intento - 1))
                     logger.warning(
-                        f"[{etiqueta_log}] R2 upload fallido intento {intento}/{_MAX_REINTENTOS}"
-                        f" — {clave}: {exc}. Reintentando en {_INTERVALO_SEG // 60} min."
+                        f"[{etiqueta_log}] R2 upload fallido intento {intento}/{max_reintentos}"
+                        f" — {clave}: {exc}. Reintentando en {espera:.0f}s."
                     )
-                    await asyncio.sleep(_INTERVALO_SEG)
+                    await asyncio.sleep(espera)
                 else:
                     logger.error(
-                        f"[{etiqueta_log}] R2 upload agotó {_MAX_REINTENTOS} reintentos:"
+                        f"[{etiqueta_log}] R2 upload agotó {max_reintentos} reintentos:"
                         f" {clave} — {exc}"
                     )
         return False

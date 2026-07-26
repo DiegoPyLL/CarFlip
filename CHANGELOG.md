@@ -23,6 +23,7 @@ y el proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ### Changed
 
+- **Detección de deals desacoplada del ciclo de scrapeo**: `carflip run` ahora solo scrapea; la selección de deals corre como su propio workflow [`deals.yml`](.github/workflows/deals.yml) a las 10:00 UTC (4 h después del scrapeo), compartiendo el `concurrency` group con `scrape.yml` para que espere si el scrapeo aún corre y lea siempre una base completa
 - `TABLA_POR_FUENTE` centralizado en `web/src/lib/db/fuentes.ts`; se elimina la copia que tenían `avisos.ts`, `mercado.ts`, `estadisticas.ts` y `metricas.ts`
 - Textos legales reescritos: `condiciones-de-uso`, `privacidad` y `legal` dejan de describir a CarFlip como agregador sin contenido de terceros y cubren reglas de publicación, moderación, responsabilidad sobre contenido ajeno y derechos de la Ley 21.719
 - `/estadisticas` y el total de "avisos indexados" pasan a contar las cinco fuentes; el dashboard de scraping sigue midiendo solo las cuatro scrapeadas

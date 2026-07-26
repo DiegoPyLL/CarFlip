@@ -89,7 +89,10 @@ El **rol de administrador** no es una columna: viaja en `app_metadata` del JWT, 
 
 ## Ejecución programada (GitHub Actions)
 
-La ingesta corre en GitHub Actions: el workflow [`scrape.yml`](.github/workflows/scrape.yml) se dispara todos los días a las 08:00 UTC (04:00–05:00 en Chile), construye la imagen Docker del repositorio, aplica las migraciones pendientes (`alembic upgrade head`) y ejecuta los 4 scrapers en secuencia (`carflip run --scraper all`), incluida la detección de deals al final del ciclo.
+La ingesta corre en GitHub Actions en dos corridas separadas que comparten el mismo `concurrency` group (una a la vez, sin solape):
+
+- **Scrapeo** — [`scrape.yml`](.github/workflows/scrape.yml) se dispara todos los días a las 06:00 UTC (02:00–03:00 en Chile), construye la imagen Docker del repositorio, aplica las migraciones pendientes (`alembic upgrade head`), ejecuta los 4 scrapers en secuencia (`carflip run --scraper all`) y persiste el snapshot de mercado (`carflip snapshot`).
+- **Deals** — [`deals.yml`](.github/workflows/deals.yml) se dispara a las 10:00 UTC (4 h después del scrapeo) y corre la detección de deals (`carflip deals`). Al compartir el `concurrency` group con el scrapeo, si este aún no termina la corrida de deals espera en cola hasta que la base quede completa.
 
 ### Secrets requeridos
 
@@ -108,7 +111,7 @@ El resto de la configuración (delays, umbral de deals, modelo Groq, etc.) usa l
 
 ### Corrida manual
 
-**Actions → Scrape → Run workflow**. Los logs de cada corrida quedan en esa misma pestaña; las métricas por scraper (páginas, avisos válidos/rechazados, FAIL LOGs) se escriben automáticamente en las tablas `scrape_runs` y `run_fail_logs`, que alimentan el dashboard de la web.
+**Actions → Scrape** (o **Deals**) **→ Run workflow**. Los logs de cada corrida quedan en esa misma pestaña; las métricas por scraper (páginas, avisos válidos/rechazados, FAIL LOGs) se escriben automáticamente en las tablas `scrape_runs` y `run_fail_logs`, que alimentan el dashboard de la web.
 
 ### Notas operativas
 
@@ -187,7 +190,7 @@ También se puede correr con Docker, igual que en CI: `docker compose -f docker/
 | `carflip market <marca> <modelo> <año>` | Estadísticas de mercado                |
 | `carflip deals`                          | Detecta y categoriza deals (SQL + Groq) |
 
-Los scrapers corren de forma **secuencial** (uno a la vez), con una pausa configurable entre cada uno. Scrapers registrados actualmente: `autosusados`, `checkeados`, `autocosmos`, `yapo`. La detección de deals también corre automáticamente al final de cada ciclo de `carflip run` / `carflip start`.
+Los scrapers corren de forma **secuencial** (uno a la vez), con una pausa configurable entre cada uno. Scrapers registrados actualmente: `autosusados`, `checkeados`, `autocosmos`, `yapo`. La detección de deals ya no corre dentro del ciclo de scrapeo: es un paso aparte (`carflip deals`), programado 4 h después del scrapeo en GitHub Actions.
 
 ---
 

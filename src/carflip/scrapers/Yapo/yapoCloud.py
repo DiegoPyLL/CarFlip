@@ -43,17 +43,13 @@ _PRECIO_MINIMO = 500_000
 _PRECIO_MAXIMO = 250_000_000
 _PATRON_FECHA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-_MAX_AVISOS = 1_000
-
-_CONCURRENCIA_DETALLES = 1   # páginas de detalle procesadas en paralelo (Playwright)
 _SEM_IMGS = 20               # descargas de imagen concurrentes
+_SEM_SUBIDAS = 8             # subidas AVIF concurrentes a R2 (en segundo plano)
 
-_GOTO_MAX_INTENTOS = 3       # reintentos de navegación por página de detalle
+_GOTO_MAX_INTENTOS = 3       # reintentos de navegación (listado y detalle)
 _GOTO_BACKOFF_BASE = 3.0     # backoff entre reintentos: BASE * intento + jitter(0..1)
 
 _LOTE_UPSERT    = 50         # avisos por lote antes de subir a BD
-_LOTE_PAUSA     = 100        # avisos procesados antes de pausar
-_PAUSA_LOTE_SEG = 300        # 5 minutos de pausa entre lotes de 100
 
 _THROTTLE_MIN = 0.3          # delay jittered antes de navegar (espaciar/desincronizar)
 _THROTTLE_MAX = 1.2
@@ -174,6 +170,23 @@ def _append_avisos_jsonl(
     except Exception as e:
         _log.error(f"[yapo] Error appending avisos a JSONL: {e}")
         return False
+
+
+async def _lanzar_navegador(p):
+    """Lanza Chromium headless + contexto configurado para Yapo.
+
+    Aislado en un helper para poder reciclar (cerrar y relanzar) el navegador
+    durante un run largo: acota la memoria de Chromium y aísla un crash puntual.
+    """
+    browser = await p.chromium.launch(
+        headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"]
+    )
+    ctx = await browser.new_context(
+        user_agent=_HEADERS_HTTP["User-Agent"],
+        viewport={"width": 1280, "height": 800},
+        locale="es-CL",
+    )
+    return browser, ctx
 
 
 # ─── SCRAPER CLOUD ────────────────────────────────────────────────────────────
@@ -339,13 +352,18 @@ class ScraperYapoCloud(ScraperBase):
             log_banner_fase("yapo", 1, "INGESTA")
             t_ingesta = datetime.now()
 
+            # Tuning ajustable por entorno (CI vs. local) — ver config.py.
+            max_avisos = settings.yapo_max_avisos
+            concurrencia = max(1, settings.yapo_concurrencia_detalles)
+            reciclar_cada = max(1, settings.yapo_reciclar_cada)
+            pausa_lote = settings.yapo_pausa_lote_seg
+
+            def _presupuesto_agotado() -> bool:
+                minutos = (datetime.now(utc_4) - inicio).total_seconds() / 60
+                return minutos >= settings.yapo_presupuesto_min
+
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
-                ctx = await browser.new_context(
-                    user_agent=_HEADERS_HTTP["User-Agent"],
-                    viewport={"width": 1280, "height": 800},
-                    locale="es-CL",
-                )
+                browser, ctx = await _lanzar_navegador(p)
                 page = await ctx.new_page()
                 await page.route("**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,otf}", lambda route: route.abort())
 
@@ -355,13 +373,37 @@ class ScraperYapoCloud(ScraperBase):
                     pagina += 1
                     if self.max_paginas and pagina > self.max_paginas:
                         break
+                    if _presupuesto_agotado():
+                        log_ingesta.warning(
+                            f"[yapo] Presupuesto de {settings.yapo_presupuesto_min:.0f} min alcanzado"
+                            f" en listado, deteniendo paginación"
+                        )
+                        break
                     url = f"{YAPO_BASE}/autos-usados.{pagina}"
                     log_ingesta.info(f"[yapo] Listado página {pagina}: {url}")
-                    try:
-                        await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-                        await page.wait_for_selector("div.d3-ads-grid", timeout=20_000)
-                    except Exception as e:
-                        log_ingesta.warning(f"[yapo] Timeout en página {pagina}: {e}")
+                    # Retry con backoff: un timeout transitorio ya no corta toda la
+                    # paginación (sólo un listado realmente vacío la termina).
+                    cargada = False
+                    for intento in range(1, _GOTO_MAX_INTENTOS + 1):
+                        try:
+                            await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+                            await page.wait_for_selector("div.d3-ads-grid", timeout=20_000)
+                            cargada = True
+                            break
+                        except Exception as e:
+                            if intento < _GOTO_MAX_INTENTOS:
+                                backoff = _GOTO_BACKOFF_BASE * intento + random.uniform(0, 1)
+                                log_ingesta.warning(
+                                    f"[yapo] Listado página {pagina} intento {intento}/{_GOTO_MAX_INTENTOS}"
+                                    f" falló: {e}. Reintentando en {backoff:.1f}s"
+                                )
+                                await asyncio.sleep(backoff)
+                            else:
+                                log_ingesta.warning(
+                                    f"[yapo] Listado página {pagina} falló tras {_GOTO_MAX_INTENTOS}"
+                                    f" intentos: {e}. Fin de paginación"
+                                )
+                    if not cargada:
                         break
 
                     await page.wait_for_timeout(2_000)
@@ -411,21 +453,50 @@ class ScraperYapoCloud(ScraperBase):
                     nuevos = len(avisos_info) - count_antes
                     log_ingesta.info(f"[yapo] Página {pagina}: {nuevos} URLs recolectadas (total {len(avisos_info)})")
 
-                    if len(avisos_info) >= _MAX_AVISOS:
-                        avisos_info = avisos_info[:_MAX_AVISOS]
-                        log_ingesta.info(f"[yapo] Límite de {_MAX_AVISOS} publicaciones alcanzado, deteniendo paginación")
+                    if len(avisos_info) >= max_avisos:
+                        avisos_info = avisos_info[:max_avisos]
+                        log_ingesta.info(f"[yapo] Límite de {max_avisos} publicaciones alcanzado, deteniendo paginación")
                         break
 
-                # ── INGESTA: detalles (pool de _CONCURRENCIA_DETALLES páginas en paralelo) ──
-                sem_detalles = asyncio.Semaphore(_CONCURRENCIA_DETALLES)
+                # ── INGESTA: detalles (pool de `concurrencia` páginas en paralelo) ──
+                sem_detalles = asyncio.Semaphore(concurrencia)
                 sem_imgs = asyncio.Semaphore(_SEM_IMGS)
+                sem_subidas = asyncio.Semaphore(_SEM_SUBIDAS)
                 lock_jsonl = asyncio.Lock()
                 total_avisos = len(avisos_info)
+                subidas_pendientes: set[asyncio.Task] = set()
 
-                # El cliente de R2 solo se abre si vamos a subir fotos.
+                # El cliente de R2 solo se abre si vamos a subir fotos Y está configurado.
+                # Si falta la config de R2 no abortamos: seguimos en modo sin-fotos-R2
+                # (scrape + validación + upsert a BD siguen funcionando).
+                subir_a_r2 = self.guardar_raw and bool(settings.r2_account_id)
+                if self.guardar_raw and not subir_a_r2:
+                    log_fotos.warning(
+                        "[yapo] R2 no configurado (R2_ACCOUNT_ID vacío) —"
+                        " se scrapea y carga a BD sin subir fotos a R2"
+                    )
                 async with httpx.AsyncClient() as cliente_http, cliente_objetos_opcional(
-                    self.guardar_raw
+                    subir_a_r2
                 ) as s3:
+                    async def _subir_foto(ruta_avif: Path, clave_avif: str, aviso_id: str) -> None:
+                        async with sem_subidas:
+                            ok = await subir_objeto_con_retry(
+                                ruta_avif, clave_avif, etiqueta_log="yapo",
+                                skip_si_existe=True, cliente=s3,
+                            )
+                        if not ok:
+                            fail_logs.append(FailLog(
+                                etapa="upload_foto_processed",
+                                motivo="R2 upload de imagen agotó reintentos",
+                                id_externo=aviso_id,
+                            ))
+
+                    def _agendar_subida(ruta_avif: Path, clave_avif: str, aviso_id: str) -> None:
+                        """Sube la foto en segundo plano; no bloquea la extracción de avisos."""
+                        t = asyncio.create_task(_subir_foto(ruta_avif, clave_avif, aviso_id))
+                        subidas_pendientes.add(t)
+                        t.add_done_callback(subidas_pendientes.discard)
+
                     async def _tarea_detalle(info: dict, idx: int) -> AvisoAuto | None:
                         nonlocal fotos_ok_total, fotos_total
                         url_det = info["url"]
@@ -433,8 +504,7 @@ class ScraperYapoCloud(ScraperBase):
 
                         async with sem_detalles:
                             # Throttle jittered: espaciar/desincronizar navegaciones concurrentes
-                            # (anti-bot de Yapo + EC2 burstable: dormir aquí también baja la presión
-                            # de CPU, dando margen a que se recuperen los créditos).
+                            # (cortesía anti-bot de Yapo).
                             await asyncio.sleep(random.uniform(_THROTTLE_MIN, _THROTTLE_MAX))
                             p = await ctx.new_page()
                             await p.route(
@@ -443,8 +513,7 @@ class ScraperYapoCloud(ScraperBase):
                             )
                             try:
                                 log_ingesta.debug(f"[yapo] Detalle {idx}/{total_avisos}: {url_det}")
-                                # Retry con backoff: un timeout aislado ya no descarta el aviso, y el
-                                # sleep entre intentos deja respirar al sitio y a la CPU del EC2.
+                                # Retry con backoff: un timeout aislado ya no descarta el aviso.
                                 attrs = None
                                 for intento in range(1, _GOTO_MAX_INTENTOS + 1):
                                     try:
@@ -515,21 +584,14 @@ class ScraperYapoCloud(ScraperBase):
                                         fotos_ok_total += 1
                                         fotos_run[aviso_id] = ruta_orig.name
                                         log_fotos.info(f"[yapo] [{idx}/{total_avisos}] Foto descargada id={aviso_id}")
-                                        if ruta_avif is not None:
+                                        if ruta_avif is not None and s3 is not None:
                                             # Clave estable por aviso: re-scrapearlo no vuelve a subir la foto.
+                                            # La URL de CDN es determinística a partir de la clave, así que la
+                                            # fijamos ya y subimos en segundo plano (no bloquea la ingesta).
                                             clave_avif = f"fotos/yapo/{av_auto.id_externo}.avif"
-                                            subida_ok = await subir_objeto_con_retry(
-                                                ruta_avif, clave_avif, etiqueta_log="yapo",
-                                                skip_si_existe=True, cliente=s3,
-                                            )
-                                            if not subida_ok:
-                                                fail_logs.append(FailLog(
-                                                    etapa="upload_foto_processed",
-                                                    motivo="R2 upload de imagen agotó reintentos",
-                                                    id_externo=aviso_id,
-                                                ))
-                                            elif url_cdn := url_publica(clave_avif):
+                                            if url_cdn := url_publica(clave_avif):
                                                 av_auto.url_imagen = url_cdn
+                                            _agendar_subida(ruta_avif, clave_avif, aviso_id)
                                     else:
                                         log_fotos.warning(f"[yapo] [{idx}/{total_avisos}] Foto fallida id={aviso_id}")
                                         fail_logs.append(FailLog(etapa="descarga_foto", motivo="Descarga de imagen fallida", id_externo=aviso_id))
@@ -544,7 +606,10 @@ class ScraperYapoCloud(ScraperBase):
 
                                 return av_auto
                             finally:
-                                await p.close()
+                                try:
+                                    await p.close()
+                                except Exception:
+                                    pass
 
                     async def _upsert_parcial(lote_validos: list[AvisoAuto]) -> None:
                         if not lote_validos or self.model_class is None:
@@ -558,13 +623,37 @@ class ScraperYapoCloud(ScraperBase):
                         except Exception as e:
                             logger.error(f"[yapo] Error en upsert parcial: {e}")
 
+                    detalles_desde_reciclo = 0
                     for lote_inicio in range(0, total_avisos, _LOTE_UPSERT):
+                        if _presupuesto_agotado():
+                            log_ingesta.warning(
+                                f"[yapo] Presupuesto de {settings.yapo_presupuesto_min:.0f} min"
+                                f" alcanzado — deteniendo ingesta con {len(avisos_validos)}"
+                                f" avisos válidos hasta ahora"
+                            )
+                            break
+
+                        # Reciclar el navegador acota la memoria de Chromium en runs largos
+                        # y lo recrea si quedó desconectado tras un crash.
+                        if lote_inicio > 0 and (
+                            detalles_desde_reciclo >= reciclar_cada or not browser.is_connected()
+                        ):
+                            try:
+                                await ctx.close()
+                                await browser.close()
+                            except Exception:
+                                pass
+                            browser, ctx = await _lanzar_navegador(p)
+                            detalles_desde_reciclo = 0
+                            log_ingesta.debug("[yapo] Navegador reciclado")
+
                         lote_infos = avisos_info[lote_inicio : lote_inicio + _LOTE_UPSERT]
                         tareas_lote = [
                             _tarea_detalle(info, lote_inicio + i + 1)
                             for i, info in enumerate(lote_infos)
                         ]
                         resultados_lote = await asyncio.gather(*tareas_lote, return_exceptions=True)
+                        detalles_desde_reciclo += len(lote_infos)
 
                         lote_raw: list[AvisoAuto] = []
                         for resultado in resultados_lote:
@@ -614,17 +703,25 @@ class ScraperYapoCloud(ScraperBase):
                         await _upsert_parcial(lote_validos)
                         avisos_validos.extend(lote_validos)
 
-                        # Pausa cada _LOTE_PAUSA publicaciones procesadas
+                        # Pausa opcional entre lotes (0 en CI). En un runner no-burstable
+                        # no hay créditos de CPU que recuperar, así que por defecto no se pausa.
                         es_ultimo = n_procesados >= total_avisos
-                        if not es_ultimo and n_procesados % _LOTE_PAUSA == 0:
-                            logger.info(
-                                f"[yapo] {n_procesados} avisos procesados — "
-                                f"pausa de {_PAUSA_LOTE_SEG // 60} min antes del siguiente lote"
-                            )
-                            await asyncio.sleep(_PAUSA_LOTE_SEG)
+                        if not es_ultimo and pausa_lote > 0:
+                            await asyncio.sleep(pausa_lote)
 
-                await ctx.close()
-                await browser.close()
+                    # Drenar las subidas de fotos en segundo plano antes de cerrar el
+                    # cliente de R2 (su contexto no puede cerrarse con tareas pendientes).
+                    if subidas_pendientes:
+                        log_fotos.info(
+                            f"[yapo] Esperando {len(subidas_pendientes)} subidas de foto pendientes"
+                        )
+                        await asyncio.gather(*subidas_pendientes, return_exceptions=True)
+
+                try:
+                    await ctx.close()
+                    await browser.close()
+                except Exception:
+                    pass
 
             duracion_ingesta = (datetime.now() - t_ingesta).total_seconds()
             log_resumen_fase("yapo", "INGESTA", {

@@ -22,6 +22,19 @@ class Settings(BaseSettings):
     min_delay_seconds: float = 2.0
     max_delay_seconds: float = 6.0
 
+    # Yapo — tuning ajustable por entorno (CI vs. local). Los valores por
+    # defecto están calibrados para GitHub Actions (2 vCPU, sin créditos de CPU).
+    yapo_concurrencia_detalles: int = 2      # páginas de detalle en paralelo
+    yapo_max_avisos: int = 1_000             # tope de publicaciones por corrida
+    yapo_pausa_lote_seg: float = 0.0         # pausa entre lotes (0 = sin pausa)
+    yapo_reciclar_cada: int = 50             # recrear el navegador cada N detalles
+    yapo_presupuesto_min: float = 180.0      # tope de minutos de ingesta antes de cerrar ordenado
+
+    # Reintentos de subida a R2. Backoff exponencial: base * 2**(intento-1).
+    # Corto por diseño: una foto no debe poder colgar un run de CI.
+    r2_max_reintentos: int = 4
+    r2_backoff_base_seg: float = 5.0
+
     # Detección de deals
     deal_threshold_pct: float = 15.0        # % bajo la mediana del grupo para ser candidato
     deal_min_comparables: int = 5           # mínimo de avisos por grupo marca/modelo/año
