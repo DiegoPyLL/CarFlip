@@ -42,6 +42,7 @@ export interface AvisoPropio {
   descripcion: string | null;
   url_imagen: string | null;
   estado: EstadoAviso;
+  visible_en_deals: boolean;
   vistas: number;
   publicado_en: string;
   actualizado_en: string;
@@ -94,7 +95,7 @@ export type ResultadoContacto =
   | { estado: 'error' };
 
 const CAMPOS_AVISO =
-  'id,titulo,marca,modelo,version,anio,km,precio,combustible,transmision,ubicacion,descripcion,url_imagen,estado,vistas,publicado_en,actualizado_en';
+  'id,titulo,marca,modelo,version,anio,km,precio,combustible,transmision,ubicacion,descripcion,url_imagen,estado,visible_en_deals,vistas,publicado_en,actualizado_en';
 
 export async function obtenerPerfil(
   supabase: SupabaseClient,

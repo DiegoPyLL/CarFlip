@@ -11,13 +11,14 @@ que la query retorna exactamente el outlier.
 """
 
 import os
+import uuid
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import delete, text
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from carflip.database.models import AutocosmosListing, Base
+from carflip.database.models import AutocosmosListing, Base, ParticularListing, Perfil
 from carflip.deals.detector import _obtener_candidatos
 
 _URL_BD_TEST = os.environ.get("CARFLIP_TEST_DATABASE_URL")
@@ -41,6 +42,25 @@ def _aviso(id_externo: str, precio: int, km: int = 60000) -> AutocosmosListing:
         modelo="Yaris",
         anio=2019,
         km=km,
+        disponible=True,
+    )
+
+
+def _aviso_particular(
+    perfil_id: uuid.UUID, id_externo: str, precio: int, visible: bool, km: int = 60000
+) -> ParticularListing:
+    return ParticularListing(
+        id_externo=id_externo,
+        url=f"https://carflip.cl/auto/p/{id_externo}",
+        titulo=f"Toyota Yaris 2019 {id_externo}",
+        precio=Decimal(precio),
+        marca="Toyota",
+        modelo="Yaris",
+        anio=2019,
+        km=km,
+        usuario_id=perfil_id,
+        estado="publicado",
+        visible_en_deals=visible,
         disponible=True,
     )
 
@@ -76,3 +96,53 @@ async def test_query_detecta_outlier_y_excluye_km_alto():
     assert outlier.precio_mercado is not None
     assert outlier.pct_vs_mercado is not None and outlier.pct_vs_mercado < -15
     assert outlier.comparables is not None and outlier.comparables >= 6
+
+
+async def test_particular_opt_out_no_es_candidato():
+    """Dos particulares outlier idénticos salvo `visible_en_deals`: solo el que
+    lo tiene activo entra a Deals; el opt-out queda fuera del pipeline (y del LLM).
+    """
+    engine = create_async_engine(_URL_BD_TEST)
+    sesion_local = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    perfil_id = uuid.uuid4()
+
+    async with sesion_local() as session:
+        await session.execute(delete(ParticularListing))
+        await session.execute(delete(Perfil))
+        await session.execute(delete(AutocosmosListing))
+
+        session.add(Perfil(id=perfil_id))
+        await session.flush()
+
+        # 12 comparables de portal alrededor de $10M: el aviso de particular
+        # exige un grupo más grande (deal_min_comparables_particular = 12).
+        for i, precio in enumerate(
+            [
+                9_800_000, 10_000_000, 10_200_000, 9_900_000, 10_100_000, 10_500_000,
+                9_700_000, 10_300_000, 9_950_000, 10_050_000, 9_850_000, 10_150_000,
+            ]
+        ):
+            session.add(_aviso(f"comp-{i}", precio))
+
+        # Mismo outlier (-35%), la única diferencia es el flag de Deals.
+        session.add(_aviso_particular(perfil_id, "particular-visible", 6_500_000, visible=True))
+        session.add(_aviso_particular(perfil_id, "particular-oculto", 6_500_000, visible=False))
+        await session.commit()
+
+        candidatos = await _obtener_candidatos(session)
+
+        # Limpieza: no dejar avisos que contaminen otros tests del módulo.
+        await session.execute(delete(ParticularListing))
+        await session.execute(delete(Perfil))
+        await session.execute(delete(AutocosmosListing))
+        await session.commit()
+
+    await engine.dispose()
+
+    particulares = {(c.fuente, c.id_externo) for c in candidatos}
+    assert ("particular", "particular-visible") in particulares
+    assert ("particular", "particular-oculto") not in particulares

@@ -39,12 +39,13 @@ WITH avisos AS (
            precio, moneda, ubicacion, descripcion, url_imagen, delta_pct, disponible
     FROM checkeados_listings
     UNION ALL
-    -- Avisos de particulares: solo los publicados. Los pausados y vendidos no
-    -- son ofertas vigentes y tampoco deben pesar en la mediana del grupo.
+    -- Avisos de particulares: solo los publicados y que el dueño no sacó de
+    -- Deals (visible_en_deals). Los pausados, vendidos y opt-out no son ofertas
+    -- vigentes de Deals y tampoco deben pesar en la mediana del grupo.
     SELECT 'particular', id_externo, url, titulo, marca, modelo, anio, km,
            precio, moneda, ubicacion, descripcion, url_imagen, delta_pct, disponible
     FROM particulares_listings
-    WHERE estado = 'publicado'
+    WHERE estado = 'publicado' AND visible_en_deals
 ),
 validos AS (
     SELECT a.*,

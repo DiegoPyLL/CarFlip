@@ -125,7 +125,7 @@ function esRutaActiva(href: string): boolean {
             <nav
               id="menu"
               aria-label="Navegación principal"
-              class="absolute inset-x-0 top-full bg-canvas border-y border-line px-4 sm:px-6 md:static md:border-0 md:px-0"
+              class="absolute inset-x-0 top-full bg-canvas border border-line-strong px-4 sm:px-6 md:static md:border-0 md:px-0"
             >
               <ul class="max-w-7xl mx-auto text-base divide-y divide-line md:flex md:gap-4 md:divide-y-0">
                 {enlacesNav.map(({ href, texto }) => (
@@ -134,10 +134,10 @@ function esRutaActiva(href: string): boolean {
                       href={href}
                       aria-current={esRutaActiva(href) ? 'page' : undefined}
                       class:list={[
-                        'block py-3 md:py-0',
+                        'block py-3 md:py-0 underline-offset-4',
                         esRutaActiva(href)
-                          ? 'text-ink underline underline-offset-4'
-                          : 'text-ink/70 hover:text-ink transition-colors duration-200',
+                          ? 'text-ink underline'
+                          : 'text-ink hover:underline',
                       ]}
                     >
                       {texto}
@@ -349,17 +349,40 @@ function esRutaActiva(href: string): boolean {
       (() => {
         const raiz = document.documentElement;
         const boton = document.getElementById('tema-toggle');
+        const quieto = matchMedia('(prefers-reduced-motion: reduce)');
         const rotular = () => {
           const oscuro = raiz.dataset.theme === 'dark';
           boton?.setAttribute('aria-label', oscuro ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro');
         };
         rotular();
-        boton?.addEventListener('click', () => {
+
+        const conmutar = () => {
           const oscuro = raiz.dataset.theme === 'dark';
           if (oscuro) delete raiz.dataset.theme;
           else raiz.dataset.theme = 'dark';
           try { localStorage.setItem('tema', oscuro ? 'claro' : 'oscuro'); } catch (_) {}
           rotular();
+        };
+
+        boton?.addEventListener('click', () => {
+          // El tema nuevo se revela como un círculo que crece desde el toggle.
+          // La View Transitions API (nativa, sin dependencias) fotografía el
+          // antes y el después y anima entre ambos en el compositor; el reveal
+          // circular lo dibuja global.css a partir del centro y el radio que
+          // fijamos aquí. Sin soporte o con movimiento reducido, se aplica al
+          // instante — el comportamiento de siempre.
+          if (!document.startViewTransition || quieto.matches) {
+            conmutar();
+            return;
+          }
+          const { top, left, width, height } = boton.getBoundingClientRect();
+          const x = left + width / 2;
+          const y = top + height / 2;
+          const radio = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+          raiz.style.setProperty('--vt-x', x + 'px');
+          raiz.style.setProperty('--vt-y', y + 'px');
+          raiz.style.setProperty('--vt-r', radio + 'px');
+          document.startViewTransition(conmutar);
         });
       })();
     </script>

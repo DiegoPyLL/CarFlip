@@ -22,6 +22,7 @@ export interface CamposAviso {
   transmision: string | null;
   ubicacion: string;
   descripcion: string | null;
+  visible_en_deals: boolean;
 }
 
 const KM_MAXIMO = 2_000_000;
@@ -74,5 +75,7 @@ export function camposDelFormulario(datos: FormData): CamposAviso | null {
     transmision,
     ubicacion: `${comuna}, ${region}`,
     descripcion: descripcion || null,
+    // Un checkbox solo se envía cuando está marcado; su ausencia es el opt-out.
+    visible_en_deals: datos.get('visible_en_deals') !== null,
   };
 }

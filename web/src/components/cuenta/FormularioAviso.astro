@@ -116,6 +116,22 @@ const requerido = 'text-sm text-scarlet-signal';
     <p class="text-sm mt-1.5">No incluyas tu teléfono ni tu correo: los compradores con sesión ya ven tu contacto.</p>
   </div>
 
+  <div class="border border-line-strong p-element">
+    <label for="visible_en_deals" class="flex items-start gap-3 cursor-pointer">
+      <input
+        type="checkbox"
+        id="visible_en_deals"
+        name="visible_en_deals"
+        checked={aviso?.visible_en_deals ?? true}
+        class="mt-1 size-4 shrink-0 accent-scarlet-signal"
+      />
+      <span class="text-base text-ink">
+        Mostrar en Deals
+        <span class="block text-sm mt-1">Tu aviso podrá aparecer en la sección Deals, donde una IA evalúa las oportunidades del mercado. Desmárcalo si prefieres mantenerlo fuera.</span>
+      </span>
+    </label>
+  </div>
+
   <!-- Honeypot: invisible para personas, un bot que autocompleta todo lo llena. -->
   <div class="hidden" aria-hidden="true">
     <label for="web">No completar este campo</label>

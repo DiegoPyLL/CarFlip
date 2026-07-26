@@ -216,10 +216,39 @@ h3 {
 @media (width < 48rem) {
   #menu {
     display: none;
+    /* Estado cerrado: replegado y transparente. Bajo reduced-motion no hay
+       transición y estos valores solo rigen el frame cerrado, que igual queda
+       oculto por display:none. */
+    opacity: 0;
+    transform: translateY(-0.5rem);
   }
 
   #barra[data-menu] #menu {
     display: block;
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* El menú entra deslizándose y fundiéndose en lugar de aparecer de golpe.
+     `display` se transiciona con allow-discrete para que el cierre también
+     anime: el panel sigue pintado hasta que opacidad y desplazamiento terminan,
+     y recién ahí vuelve a display:none. `@starting-style` fija el estado previo
+     a la apertura; sin él, el primer frame ya estaría abierto y no habría
+     entrada. Ambos quedan inertes bajo reduced-motion (mostrar/ocultar seco). */
+  @media (prefers-reduced-motion: no-preference) {
+    #menu {
+      transition:
+        opacity 220ms ease,
+        transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        display 220ms allow-discrete;
+    }
+
+    @starting-style {
+      #barra[data-menu] #menu {
+        opacity: 0;
+        transform: translateY(-0.5rem);
+      }
+    }
   }
 }
 
@@ -268,6 +297,43 @@ h3 {
 
   .entrada {
     animation: entrada 200ms ease-out;
+  }
+}
+
+/*
+  Cambio de tema fluido (Base.astro). El toggle envuelve el cambio en una View
+  Transition: el navegador fotografía el documento antes y después y anima entre
+  ambos en el compositor, sin repintar en JS. Aquí la foto del "antes" queda
+  quieta como fondo y la del "después" se revela con un clip-path circular que
+  crece desde el botón. El script escribe el centro (--vt-x/--vt-y) y el radio
+  al corner más lejano (--vt-r) en cada clic.
+
+  Bajo prefers-reduced-motion el script aplica el tema al instante y ni siquiera
+  inicia la transición; la regla vive en no-preference para que el documento no
+  la active por su cuenta. Sin soporte de la API, el cambio también es instantáneo.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  /* Sin el cross-fade por defecto —que además funde con plus-lighter y produce
+     un fogonazo al cruzar blanco y negro—: el reveal circular lo reemplaza. El
+     "antes" se queda opaco y estático debajo mientras el "después" se recorta
+     encima. */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+  }
+
+  ::view-transition-new(root) {
+    animation: revelar-tema 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes revelar-tema {
+    from {
+      clip-path: circle(0 at var(--vt-x, 50%) var(--vt-y, 50%));
+    }
+    to {
+      clip-path: circle(var(--vt-r, 150vmax) at var(--vt-x, 50%) var(--vt-y, 50%));
+    }
   }
 }
 

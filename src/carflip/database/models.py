@@ -233,6 +233,9 @@ class ParticularListing(ListingMixin, Base):
     - disponible        estado == 'publicado'
     - primera_vez_visto publicado_en
     - ultima_vez_visto  actualizado_en
+
+    visible_en_deals es el opt-out del dueño: con false el aviso sigue publicado
+    pero candidatos.sql lo excluye de Deals (y del LLM).
     """
 
     __tablename__ = "particulares_listings"
@@ -244,6 +247,7 @@ class ParticularListing(ListingMixin, Base):
         index=True,
     )
     estado: Mapped[str] = mapped_column(String(20), nullable=False, server_default="publicado", index=True)
+    visible_en_deals: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     transmision: Mapped[str | None] = mapped_column(String(50), nullable=True)
     version: Mapped[str | None] = mapped_column(String(100), nullable=True)
     vistas: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
