@@ -9,6 +9,9 @@ export default defineConfig({
   adapter: vercel({ maxDuration: 10 }),
   // El default 'jsx' de Astro 7 colapsa espacios entre elementos inline y altera el texto renderizado.
   compressHTML: true,
+  // El default 'auto' incrusta las hojas menores a 4 kB en un <style>, que la CSP
+  // de `middleware.ts` bloquea: `style-src` es 'self', sin 'unsafe-inline'.
+  build: { inlineStylesheets: 'never' },
   integrations: [
     // Las páginas de sesión, de cuenta y de error son `noindex`: listarlas en el
     // sitemap sería contradictorio para los rastreadores.

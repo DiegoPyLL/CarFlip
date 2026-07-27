@@ -34,15 +34,13 @@ export const POST: APIRoute = async ({ params, request, locals, redirect }) => {
     if (bloqueo) return redirect(`/cuenta/avisos?error=${bloqueo}`, 303);
   }
 
+  // `disponible` es la lectura genérica del mixin: la web pública no sabe de
+  // `estado`, así que ambos deben moverse juntos. Los sincroniza el trigger
+  // `particulares_deriva_campos` —junto con `actualizado_en`— para que tampoco
+  // puedan desincronizarse desde PostgREST.
   const { error } = await supabase
     .from(TABLA_AVISOS)
-    .update({
-      estado: estado as EstadoAviso,
-      // `disponible` es la lectura genérica del mixin: la web pública no sabe
-      // de `estado`, así que ambos deben moverse juntos.
-      disponible: estado === 'publicado',
-      actualizado_en: new Date().toISOString(),
-    })
+    .update({ estado: estado as EstadoAviso })
     .eq('id', id);
 
   if (error) {

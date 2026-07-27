@@ -6,10 +6,21 @@ export const prerender = false;
 // Rate limit por IP: el honeypot no frena un script dirigido, y cada envío
 // válido gasta cuota de Resend. Se permiten pocas solicitudes por ventana corta.
 const RATE_LIMITE = 5;
-const RATE_VENTANA_MIN = 10;
-// Salt del hash de IP: no se guarda la IP en claro (minimización de datos,
-// Ley 21.719). Se puede sobreescribir por entorno.
-const RATE_SALT = (import.meta.env.CONTACT_RATE_SALT as string) || 'carflip-contacto';
+const RATE_VENTANA = '10 minutes';
+
+/**
+ * Salt del hash de IP: no se guarda la IP en claro (minimización de datos,
+ * Ley 21.719). Sin un salt secreto el hash no protege nada —el espacio IPv4
+ * entero se recorre por fuerza bruta en minutos si la tabla se filtra— así que no
+ * cae en una constante del fuente, que en un repo público es de dominio público.
+ * A falta de `CONTACT_RATE_SALT` se usa la service key: es server-only, estable
+ * entre instancias y despliegues, y ya es requisito de este endpoint.
+ */
+const RATE_SALT =
+  (import.meta.env.CONTACT_RATE_SALT as string) ||
+  (process.env.CONTACT_RATE_SALT as string) ||
+  (import.meta.env.SUPABASE_SERVICE_KEY as string) ||
+  (process.env.SUPABASE_SERVICE_KEY as string);
 
 async function hashIp(ip: string): Promise<string> {
   const datos = new TextEncoder().encode(`${RATE_SALT}:${ip}`);
@@ -18,25 +29,27 @@ async function hashIp(ip: string): Promise<string> {
 }
 
 /**
- * Registra el intento y responde si la IP superó el tope en la ventana. El
- * cliente de servicio se importa aquí (no al tope) para no acoplar el formulario
- * a la config de la base, y falla abierto: cualquier problema del registro no
- * bloquea el contacto, solo se pierde esta capa (Vercel Firewall es la otra).
+ * Si la IP superó el tope en la ventana. Registra el intento solo cuando está
+ * dentro del tope: contarlos todos dejaba que un anónimo hiciera crecer la tabla
+ * sin límite.
+ *
+ * La decisión y la escritura ocurren dentro de `registrar_solicitud_contacto`
+ * (migración 0019), serializadas por IP: contar acá y después insertar era una
+ * carrera por la que se colaban más solicitudes que el tope. El cliente de
+ * servicio se importa aquí (no al tope) para no acoplar el formulario a la config
+ * de la base, y falla abierto: un problema de la base no bloquea el contacto,
+ * solo se pierde esta capa (Vercel Firewall es la otra).
  */
 async function superaRateLimit(ip: string): Promise<boolean> {
   try {
     const { supabase: servicio } = await import('@lib/db/client');
-    const ipHash = await hashIp(ip);
-    const desde = new Date(Date.now() - RATE_VENTANA_MIN * 60 * 1000).toISOString();
-
-    const { count } = await servicio
-      .from('contacto_solicitudes')
-      .select('id', { count: 'exact', head: true })
-      .eq('ip_hash', ipHash)
-      .gte('creado_en', desde);
-
-    await servicio.from('contacto_solicitudes').insert({ ip_hash: ipHash });
-    return (count ?? 0) >= RATE_LIMITE;
+    const { data, error } = await servicio.rpc('registrar_solicitud_contacto', {
+      p_ip_hash: await hashIp(ip),
+      p_ventana: RATE_VENTANA,
+      p_tope: RATE_LIMITE,
+    });
+    if (error) throw error;
+    return data === true;
   } catch (error) {
     console.error('Rate limit de contacto no disponible:', error);
     return false;
@@ -44,8 +57,9 @@ async function superaRateLimit(ip: string): Promise<boolean> {
 }
 
 const RESEND_API_KEY = (import.meta.env.RESEND_API_KEY as string) || (process.env.RESEND_API_KEY as string);
-const CONTACT_EMAIL =
-  (import.meta.env.CONTACT_EMAIL as string) || (process.env.CONTACT_EMAIL as string) || 'dpenaylilloluhrs@gmail.com';
+// Sin fallback: un correo de destino hardcodeado en un repo público es una
+// dirección personal expuesta, y si la variable falta hay que enterarse.
+const CONTACT_EMAIL = (import.meta.env.CONTACT_EMAIL as string) || (process.env.CONTACT_EMAIL as string);
 // Remitente de pruebas de Resend: válido sin verificar un dominio propio.
 // Cambiar a algo como "CarFlip <contacto@carflip.cl>" cuando carflip.cl esté verificado en Resend.
 const REMITENTE = 'CarFlip <onboarding@resend.dev>';
@@ -77,8 +91,8 @@ export const POST: APIRoute = async ({ request, url, clientAddress }) => {
     return redirigir(url.origin, 'error');
   }
 
-  if (!RESEND_API_KEY) {
-    console.error('RESEND_API_KEY no está configurada');
+  if (!RESEND_API_KEY || !CONTACT_EMAIL || !RATE_SALT) {
+    console.error('Falta RESEND_API_KEY, CONTACT_EMAIL o el salt del rate limit');
     return redirigir(url.origin, 'error');
   }
 

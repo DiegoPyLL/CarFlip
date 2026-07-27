@@ -33,19 +33,14 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   const campos = camposDelFormulario(await request.formData());
   if (!campos) return redirect(`${DESTINO}?error=datos`, 303);
 
-  // La URL canónica necesita el id, que solo existe después del insert. Se
-  // escribe en un segundo paso; `id_externo` sí se genera aquí para cumplir el
-  // unique heredado de ListingMixin.
+  // `titulo`, `url` y `disponible` los deriva la base (trigger
+  // `particulares_deriva_campos`): la URL canónica necesita el id, que no existe
+  // hasta el insert, y así se ahorra el segundo UPDATE que hacía falta para
+  // escribirla. `id_externo` sí se genera aquí, para cumplir el unique heredado
+  // de ListingMixin.
   const { data, error } = await supabase
     .from(TABLA_AVISOS)
-    .insert({
-      ...campos,
-      usuario_id: usuario.id,
-      id_externo: crypto.randomUUID(),
-      url: '',
-      estado: 'publicado',
-      disponible: true,
-    })
+    .insert({ ...campos, usuario_id: usuario.id, id_externo: crypto.randomUUID(), estado: 'publicado' })
     .select('id')
     .single();
 
@@ -53,12 +48,6 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
     console.error('No se pudo crear la publicación:', error?.message);
     return redirect(`${DESTINO}?error=servidor`, 303);
   }
-
-  const sitio = import.meta.env.SITE ?? 'https://carflip.cl';
-  await supabase
-    .from(TABLA_AVISOS)
-    .update({ url: new URL(`/auto/p/${data.id}`, sitio).href })
-    .eq('id', data.id);
 
   // A editar: es donde se suben las fotos, y un aviso sin foto rinde mal.
   return redirect(`/cuenta/avisos/${data.id}/editar?creado=1`, 303);

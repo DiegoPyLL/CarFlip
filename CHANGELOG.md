@@ -5,7 +5,7 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
-## [Unreleased]
+## [0.7.0] - 2026-07-27
 
 ### Added
 
@@ -29,6 +29,22 @@ y el proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - `TABLA_POR_FUENTE` centralizado en `web/src/lib/db/fuentes.ts`; se elimina la copia que tenían `avisos.ts`, `mercado.ts`, `estadisticas.ts` y `metricas.ts`
 - Textos legales reescritos: `condiciones-de-uso`, `privacidad` y `legal` dejan de describir a CarFlip como agregador sin contenido de terceros y cubren reglas de publicación, moderación, responsabilidad sobre contenido ajeno y derechos de la Ley 21.719
 - `/estadisticas` y el total de "avisos indexados" pasan a contar las cinco fuentes; el dashboard de scraping sigue midiendo solo las cuatro scrapeadas
+
+### Security
+
+Cierre de la auditoría de seguridad de `main`: nueve advisories y el issue [#24](https://github.com/VolutusDevelopment/CarFlip/issues/24). El hilo común es que varios invariantes vivían solo en el código de la web, y la frontera de confianza real —PostgREST con la anon key, que es pública por diseño— no los veía.
+
+- **Invariantes de los avisos de particulares movidos a la base** (migración `0018`): `CHECK` sobre estado, precio, km, año, largos y patente; `GRANT` por columna en vez de tabla completa, con lo que `vistas`, `publicado_en`, `ultima_vez_visto`, `moneda` y `url` dejan de ser escribibles con la sesión del usuario; un trigger que deriva `titulo`, `url`, `disponible`, las marcas de tiempo y `precio_anterior`/`delta_pct`; y otro que aplica los topes de 5 avisos activos y 3 creaciones por 24 h. Con `INSERT`/`UPDATE` de tabla completa, un `POST` directo a `/rest/v1/particulares_listings` evadía todo `formulario.ts` y `limites.ts`: avisos ilimitados, título de texto libre indexable, precios negativos y `ultima_vez_visto` en el futuro, que es el primer puesto del listado a voluntad
+- **La revelación de contacto vuelve a exigir POST** (`/api/publicacion/[id]/contacto`): se hacía durante el render de `/auto/p/[id]`, y como `checkOrigin` no cubre GET y la cookie es `SameSite=Lax`, un sitio externo podía agotarle el cupo diario a cualquier usuario con sesión mandándolo a recorrer avisos. La página solo lee; el teléfono aparece con un clic la primera vez por aviso y sin clic en las visitas siguientes
+- **Open redirect por barra invertida en `rutaInterna()`**: `/\evil.com` pasaba el filtro de `//` y el parser de URL de WHATWG lo resolvía a un host externo, encadenable al login con Google y al enlace mágico. Ahora se resuelve la URL y se compara el origen
+- **Inyección en la gramática de filtros de PostgREST vía `?modelo=`**: el término se interpolaba en un `or()` sin escapar la coma ni los paréntesis, así que un visitante podía filtrar por columnas que no eligió o romper la consulta con un 400 que subía como 500 a `/avisos`, `/deals` y `/mercado`
+- **XSS almacenado en el JSON-LD** de las páginas de detalle: un `</script>` en la descripción de un aviso cerraba el bloque y ejecutaba JavaScript para todo visitante. Se escapa con `scriptJsonLd()`, ahora con tests que impiden la regresión
+- **CSP endurecida**: `style-src 'self'` —con la excepción de desarrollo, donde Vite inyecta la hoja— más `style-src-attr 'unsafe-inline'` para los `style=` con valores calculados; `img-src` acotado a R2 y al Storage de Supabase en vez de a cualquier `https:`, que es un canal de exfiltración; y política también en las respuestas que no son documentos. `inlineStylesheets: 'never'` para que ninguna hoja se sirva inline
+- **Rate limit del contacto atómico** (migración `0019`): `registrar_solicitud_contacto` decide y escribe en el mismo statement, serializada por IP, e inserta solo si no se superó el tope. El salt del hash de IP ya no cae en una constante del fuente ni el correo de destino en una dirección personal
+- **Detección exacta de la cookie de sesión**: bastaba un `Cookie: sb-x=1` para forzar una validación contra Supabase en cada petición anónima, anulando a voluntad el ahorro del que vive todo el tráfico indexable
+- **`/dashboard` recomprueba el rol de administrador** en su propio render, en vez de depender solo del middleware
+- **Funciones cerradas por defecto**: en PostgreSQL toda función nace con `EXECUTE` para `PUBLIC`, así que `anon` podía invocar por PostgREST cualquier función del esquema, incluidas las `SECURITY DEFINER`. La `0014` había cerrado tablas y secuencias, no funciones
+- `UNIQUE (aviso_id, usuario_id)` en `contacto_revelaciones` y `reportes_aviso`: el «una vez por aviso» que solo comprobaba la aplicación, con la carrera que eso implicaba
 
 ## [0.6.0] - 2026-07-19
 

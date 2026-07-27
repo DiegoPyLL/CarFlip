@@ -47,14 +47,30 @@ function desde(fuente: Aviso['fuente'], columnas: string, opciones?: { count: 'e
 }
 
 /**
+ * Escapa un valor para meterlo dentro de un `or()` de PostgREST.
+ *
+ * Ahí la coma, el punto y los paréntesis son **gramática**: sin comillas, un
+ * `?modelo=zzz,anio.gte.1900` se parsea como un término más del `or()` y el
+ * visitante termina filtrando por columnas que no eligió (o rompiendo la consulta
+ * con un 400). Entre comillas dobles el texto viaja como valor, y dentro de ellas
+ * `"` y `\` se escapan con barra invertida. Los `%` del `ilike` van fuera de la
+ * parte escapable pero dentro de las comillas, que es donde PostgREST los espera.
+ */
+function valorOr(texto: string): string {
+  return `"${texto.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
+/**
  * Traduce `FiltrosAviso` a cláusulas de PostgREST. Lo usan el listado y deals,
  * que comparten estas columnas, así que un filtro nuevo se agrega una sola vez.
  */
 export function aplicarFiltros(query: any, filtros: FiltrosAviso) {
   if (filtros.marca)      query = query.ilike('marca', `%${filtros.marca}%`);
   if (filtros.modelo) {
-    const q = filtros.modelo.replace(/'/g, "''");
-    query = query.or(`titulo.ilike.%${q}%,marca.ilike.%${q}%,modelo.ilike.%${q}%`);
+    // Los filtros de una sola columna codifican su valor solos; este es el único
+    // que arma una expresión, así que es el único que necesita escapar.
+    const q = valorOr(`%${filtros.modelo}%`);
+    query = query.or(`titulo.ilike.${q},marca.ilike.${q},modelo.ilike.${q}`);
   }
   if (filtros.anio)       query = query.eq('anio', filtros.anio);
   if (filtros.precio_min) query = query.gte('precio', filtros.precio_min);

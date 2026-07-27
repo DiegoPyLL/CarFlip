@@ -91,10 +91,14 @@ export interface ContactoVendedor {
   whatsapp: string;
 }
 
-/** Lo que corresponde pintar en el bloque de contacto de un aviso. */
+/**
+ * Lo que corresponde pintar en el bloque de contacto de un aviso. `pendiente` es
+ * el único estado que la página resuelve pidiéndole al lector que lo confirme.
+ */
 export type ResultadoContacto =
   | { estado: 'ok'; contacto: ContactoVendedor }
   | { estado: 'sin_telefono' }
+  | { estado: 'pendiente' }
   | { estado: 'tope' }
   | { estado: 'error' };
 
@@ -273,15 +277,36 @@ export async function yaReveloContacto(
 }
 
 /**
- * Contacto del vendedor para un lector con sesión, registrando la revelación.
+ * Contacto del vendedor si este lector ya reveló este aviso. **No escribe nada.**
  *
- * El teléfono aparece con solo abrir el aviso: tener sesión es la única
- * condición, no hay un segundo clic que dar. La revelación se registra igual
- * porque es lo que alimenta el contador de interés del vendedor y el tope
+ * Es lo que consulta la página de detalle, que es un GET: registrar ahí gastaba
+ * el cupo diario del usuario sin que él lo pidiera, y `checkOrigin` de Astro no
+ * cubre GET, así que un sitio externo podía agotarle las revelaciones del día
+ * mandándolo a recorrer avisos. El registro vive en `revelarContacto`, detrás de
+ * un POST. `pendiente` es «hay teléfono, falta que lo pida».
+ */
+export async function contactoRevelado(
+  supabase: SupabaseClient,
+  avisoId: number,
+  usuarioId: string,
+): Promise<ResultadoContacto> {
+  const contacto = await telefonoDelVendedor(avisoId);
+  if (!contacto) return { estado: 'sin_telefono' };
+  return (await yaReveloContacto(supabase, avisoId, usuarioId))
+    ? { estado: 'ok', contacto }
+    : { estado: 'pendiente' };
+}
+
+/**
+ * Entrega el contacto del vendedor y registra la revelación. Solo desde un POST.
+ *
+ * El registro es lo que alimenta el contador de interés del vendedor y el tope
  * diario, que es la barrera real contra una cuenta que recorra el listado
  * juntando números. Volver al mismo aviso no gasta cupo ni duplica el registro.
  *
- * Si el registro falla no se entrega el teléfono: sin auditoría no hay tope.
+ * Si el registro falla no se entrega el teléfono: sin auditoría no hay tope. La
+ * excepción es el choque contra el unique de la migración 0018, que significa que
+ * la revelación ya estaba registrada (dos envíos a la vez): eso es un éxito.
  */
 export async function revelarContacto(
   supabase: SupabaseClient,
@@ -299,7 +324,7 @@ export async function revelarContacto(
     .from(TABLA_REVELACIONES)
     .insert({ aviso_id: avisoId, usuario_id: usuarioId });
 
-  if (error) {
+  if (error && error.code !== '23505') {
     console.error('No se pudo registrar la revelación de contacto:', error.message);
     return { estado: 'error' };
   }

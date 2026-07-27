@@ -12,7 +12,6 @@ import { normalizar } from '@lib/sanitizar';
 import { ANIO_MINIMO, COMBUSTIBLES, COMUNAS, REGIONES, TRACCIONES, TRANSMISIONES, anioMaximo } from './opciones';
 
 export interface CamposAviso {
-  titulo: string;
   marca: string;
   modelo: string;
   version: string | null;
@@ -68,8 +67,10 @@ export function camposDelFormulario(datos: FormData): CamposAviso | null {
   if (km === null || km > KM_MAXIMO) return null;
   if (precio === null || precio <= 0 || precio > PRECIO_MAXIMO) return null;
 
+  // `titulo` no está acá: lo deriva la base desde marca/modelo/versión/año
+  // (trigger `particulares_deriva_campos`, migración 0018), que es lo que impide
+  // que sea texto libre para quien escriba por PostgREST en vez de por el form.
   return {
-    titulo: [marca, modelo, version, anio].filter(Boolean).join(' '),
     marca,
     modelo,
     version: version || null,

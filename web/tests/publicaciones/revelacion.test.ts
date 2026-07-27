@@ -24,7 +24,7 @@ vi.mock('@lib/db/client', () => ({
   POR_PAGINA: 24,
 }));
 
-const { revelarContacto } = await import('@lib/publicaciones/consultas');
+const { contactoRevelado, revelarContacto } = await import('@lib/publicaciones/consultas');
 const { LIMITES } = await import('@lib/publicaciones/limites');
 
 /**
@@ -32,7 +32,7 @@ const { LIMITES } = await import('@lib/publicaciones/limites');
  * objeto y el `await` resuelve el siguiente conteo de la cola, en el orden en
  * que la función los pide (primero "¿ya lo reveló?", después "¿cuántas hoy?").
  */
-function clienteSesion(conteos: number[], errorInsert: { message: string } | null = null) {
+function clienteSesion(conteos: number[], errorInsert: { message: string; code?: string } | null = null) {
   const cola = [...conteos];
   const insert = vi.fn(() => Promise.resolve({ error: errorInsert }));
   const from = vi.fn(() => {
@@ -106,5 +106,52 @@ describe('revelarContacto', () => {
     expect(await revelarContacto(cliente, 7, USUARIO)).toEqual({ estado: 'sin_telefono' });
     expect(from).not.toHaveBeenCalled();
     expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('da por buena la revelación si choca contra el unique: ya estaba registrada', async () => {
+    // Dos envíos a la vez pasan los dos el "¿ya lo reveló?" y el segundo choca
+    // contra el unique de la migración 0018. Para quien lo pidió es un éxito.
+    const { cliente } = clienteSesion([0, 0], { message: 'duplicate key', code: '23505' });
+
+    expect((await revelarContacto(cliente, 7, USUARIO)).estado).toBe('ok');
+  });
+});
+
+describe('contactoRevelado — lo que resuelve la página, que es un GET', () => {
+  it('nunca escribe: sin revelación previa deja el contacto pendiente', async () => {
+    const { cliente, insert } = clienteSesion([0]);
+
+    // Registrar durante el render dejaba que un sitio externo agotara el cupo
+    // diario de cualquiera con sesión mandándolo a recorrer avisos.
+    expect(await contactoRevelado(cliente, 7, USUARIO)).toEqual({ estado: 'pendiente' });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('entrega el teléfono sin gastar cupo si ya estaba revelado', async () => {
+    const { cliente, insert } = clienteSesion([1]);
+
+    const resultado = await contactoRevelado(cliente, 7, USUARIO);
+
+    expect(resultado.estado).toBe('ok');
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('no consulta el cupo del día: eso es asunto del POST', async () => {
+    // Una sola entrada en la cola de conteos alcanza; si pidiera el segundo, la
+    // cola devolvería 0 y el resultado seguiría siendo 'pendiente', así que lo
+    // que se comprueba es cuántas consultas hace.
+    const { cliente, from } = clienteSesion([0]);
+
+    await contactoRevelado(cliente, 7, USUARIO);
+
+    expect(from).toHaveBeenCalledTimes(1);
+  });
+
+  it('informa que el vendedor no tiene teléfono sin tocar la base', async () => {
+    perfil.valor = null;
+    const { cliente, from } = clienteSesion([0]);
+
+    expect(await contactoRevelado(cliente, 7, USUARIO)).toEqual({ estado: 'sin_telefono' });
+    expect(from).not.toHaveBeenCalled();
   });
 });

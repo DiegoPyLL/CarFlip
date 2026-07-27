@@ -11,6 +11,12 @@
  * texto arbitrario que la página mostraría como propio.
  */
 
+/**
+ * `avisosActivos` y `creacionesPor24h` están replicados en el trigger
+ * `particulares_topes` (migración 0018), que es el que los hace cumplir de verdad:
+ * la tabla es alcanzable por PostgREST con la anon key. Estos son los que dan el
+ * mensaje bueno antes de llegar ahí; si cambian, cambian en los dos lados.
+ */
 export const LIMITES = {
   avisosActivos: 5,
   creacionesPor24h: 3,

@@ -46,25 +46,11 @@ export const POST: APIRoute = async ({ params, request, locals, redirect }) => {
   const campos = camposDelFormulario(datos);
   if (!campos) return redirect(`${destino}?error=datos`, 303);
 
-  // Una bajada de precio alimenta `precio_anterior`/`delta_pct`, que es lo que
-  // lee signosDelta() para mostrar "▼ n%" sin ningún caso especial por fuente.
-  const anterior = aviso.precio;
-  const bajada = anterior !== null && campos.precio < anterior;
-
-  const { error } = await supabase
-    .from(TABLA_AVISOS)
-    .update({
-      ...campos,
-      ...(bajada
-        ? {
-            precio_anterior: anterior,
-            delta_pct: ((campos.precio - anterior) / anterior) * 100,
-          }
-        : {}),
-      actualizado_en: new Date().toISOString(),
-      ultima_vez_visto: new Date().toISOString(),
-    })
-    .eq('id', id);
+  // Una bajada de precio alimenta `precio_anterior`/`delta_pct` —lo que lee
+  // signosDelta() para el "▼ n%"— y las marcas de tiempo se refrescan solas: lo
+  // hace el trigger `particulares_deriva_campos`, así que nadie puede fingir un
+  // descuento ni fijar `ultima_vez_visto` para clavarse arriba del listado.
+  const { error } = await supabase.from(TABLA_AVISOS).update(campos).eq('id', id);
 
   if (error) {
     console.error('No se pudo actualizar la publicación:', error.message);

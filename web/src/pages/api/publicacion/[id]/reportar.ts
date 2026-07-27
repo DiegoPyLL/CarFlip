@@ -37,7 +37,9 @@ export const POST: APIRoute = async ({ params, request, locals, redirect }) => {
     detalle: normalizar(datos.get('detalle'), { max: 1000, preservarSaltos: true }) || null,
   });
 
-  if (error) {
+  // El 23505 es el unique de la migración 0018: la denuncia ya estaba registrada
+  // (dos envíos a la vez), que para quien reporta es exactamente lo mismo.
+  if (error && error.code !== '23505') {
     console.error('No se pudo registrar el reporte:', error.message);
     return redirect(`${volver}?error=servidor`, 303);
   }

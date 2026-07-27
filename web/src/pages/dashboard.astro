@@ -7,7 +7,11 @@ import { listarReportes } from '@lib/publicaciones/moderacion';
 import { ETIQUETA_ESTADO, ETIQUETA_REPORTE } from '@lib/publicaciones/opciones';
 import type { CorridaScrape } from '@lib/tipos';
 
-// El middleware ya exige rol de administrador para llegar hasta aquí.
+// El middleware ya exige rol de administrador, pero la autorización de una vista
+// de admin no debería depender de un solo predicado de string en otra capa: se
+// recomprueba acá igual que en `api/moderacion/[id].ts`.
+if (Astro.locals.usuario?.rol !== 'admin') return Astro.rewrite('/403');
+
 const [op, veh, reportes] = await Promise.all([
   obtenerMetricasOperacion(),
   obtenerMetricasVehiculos(),

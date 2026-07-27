@@ -45,21 +45,55 @@ export function crearClienteUsuario({ request, cookies }: ContextoAuth): Supabas
   });
 }
 
-// Supabase nombra sus cookies de sesión `sb-<ref>-auth-token`. Comprobarlo evita
-// una llamada de red a `getUser()` en cada visita anónima, que es la mayoría del
-// tráfico y todo el tráfico indexable.
+// Supabase nombra su cookie de sesión `sb-<ref>-auth-token`, y la parte en
+// `...auth-token.0`/`.1` cuando el token no cabe en una sola. El `<ref>` es el
+// subdominio del proyecto.
+// Sin las variables de entorno el módulo no debe lanzar al importarse (lo hace el
+// middleware en cada request); ahí `AUTH_CONFIGURADA` es false y esto no se usa.
+export const COOKIE_SESION = `sb-${(supabaseUrl ?? '').replace(/^https?:\/\//, '').split('.')[0]}-auth-token`;
+
+/**
+ * Si la request trae la cookie de sesión de este proyecto.
+ *
+ * Comprobarlo evita una llamada de red a `getUser()` en cada visita anónima, que
+ * es la mayoría del tráfico y todo el tráfico indexable. Se exige el nombre
+ * exacto: con un `includes('sb-')` cualquiera podía mandar `Cookie: sb-x=1` y
+ * forzar la validación contra Supabase en cada petición, anulando el ahorro a
+ * voluntad. Fijar *esta* cookie con basura sigue costando una llamada, pero eso
+ * ya no se consigue con una cookie cualquiera.
+ */
 export function tieneCookieSesion(request: Request): boolean {
-  return (request.headers.get('Cookie') ?? '').includes('sb-');
+  return parseCookieHeader(request.headers.get('Cookie') ?? '').some(
+    ({ name, value }) =>
+      Boolean(value) && (name === COOKIE_SESION || name.startsWith(`${COOKIE_SESION}.`)),
+  );
 }
 
-// Solo se aceptan rutas internas como destino de redirección: debe empezar con
-// `/` y no con `//` (que el navegador interpreta como host externo).
+const ORIGEN = 'https://carflip.cl';
+
+/**
+ * Destino de redirección restringido a rutas de este sitio.
+ *
+ * No basta con exigir `/` y descartar `//`: la barra invertida también abre un
+ * host externo, porque el parser de URL de WHATWG —navegadores y Node— normaliza
+ * `\` a `/`, así que `/\evil.com` resuelve a `https://evil.com`. Por eso se
+ * resuelve la URL de verdad y se compara el origen, en vez de mirar los primeros
+ * caracteres: cubre la barra invertida, el esquema absoluto y los caracteres de
+ * control de una sola vez. Lo que vuelve es la ruta ya normalizada.
+ */
 export function rutaInterna(valor: string | null | undefined, porDefecto = '/'): string {
-  return valor && valor.startsWith('/') && !valor.startsWith('//') ? valor : porDefecto;
+  if (!valor || !valor.startsWith('/')) return porDefecto;
+  try {
+    const destino = new URL(valor, ORIGEN);
+    if (destino.origin !== ORIGEN) return porDefecto;
+    return destino.pathname + destino.search + destino.hash;
+  } catch {
+    return porDefecto;
+  }
 }
 
 export function urlEntrar(volver: string, error?: string): string {
-  const destino = new URL('/entrar', 'https://carflip.cl');
+  const destino = new URL('/entrar', ORIGEN);
   destino.searchParams.set('volver', volver);
   if (error) destino.searchParams.set('error', error);
   return destino.pathname + destino.search;
