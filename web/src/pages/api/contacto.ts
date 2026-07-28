@@ -67,19 +67,18 @@ const REMITENTE = 'CarFlip <onboarding@resend.dev>';
 // El nombre solo admite letras (de cualquier idioma) y espacios: sin números ni signos.
 const NOMBRE_RE = /^[\p{L}\s]+$/u;
 
-function redirigir(origin: string, parametro: 'enviado' | 'error'): Response {
-  const destino = new URL('/contacto', origin);
-  destino.searchParams.set(parametro, '1');
-  return Response.redirect(destino, 303);
-}
+export const POST: APIRoute = async ({ request, redirect, clientAddress }) => {
+  // El `redirect` del contexto —el mismo que usa el resto de los endpoints— y no
+  // `Response.redirect()`: esa respuesta nace con las cabeceras inmutables, y el
+  // middleware, que le escribe las de seguridad, moría con un 500 (issue #45).
+  const redirigir = (parametro: 'enviado' | 'error') => redirect(`/contacto?${parametro}=1`, 303);
 
-export const POST: APIRoute = async ({ request, url, clientAddress }) => {
   const datos = await request.formData();
 
   // Honeypot: campo oculto para personas por CSS; un bot que completa todos
   // los campos del form lo llena y la respuesta se descarta en silencio.
   if (String(datos.get('web') ?? '').length > 0) {
-    return redirigir(url.origin, 'enviado');
+    return redirigir('enviado');
   }
 
   const nombre = normalizar(datos.get('nombre'), { max: 100 });
@@ -87,12 +86,12 @@ export const POST: APIRoute = async ({ request, url, clientAddress }) => {
   const mensaje = normalizar(datos.get('mensaje'), { max: 2000, preservarSaltos: true });
 
   if (!nombre || !email || !mensaje || !EMAIL_RE.test(email) || !NOMBRE_RE.test(nombre)) {
-    return redirigir(url.origin, 'error');
+    return redirigir('error');
   }
 
   if (!RESEND_API_KEY || !CONTACT_EMAIL || !RATE_SALT) {
     console.error('Falta RESEND_API_KEY, CONTACT_EMAIL o el salt del rate limit');
-    return redirigir(url.origin, 'error');
+    return redirigir('error');
   }
 
   // `clientAddress` puede lanzar si el adapter no lo expone; sin IP no se aplica
@@ -104,7 +103,7 @@ export const POST: APIRoute = async ({ request, url, clientAddress }) => {
     /* sin IP */
   }
   if (ip && (await superaRateLimit(ip))) {
-    return redirigir(url.origin, 'error');
+    return redirigir('error');
   }
 
   const respuesta = await fetch('https://api.resend.com/emails', {
@@ -124,8 +123,8 @@ export const POST: APIRoute = async ({ request, url, clientAddress }) => {
 
   if (!respuesta.ok) {
     console.error('Error enviando correo de contacto:', await respuesta.text());
-    return redirigir(url.origin, 'error');
+    return redirigir('error');
   }
 
-  return redirigir(url.origin, 'enviado');
+  return redirigir('enviado');
 };

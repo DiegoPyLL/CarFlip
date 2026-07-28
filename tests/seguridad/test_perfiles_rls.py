@@ -169,6 +169,25 @@ async def test_trigger_crea_el_perfil_al_registrarse(conexion):
 
 
 @skip_sin_db
+async def test_ningun_usuario_se_queda_sin_perfil(conexion):
+    """El trigger existiendo no basta: solo cubre las altas posteriores a la 0010.
+
+    Las cuentas anteriores las rellena la 0021. Sin fila, guardar los datos de
+    contacto es un UPDATE de cero filas que PostgREST reporta como éxito, así que
+    el usuario ve "Datos guardados." y no se guardó nada (issue #43).
+    """
+    huerfanos = await conexion.scalar(
+        text(
+            """SELECT count(*) FROM auth.users u
+               LEFT JOIN public.perfiles p ON p.id = u.id
+               WHERE p.id IS NULL"""
+        )
+    )
+
+    assert huerfanos == 0, f"{huerfanos} usuarios sin fila en perfiles"
+
+
+@skip_sin_db
 async def test_la_funcion_del_trigger_esta_endurecida(conexion):
     """SECURITY DEFINER con search_path vacío: no se la puede desviar por shadowing.
 

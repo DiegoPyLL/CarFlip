@@ -21,9 +21,13 @@ export const REGIONES = [
   'Magallanes',
 ] as const;
 
-// Las 346 comunas de Chile, agrupadas por región para poblar el <select> con
-// <optgroup>: no se filtra por región elegida porque eso exigiría JavaScript.
-export const COMUNAS_POR_REGION: Record<(typeof REGIONES)[number], readonly string[]> = {
+export type Region = (typeof REGIONES)[number];
+
+// Las 346 comunas de Chile, agrupadas por región. El <select> las renderiza
+// enteras en <optgroup> —así funciona sin JavaScript— y `CamposUbicacion` deja
+// a la vista solo el grupo de la región elegida. Ningún nombre se repite entre
+// regiones, de ahí que el par región/comuna sea verificable.
+export const COMUNAS_POR_REGION: Record<Region, readonly string[]> = {
   'Arica y Parinacota': ['Arica', 'Camarones', 'Putre', 'General Lagos'],
   Tarapacá: ['Iquique', 'Alto Hospicio', 'Pozo Almonte', 'Camiña', 'Colchane', 'Huara', 'Pica'],
   Antofagasta: [
@@ -391,7 +395,14 @@ export const COMUNAS_POR_REGION: Record<(typeof REGIONES)[number], readonly stri
   ],
 };
 
-export const COMUNAS = Object.values(COMUNAS_POR_REGION).flat();
+/**
+ * `true` solo si la comuna pertenece a esa región. El par llega del cliente, que
+ * puede mandar cualquier cosa: `region` se busca como clave propia porque
+ * `COMUNAS_POR_REGION['toString']` existe en el prototipo y devolvería función.
+ */
+export function comunaEnRegion(region: string, comuna: string): boolean {
+  return Object.hasOwn(COMUNAS_POR_REGION, region) && COMUNAS_POR_REGION[region as Region].includes(comuna);
+}
 
 export const COMBUSTIBLES = ['Bencina', 'Diésel', 'Híbrido', 'Eléctrico', 'Gas'] as const;
 

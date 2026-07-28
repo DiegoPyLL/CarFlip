@@ -55,20 +55,25 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // recibiendo las cabeceras de seguridad de más abajo.
   const respuesta = await next(sinPermiso ? '/403' : undefined);
 
-  // Astro emite las respuestas SSR como `text/html` a secas. La declaración de
-  // codificación queda entonces solo en el <meta charset> del layout y, aunque
-  // ahí llega dentro de los primeros 1024 bytes, la cabecera es la que manda:
-  // sin el parámetro, los auditores la dan por ausente.
-  const tipo = respuesta.headers.get('content-type');
-  const esHtml = Boolean(tipo?.startsWith('text/html'));
-  if (esHtml && !tipo!.includes('charset')) {
-    respuesta.headers.set('content-type', 'text/html; charset=utf-8');
-  }
-
-  aplicarCabecerasSeguridad(respuesta, esHtml, context.locals.nonce);
-
-  return respuesta;
+  return conCabeceras(respuesta, context.locals.nonce);
 });
+
+/**
+ * Devuelve la respuesta con sus cabeceras finales puestas.
+ *
+ * `Response.redirect()` nace con el guard de cabeceras en "immutable" y escribir
+ * en ellas lanza un `TypeError`: como acá se le escriben a toda respuesta, el
+ * request moría en 500 sin llegar nunca al navegador (issue #45). Ante eso se
+ * copia —la copia sí es mutable— y se reintenta, así ninguna respuesta puede
+ * salir sin las cabeceras de seguridad, que es lo que sostiene la CSP del sitio.
+ */
+function conCabeceras(respuesta: Response, nonce: string): Response {
+  try {
+    return escribirCabeceras(respuesta, nonce);
+  } catch {
+    return escribirCabeceras(new Response(respuesta.body, respuesta), nonce);
+  }
+}
 
 /**
  * CSP de un documento HTML.
@@ -110,9 +115,20 @@ export function cspDocumento(nonce: string, dev = false): string {
  */
 export const CSP_NO_DOCUMENTO = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'";
 
-// Cabeceras de seguridad para todo el sitio.
-function aplicarCabecerasSeguridad(respuesta: Response, esHtml: boolean, nonce: string): void {
+// Cabeceras de seguridad para todo el sitio, más la codificación de los documentos.
+function escribirCabeceras(respuesta: Response, nonce: string): Response {
   const h = respuesta.headers;
+
+  // Astro emite las respuestas SSR como `text/html` a secas. La declaración de
+  // codificación queda entonces solo en el <meta charset> del layout y, aunque
+  // ahí llega dentro de los primeros 1024 bytes, la cabecera es la que manda:
+  // sin el parámetro, los auditores la dan por ausente.
+  const tipo = h.get('content-type');
+  const esHtml = Boolean(tipo?.startsWith('text/html'));
+  if (esHtml && !tipo!.includes('charset')) {
+    h.set('content-type', 'text/html; charset=utf-8');
+  }
+
   h.set('X-Content-Type-Options', 'nosniff');
   h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   h.set('X-Frame-Options', 'DENY');
@@ -124,4 +140,6 @@ function aplicarCabecerasSeguridad(respuesta: Response, esHtml: boolean, nonce: 
     'Content-Security-Policy',
     esHtml ? cspDocumento(nonce, import.meta.env.DEV) : CSP_NO_DOCUMENTO,
   );
+
+  return respuesta;
 }

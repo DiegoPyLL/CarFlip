@@ -13,6 +13,21 @@ function crearRequest(campos: Record<string, string>): Request {
   return new Request(`${ORIGIN}/contacto`, { method: 'POST', body: datos });
 }
 
+/**
+ * Contexto del endpoint. El `redirect` es el de Astro: `new Response(...)`, con
+ * las cabeceras mutables. Que sea este y no `Response.redirect()` es justamente
+ * lo que el middleware necesita para no tumbar el envío con un 500 (issue #45);
+ * el caso está fijado en `tests/paginas/cabeceras-seguridad.test.ts`.
+ */
+function contexto(request: Request, clientAddress?: string) {
+  return {
+    request,
+    redirect: (destino: string, estado = 302) =>
+      new Response(null, { status: estado, headers: { location: destino } }),
+    clientAddress,
+  } as any;
+}
+
 async function importarPOST() {
   vi.resetModules();
   const modulo = await import('../../src/pages/api/contacto');
@@ -49,18 +64,30 @@ describe('POST /api/contacto', () => {
       web: 'http://spam.example',
     });
 
-    const respuesta = await POST({ request, url: new URL(`${ORIGIN}/contacto`) } as any);
+    const respuesta = await POST(contexto(request));
 
     expect(respuesta.status).toBe(303);
     expect(ubicacionDe(respuesta)).toContain('enviado=1');
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it('redirige con una respuesta de cabeceras mutables, para que el middleware pueda cerrarla', async () => {
+    // Con `Response.redirect()` quedaban inmutables y el `set` del middleware
+    // lanzaba: cada envío terminaba en la página 500 (issue #45). Se prueba sobre
+    // el camino de datos inválidos porque no toca Resend.
+    const POST = await importarPOST();
+    const request = crearRequest({ nombre: '', email: 'a@a.com', mensaje: 'hola' });
+
+    const respuesta = await POST(contexto(request));
+
+    expect(() => respuesta.headers.set('X-Content-Type-Options', 'nosniff')).not.toThrow();
+  });
+
   it('rechaza el envío si falta el nombre, el email o el mensaje', async () => {
     const POST = await importarPOST();
     const request = crearRequest({ nombre: '', email: 'a@a.com', mensaje: 'hola' });
 
-    const respuesta = await POST({ request, url: new URL(`${ORIGIN}/contacto`) } as any);
+    const respuesta = await POST(contexto(request));
 
     expect(respuesta.status).toBe(303);
     expect(ubicacionDe(respuesta)).toContain('error=1');
@@ -71,7 +98,7 @@ describe('POST /api/contacto', () => {
     const POST = await importarPOST();
     const request = crearRequest({ nombre: 'Ana', email: 'no-es-un-email', mensaje: 'hola' });
 
-    const respuesta = await POST({ request, url: new URL(`${ORIGIN}/contacto`) } as any);
+    const respuesta = await POST(contexto(request));
 
     expect(respuesta.status).toBe(303);
     expect(ubicacionDe(respuesta)).toContain('error=1');
@@ -83,7 +110,7 @@ describe('POST /api/contacto', () => {
     const POST = await importarPOST();
     const request = crearRequest({ nombre: 'Ana', email: 'ana@example.com', mensaje: 'hola' });
 
-    const respuesta = await POST({ request, url: new URL(`${ORIGIN}/contacto`) } as any);
+    const respuesta = await POST(contexto(request));
 
     expect(respuesta.status).toBe(303);
     expect(ubicacionDe(respuesta)).toContain('error=1');
@@ -95,7 +122,7 @@ describe('POST /api/contacto', () => {
     const POST = await importarPOST();
     const request = crearRequest({ nombre: 'Ana', email: 'ana@example.com', mensaje: 'hola' });
 
-    const respuesta = await POST({ request, url: new URL(`${ORIGIN}/contacto`) } as any);
+    const respuesta = await POST(contexto(request));
 
     expect(respuesta.status).toBe(303);
     expect(ubicacionDe(respuesta)).toContain('error=1');
@@ -110,7 +137,7 @@ describe('POST /api/contacto', () => {
     const POST = await importarPOST();
     const request = crearRequest({ nombre: 'Ana', email: 'ana@example.com', mensaje: 'hola' });
 
-    const respuesta = await POST({ request, url: new URL(`${ORIGIN}/contacto`) } as any);
+    const respuesta = await POST(contexto(request));
 
     expect(respuesta.status).toBe(303);
     expect(ubicacionDe(respuesta)).toContain('error=1');
@@ -122,7 +149,7 @@ describe('POST /api/contacto', () => {
     const POST = await importarPOST();
     const request = crearRequest({ nombre: 'Ana', email: 'ana@example.com', mensaje: 'hola' });
 
-    const respuesta = await POST({ request, url: new URL(`${ORIGIN}/contacto`) } as any);
+    const respuesta = await POST(contexto(request));
 
     expect(respuesta.status).toBe(303);
     expect(ubicacionDe(respuesta)).toContain('error=1');
@@ -133,7 +160,7 @@ describe('POST /api/contacto', () => {
     const POST = await importarPOST();
     const request = crearRequest({ nombre: 'Ana', email: 'ana@example.com', mensaje: 'Hola,\nquiero info.' });
 
-    const respuesta = await POST({ request, url: new URL(`${ORIGIN}/contacto`) } as any);
+    const respuesta = await POST(contexto(request));
 
     expect(respuesta.status).toBe(303);
     expect(ubicacionDe(respuesta)).toContain('enviado=1');
@@ -155,11 +182,12 @@ describe('POST /api/contacto', () => {
 
   describe('rate limit por IP', () => {
     const enviar = async (POST: any) =>
-      POST({
-        request: crearRequest({ nombre: 'Ana', email: 'ana@example.com', mensaje: 'hola' }),
-        url: new URL(`${ORIGIN}/contacto`),
-        clientAddress: '203.0.113.7',
-      });
+      POST(
+        contexto(
+          crearRequest({ nombre: 'Ana', email: 'ana@example.com', mensaje: 'hola' }),
+          '203.0.113.7',
+        ),
+      );
 
     it('consulta la función de la base con la IP hasheada, nunca en claro', async () => {
       vi.mocked(fetch).mockResolvedValue(new Response('{}', { status: 200 }));
@@ -209,7 +237,7 @@ describe('POST /api/contacto', () => {
       mensaje: '<script>alert(1)</script>',
     });
 
-    await POST({ request, url: new URL(`${ORIGIN}/contacto`) } as any);
+    await POST(contexto(request));
 
     const [, opciones] = vi.mocked(fetch).mock.calls[0];
     const cuerpo = JSON.parse(opciones?.body as string);

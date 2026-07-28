@@ -1,0 +1,90 @@
+---
+/**
+ * Región y comuna, el par que comparten el perfil y el formulario de aviso.
+ *
+ * El HTML trae las 346 comunas agrupadas por región: así el formulario funciona
+ * sin JavaScript. El script de abajo deja a la vista solo el grupo de la región
+ * elegida, que es lo que evita recorrer el país entero para encontrar Ñuñoa.
+ */
+import { COMUNAS_POR_REGION, REGIONES } from '@lib/publicaciones/opciones';
+
+interface Props {
+  region?: string;
+  comuna?: string;
+}
+
+const { region, comuna } = Astro.props;
+
+const inputCls =
+  'w-full bg-transparent border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
+const labelCls = 'flex items-baseline justify-between text-base text-ink mb-2';
+const requerido = 'text-sm text-scarlet-signal';
+---
+
+<div>
+  <label for="region" class={labelCls}>Región <span class={requerido}>*Requerido</span></label>
+  <select id="region" name="region" required class={`${inputCls} campo`} aria-describedby="err-region">
+    <option value="">Selecciona…</option>
+    {REGIONES.map((r) => <option value={r} selected={region === r}>{r}</option>)}
+  </select>
+  <p id="err-region" class="campo-error text-sm text-scarlet-signal mt-1.5">Selecciona la región.</p>
+</div>
+
+<div>
+  <label for="comuna" class={labelCls}>Comuna <span class={requerido}>*Requerido</span></label>
+  <select
+    id="comuna"
+    name="comuna"
+    required
+    data-comunas-de="region"
+    class={`${inputCls} campo disabled:opacity-50`}
+    aria-describedby="err-comuna"
+  >
+    <option value="">Selecciona…</option>
+    {
+      REGIONES.map((r) => (
+        <optgroup label={r}>
+          {COMUNAS_POR_REGION[r].map((c) => (
+            <option value={c} selected={comuna === c}>
+              {c}
+            </option>
+          ))}
+        </optgroup>
+      ))
+    }
+  </select>
+  <p id="err-comuna" class="campo-error text-sm text-scarlet-signal mt-1.5">Selecciona la comuna.</p>
+</div>
+
+<script>
+  // Los <optgroup> salen del DOM y viven en este Map: se devuelven cuando su
+  // región es la elegida. Así la lista no se duplica en el bundle, se reusa la
+  // que ya vino en el HTML. Sin este script el select queda como está servido.
+  for (const comuna of document.querySelectorAll<HTMLSelectElement>('select[data-comunas-de]')) {
+    const region = document.getElementById(comuna.dataset.comunasDe!);
+    if (!(region instanceof HTMLSelectElement)) continue;
+
+    const grupos = new Map(
+      [...comuna.querySelectorAll('optgroup')].map((g): [string, HTMLOptGroupElement] => [g.label, g]),
+    );
+
+    const sincronizar = () => {
+      const elegido = grupos.get(region.value);
+      for (const grupo of grupos.values()) if (grupo !== elegido) grupo.remove();
+      if (elegido && !elegido.isConnected) comuna.append(elegido);
+
+      // Al quitar el <option> seleccionado el navegador deja el select en -1:
+      // volver al placeholder evita mandar un par incoherente al cambiar de
+      // región. Sin región elegida no hay nada que ofrecer, así que se apaga.
+      if (!comuna.value) comuna.selectedIndex = 0;
+      comuna.disabled = !elegido;
+    };
+
+    region.addEventListener('change', sincronizar);
+    sincronizar();
+
+    // Al recargar o volver atrás el navegador repone el valor de la región sin
+    // disparar `change`: sin esto la lista de comunas quedaría en la anterior.
+    window.addEventListener('pageshow', sincronizar);
+  }
+</script>

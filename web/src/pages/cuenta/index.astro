@@ -1,10 +1,10 @@
 ---
 import Base from '@layouts/Base.astro';
 import NavCuenta from '@components/cuenta/NavCuenta.astro';
+import CamposUbicacion from '@components/cuenta/CamposUbicacion.astro';
 import FilaAviso from '@components/cuenta/FilaAviso.astro';
 import { listarAvisosPropios, obtenerPerfil, revelacionesPorAviso } from '@lib/publicaciones/consultas';
 import { PALABRA_ELIMINAR, mensajeDeError, perfilCompleto } from '@lib/publicaciones/limites';
-import { COMUNAS_POR_REGION, REGIONES } from '@lib/publicaciones/opciones';
 
 // El middleware ya redirige a /entrar si no hay sesión; la comprobación se
 // repite aquí para que el tipo de `usuario` sea no nulo en el template.
@@ -151,7 +151,7 @@ const enlaceCls =
       <div class="grid gap-element sm:grid-cols-2">
         <div>
           <label for="nombre" class="flex items-baseline justify-between text-base text-ink mb-2">
-            Nombre <span class="text-sm text-ink/70">*Requerido</span>
+            Nombre <span class="text-sm text-scarlet-signal">*Requerido</span>
           </label>
           <input
             type="text"
@@ -173,7 +173,7 @@ const enlaceCls =
 
         <div>
           <label for="telefono" class="flex items-baseline justify-between text-base text-ink mb-2">
-            Teléfono <span class="text-sm text-ink/70">*Requerido</span>
+            Teléfono <span class="text-sm text-scarlet-signal">*Requerido</span>
           </label>
           <input
             type="tel"
@@ -194,39 +194,7 @@ const enlaceCls =
           </p>
         </div>
 
-        <div>
-          <label for="region" class="flex items-baseline justify-between text-base text-ink mb-2">
-            Región <span class="text-sm text-ink/70">*Requerido</span>
-          </label>
-          <select id="region" name="region" required class={`${inputCls} campo`} aria-describedby="err-region">
-            <option value="">Selecciona…</option>
-            {REGIONES.map((r) => (
-              <option value={r} selected={perfil?.region === r}>{r}</option>
-            ))}
-          </select>
-          <p id="err-region" class="campo-error text-sm text-scarlet-signal mt-1.5">
-            Selecciona tu región.
-          </p>
-        </div>
-
-        <div>
-          <label for="comuna" class="flex items-baseline justify-between text-base text-ink mb-2">
-            Comuna <span class="text-sm text-ink/70">*Requerido</span>
-          </label>
-          <select id="comuna" name="comuna" required class={`${inputCls} campo`} aria-describedby="err-comuna">
-            <option value="">Selecciona…</option>
-            {REGIONES.map((r) => (
-              <optgroup label={r}>
-                {COMUNAS_POR_REGION[r].map((c) => (
-                  <option value={c} selected={perfil?.comuna === c}>{c}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          <p id="err-comuna" class="campo-error text-sm text-scarlet-signal mt-1.5">
-            Selecciona tu comuna.
-          </p>
-        </div>
+        <CamposUbicacion region={perfil?.region} comuna={perfil?.comuna} />
       </div>
 
       <button type="submit" class={`${botonCls} cursor-pointer`}>

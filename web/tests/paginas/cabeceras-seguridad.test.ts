@@ -6,6 +6,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * inyección de HTML, es lo que decide si además ejecuta, exfiltra o desfigura.
  * Estos tests fijan las tres propiedades que la hacen valer: nada inline sin
  * nonce, ningún destino abierto, y ninguna familia de respuestas sin política.
+ *
+ * Cubren la política, no el HTML que debe respetarla: que el build no incruste
+ * scripts inline —que la política declara imposibles— solo se ve tras `astro
+ * build`, y lo verifica `scripts/verificar-scripts-inline.mjs`.
  */
 
 vi.mock('@lib/auth/servidor', async (importarOriginal) => ({
@@ -136,5 +140,34 @@ describe('cabeceras de seguridad comunes', () => {
       expect(respuesta.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin');
       expect(respuesta.headers.get('x-frame-options')).toBe('DENY');
     }
+  });
+});
+
+/**
+ * `Response.redirect()` nace con el guard de cabeceras en "immutable": escribirle
+ * encima lanza. Como el middleware se las escribe a toda respuesta, el endpoint
+ * de /contacto tumbaba cada envío del formulario con un 500 (issue #45), y los
+ * tests no lo vieron porque ninguno pasaba una respuesta así por `onRequest`.
+ */
+describe('respuestas que llegan con las cabeceras inmutables', () => {
+  const DESTINO = 'https://carflip.cl/contacto?error=1';
+  const redireccion = async () => Response.redirect(DESTINO, 303);
+  const pasarPorMiddleware = async () =>
+    (await onRequest(contexto('/api/contacto'), redireccion as never))!;
+
+  it('no tumban el request, y conservan estado y destino', async () => {
+    const respuesta = await pasarPorMiddleware();
+
+    expect(respuesta.status).toBe(303);
+    expect(respuesta.headers.get('location')).toBe(DESTINO);
+  });
+
+  it('salen igual con las cabeceras de seguridad: la invariante no admite excepciones', async () => {
+    const respuesta = await pasarPorMiddleware();
+
+    expect(respuesta.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(respuesta.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin');
+    expect(respuesta.headers.get('x-frame-options')).toBe('DENY');
+    expect(respuesta.headers.get('content-security-policy')).toBe(CSP_NO_DOCUMENTO);
   });
 });

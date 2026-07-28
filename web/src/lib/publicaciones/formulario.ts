@@ -9,7 +9,7 @@
 import { normalizarPatente } from '@lib/patente';
 import { normalizar } from '@lib/sanitizar';
 
-import { ANIO_MINIMO, COMBUSTIBLES, COMUNAS, REGIONES, TRACCIONES, TRANSMISIONES, anioMaximo } from './opciones';
+import { ANIO_MINIMO, COMBUSTIBLES, REGIONES, TRACCIONES, TRANSMISIONES, anioMaximo, comunaEnRegion } from './opciones';
 
 export interface CamposAviso {
   marca: string;
@@ -57,12 +57,15 @@ export function camposDelFormulario(datos: FormData): CamposAviso | null {
   const precio = entero(datos.get('precio'));
   const patente = normalizarPatente(datos.get('patente'));
   const region = deLista(datos.get('region'), REGIONES);
-  const comuna = deLista(datos.get('comuna'), COMUNAS);
+  const comuna = String(datos.get('comuna') ?? '').trim();
   const combustible = deLista(datos.get('combustible'), COMBUSTIBLES);
   const transmision = deLista(datos.get('transmision'), TRANSMISIONES);
   const traccion = deLista(datos.get('traccion'), TRACCIONES);
 
-  if (!marca || !modelo || !comuna || !region || !patente) return null;
+  if (!marca || !modelo || !patente) return null;
+  // El par tiene que ser coherente, no solo existir cada parte: "Arica,
+  // Metropolitana" es una `ubicacion` imposible y rompería el filtro por región.
+  if (!region || !comunaEnRegion(region, comuna)) return null;
   if (anio === null || anio < ANIO_MINIMO || anio > anioMaximo()) return null;
   if (km === null || km > KM_MAXIMO) return null;
   if (precio === null || precio <= 0 || precio > PRECIO_MAXIMO) return null;
