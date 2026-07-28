@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { escaparHtml, normalizar } from '@lib/sanitizar';
+import { EMAIL_RE, escaparHtml, normalizar } from '@lib/sanitizar';
 
 export const prerender = false;
 
@@ -64,7 +64,6 @@ const CONTACT_EMAIL = (import.meta.env.CONTACT_EMAIL as string) || (process.env.
 // Cambiar a algo como "CarFlip <contacto@carflip.cl>" cuando carflip.cl esté verificado en Resend.
 const REMITENTE = 'CarFlip <onboarding@resend.dev>';
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // El nombre solo admite letras (de cualquier idioma) y espacios: sin números ni signos.
 const NOMBRE_RE = /^[\p{L}\s]+$/u;
 

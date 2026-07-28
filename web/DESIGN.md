@@ -144,7 +144,7 @@ Los nombres son **semánticos**, no cromáticos: el mismo token cambia de valor 
 | `--c-line`        | `line`            | `#dcdcdc` | `#484848` | Bordes de card, divisores, paginación deshabilitada             |
 | `--c-line-strong` | `line-strong`     | `#767676` | `#a0a0a0` | Bordes de inputs, selects y badges (necesitan 3:1 de contraste)  |
 | `--c-scarlet`     | `scarlet-signal`  | `#e4002b` | `#e4002b` | **Solo borde y objeto gráfico**: foco, campo inválido, botón destructivo |
-| `--c-blue`        | `blue-signal`     | `#1873b3` | `#7c3aed` | Acento editorial: fondo de bloques de marca (footer, hero de `/quienes-somos`) y lavado rotativo del mosaico de principios de esa misma página. **Es el único token cuyo nombre es cromático y cambia de familia con el tema**: azul en claro, morado en oscuro |
+| `--c-blue`        | `blue-signal`     | `#1873b3` | `#7c3aed` | Acento editorial: fondo de bloques de marca (footer, hero de `/quienes-somos`) y del módulo de búsqueda/consulta de cada página con uno (`BuscadorHome` en portada; `FiltrosBarra`/`FiltrosSidebar` de `/avisos`; filtro de `/deals`; `ConsultaMercado` de `/mercado`) y de los formularios de `/entrar` y `/registro`; además, lavado rotativo del mosaico de principios de `/quienes-somos`. **Es el único token cuyo nombre es cromático y cambia de familia con el tema**: azul en claro, morado en oscuro |
 | `--c-green`       | `green-signal`    | `#71db4c` | `#71db4c` | Acento editorial secundario, mismo régimen que `blue-signal`; reservado, sin implementación asignada |
 | `--c-ink-on-tint` | `ink-on-tint`     | `#ffffff` | `#ffffff` | Blanco fijo para texto sobre `blue-signal`/`green-signal`; no invierte con el tema |
 | `--c-github`      | `github-signal`   | `#181717` | `#181717` | Negro de marca de GitHub, solo para el ícono del footer; no es un acento del sistema |
@@ -395,13 +395,21 @@ Los tres enlaces van `rel="nofollow"`: `/entrar` y `/registro` son `noindex` y n
 
 Inputs y selects: `bg-canvas border border-line-strong px-3 py-2`, foco con `focus:outline-hidden focus:border-scarlet-signal`. La validación es nativa (`:user-invalid`), sin JS: el campo inválido pinta su **borde** en `scarlet-signal` y muestra el mensaje de error debajo en `text-ink`. El marcador de campo obligatorio es la palabra `*Requerido` en `text-sm text-ink`, no un color. El botón destructivo (eliminar cuenta, despublicar) lleva borde `scarlet-signal` con texto `ink`, e invierte a `bg-scarlet-signal text-ink-on-tint` en hover.
 
+**Bloque sobre `blue-signal`.** El módulo de búsqueda o consulta de una página, y los formularios de `/entrar` y `/registro`, llevan fondo `bg-blue-signal` (ver sección 12) en vez de `bg-canvas`. Sus labels, legend, selects, inputs, chips, mensajes de error y el botón de envío con caja se recolorean vía la clase compartida `.bloque-acento` (`global.css`) en lugar de repetir el override en cada componente — ver sección 4, *Acentos de fondo*. `.bloque-acento button.border-ink` (no `button[type='submit']`) es el gancho del botón con caja: distingue el CTA principal de un botón-enlace secundario que comparta el mismo `<form>` (caso `/entrar`, que tiene dos submits).
+
+**CampoContrasena.** Envuelve un input `type="password"` con un botón para mostrarlo en claro (ícono de ojo que se tacha, `aria-pressed` + `aria-label` rotulado por JS, mismo idioma que el toggle de tema). Vive siempre sobre `blue-signal`, así que sus colores van fijos en `ink-on-tint` en vez de depender de `.bloque-acento`. La prop `sinPegar` (usada en "Confirmar contraseña" de `/registro`) bloquea pegar y soltar para forzar a retipear la clave; el servidor (`registro.ts`) igual revalida que ambos campos coincidan, porque el bloqueo de pegado es UX y no la única barrera.
+
 ### FiltrosBarra
 
-Bloque sobre el listado, cerrado con `border-b border-line`. Fuente como `fieldset` de radios ocultos (`sr-only peer`) con etiquetas tipo toggle: `border-line-strong` en reposo, `peer-checked:bg-ink peer-checked:text-canvas`. Debajo, selects de marca y año, más las acciones a la derecha: "Filtrar" con borde `ink` y "Limpiar" como enlace. A anchos chicos se apila en dos bloques.
+Bloque sobre el listado con fondo `bg-blue-signal` (mismo acento que `BuscadorHome` en portada: identifica el módulo de búsqueda, no el listado en sí). Fuente como `fieldset` de radios ocultos (`sr-only peer`) con etiquetas tipo chip; debajo, selects de marca y año, más las acciones a la derecha: "Filtrar" y "Limpiar" como enlace. El grid de resultados que sigue debajo no hereda el acento y permanece acromático. A anchos chicos se apila en dos bloques. El filtro de `/deals` (`fuente`/`categoría` + selects + tracción, en `deals.astro`) sigue la misma anatomía y el mismo fondo, sin componente propio.
 
 ### FiltrosSidebar
 
-`aside` de `lg:w-48`, `lg:sticky lg:top-20`. En mobile está oculto tras un botón toggle que, cuando hay filtros aplicados, lo dice con **texto y cantidad** —"Filtros avanzados (2)"—, no con una marca de color: el conteo informa más y sobrevive al daltonismo y al tema oscuro. Un único set de inputs para no duplicar campos al enviar el form.
+`aside` de `lg:w-48`, `lg:sticky lg:top-20`, con el mismo fondo `bg-blue-signal` y overrides `.bloque-acento` que `FiltrosBarra` — ambos son el mismo módulo de filtros partido en dos bloques por el layout, no dos acentos distintos. En mobile está oculto tras un botón toggle que, cuando hay filtros aplicados, lo dice con **texto y cantidad** —"Filtros avanzados (2)"—, no con una marca de color: el conteo informa más y sobrevive al daltonismo y al tema oscuro. Un único set de inputs para no duplicar campos al enviar el form.
+
+### ConsultaMercado
+
+Sección `border border-line` en `/mercado`: cabecera ("¿Está bien el precio?") y resultado quedan en `canvas`, pero el `<form>` de marca/modelo/año/precio —el consultor propiamente tal— lleva `bg-blue-signal bloque-acento`, igual que el resto de los módulos de búsqueda del sitio. El resultado (mediana, rango, medidor) no hereda el acento.
 
 ### Paginacion
 
@@ -437,7 +445,7 @@ Primera sección de `/dashboard`, anclada en `#reportes` y **fuera** del bloque 
 
 ### Footer
 
-`mt-section`, fondo `bg-blue-signal` (el único bloque del sitio con este acento: azul en claro, morado en oscuro). Todo el texto encima usa `ink-on-tint`, no `ink` ni `ink/70`. Tres zonas en `py-block`: wordmark + tagline + una línea de misión que enlaza a `/quienes-somos`; tres columnas de navegación (Producto: Avisos/Deals/Mercado; Compañía: Quiénes somos/Cómo funciona/Preguntas Frecuentes/Contáctanos/Github, con el ícono de Github inline en `github-signal` — el único color de marca ajeno al sistema, ver sección 4; Legal: Condiciones de Uso/Términos de privacidad/Legales); barra inferior con `border-t border-ink-on-tint/15` y el copyright. Sin CTAs.
+`mt-section`, fondo `bg-blue-signal` (azul en claro, morado en oscuro — ver sección 12 para el resto de los bloques que comparten este acento). Todo el texto encima usa `ink-on-tint`, no `ink` ni `ink/70`. Tres zonas en `py-block`: wordmark + tagline + una línea de misión que enlaza a `/quienes-somos`; tres columnas de navegación (Producto: Avisos/Deals/Mercado; Compañía: Quiénes somos/Cómo funciona/Preguntas Frecuentes/Contáctanos/Github, con el ícono de Github inline en `github-signal` — el único color de marca ajeno al sistema, ver sección 4; Legal: Condiciones de Uso/Términos de privacidad/Legales); barra inferior con `border-t border-ink-on-tint/15` y el copyright. Sin CTAs.
 
 ---
 
@@ -467,10 +475,10 @@ El sistema es mayormente acromático. Hay tres acentos cromáticos y cada uno ti
 | Acento           | Rol                                                                       | Dónde                                                      |
 | ---------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | `scarlet-signal` | Funcional: marca el estado de un control, nunca decora ni etiqueta.        | Borde de foco, borde de campo inválido, borde del botón destructivo |
-| `blue-signal`    | Editorial/institucional: identifica los bloques de marca, no de producto.  | Fondo del footer, hero de `/quienes-somos`, y como lavado de baja opacidad que rota entre las celdas del mosaico de principios de esa página (16% en claro, 30% en oscuro: sobre negro el lavado compone contra el fondo y a 16% desaparece) |
+| `blue-signal`    | Editorial/institucional: identifica el bloque de marca, el módulo de búsqueda/consulta de una página, o un formulario de autenticación — nunca el listado de resultados en sí. | Fondo del footer, hero de `/quienes-somos`, buscador de la portada (`BuscadorHome`), bloque de filtros de `/avisos` (`FiltrosBarra`/`FiltrosSidebar`) y de `/deals`, `ConsultaMercado` de `/mercado`, formularios de `/entrar` y `/registro`; y como lavado de baja opacidad que rota entre las celdas del mosaico de principios de `/quienes-somos` (16% en claro, 30% en oscuro: sobre negro el lavado compone contra el fondo y a 16% desaparece) |
 | `green-signal`   | Editorial secundario, mismo régimen que `blue-signal`.                     | Reservado — sin implementación asignada todavía              |
 
-Las páginas de producto (`/avisos`, `/deals`, `/mercado`, `/auto/[id]`, cards) son acromáticas de punta a punta: el escarlata solo asoma cuando el usuario enfoca un control o deja un campo inválido, es decir, en respuesta a una acción y nunca en reposo. `blue-signal`/`green-signal` no aparecen ahí — quedan reservados a los bloques editoriales/de marca.
+Las páginas de producto son acromáticas por defecto: el escarlata solo asoma cuando el usuario enfoca un control o deja un campo inválido, es decir, en respuesta a una acción y nunca en reposo. `blue-signal`/`green-signal` no decoran el listado ni las cards de `/avisos`, `/deals`, `/mercado` o `/auto/[id]` — la excepción es el módulo de búsqueda o consulta de cada una (`FiltrosBarra`/`FiltrosSidebar` en `/avisos`, el filtro de `/deals`, `ConsultaMercado` en `/mercado`), que lleva el mismo acento que `BuscadorHome` en portada porque cumple la misma función; el grid o los gráficos que siguen debajo no lo heredan. Las páginas utilitarias sin listado (`/entrar`, `/registro`) llevan el acento en su único formulario, por la misma razón: son el bloque que define la página.
 
 ---
 
@@ -522,7 +530,7 @@ Mismo valor en ambos temas (como `scarlet`/`blue`): la paleta fue verificada con
 - No usar gris para texto — ni `muted`, ni `gray-*`, ni un hex propio. El segundo nivel es `text-ink/70` y no hay un tercero.
 - No usar el escarlata como color de texto: no llega a AA en tema oscuro. Vive en el borde.
 - No usar `blue-signal` ni `green-signal` como color de texto sobre `canvas`: están calibrados como fondo de bloque con `ink-on-tint` encima.
-- No usar `blue-signal`/`green-signal` fuera de bloques editoriales/de marca (footer, `/quienes-somos`).
+- No usar `blue-signal`/`green-signal` fuera de bloques editoriales/de marca, un módulo de búsqueda/consulta o un formulario de autenticación (footer, `/quienes-somos`, `BuscadorHome`, `FiltrosBarra`/`FiltrosSidebar`, filtro de `/deals`, `ConsultaMercado`, `/entrar`, `/registro`). Nunca sobre el grid de resultados, las cards ni los gráficos.
 - No agregar un cuarto acento cromático sin actualizar este documento.
 - No usar la paleta de datos (`viz-1`…`viz-4`) fuera de un gráfico.
 - No usar sombras, glows ni gradientes en elementos de UI.
@@ -547,7 +555,7 @@ superficie/hover    → bg-surface
 borde/divisor       → border-line
 borde de control    → border-line-strong
 foco / campo inválido → focus:border-scarlet-signal
-acento editorial    → bg-blue-signal + text-ink-on-tint (footer, /quienes-somos)
+acento editorial    → bg-blue-signal + .bloque-acento (footer, /quienes-somos, buscador/consulta de cada página, /entrar, /registro)
 radio               → 0
 peso                → 300 (400 solo para el wordmark)
 movimiento          → opacidad 0→1 · 200ms · ease-out

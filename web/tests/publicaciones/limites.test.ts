@@ -13,21 +13,13 @@ import {
 } from '../../src/lib/publicaciones/limites';
 
 describe('puedeCrearAviso', () => {
-  it('permite publicar bajo ambos topes', () => {
-    expect(puedeCrearAviso(0, 0)).toBeNull();
-    expect(puedeCrearAviso(LIMITES.avisosActivos - 1, LIMITES.creacionesPor24h - 1)).toBeNull();
-  });
-
-  it('bloquea al alcanzar el tope de avisos activos', () => {
-    expect(puedeCrearAviso(LIMITES.avisosActivos, 0)).toBe('tope_activos');
+  it('permite publicar bajo el tope diario', () => {
+    expect(puedeCrearAviso(0)).toBeNull();
+    expect(puedeCrearAviso(LIMITES.creacionesPor24h - 1)).toBeNull();
   });
 
   it('bloquea al alcanzar el tope de creaciones en 24 h', () => {
-    expect(puedeCrearAviso(0, LIMITES.creacionesPor24h)).toBe('tope_diario');
-  });
-
-  it('prioriza el tope de activos cuando se superan los dos', () => {
-    expect(puedeCrearAviso(LIMITES.avisosActivos, LIMITES.creacionesPor24h)).toBe('tope_activos');
+    expect(puedeCrearAviso(LIMITES.creacionesPor24h)).toBe('tope_diario');
   });
 });
 
@@ -84,7 +76,7 @@ describe('confirmacionValida', () => {
 
 describe('mensajeDeError', () => {
   it('traduce los códigos del catálogo', () => {
-    expect(mensajeDeError('tope_activos')).toBe(MENSAJE_ERROR.tope_activos);
+    expect(mensajeDeError('tope_diario')).toBe(MENSAJE_ERROR.tope_diario);
   });
 
   it('no refleja texto ajeno al catálogo', () => {

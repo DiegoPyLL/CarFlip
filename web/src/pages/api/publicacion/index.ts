@@ -1,11 +1,6 @@
 import type { APIRoute } from 'astro';
 
-import {
-  TABLA_AVISOS,
-  contarAvisosActivos,
-  contarCreadosUltimas24h,
-  obtenerPerfil,
-} from '@lib/publicaciones/consultas';
+import { TABLA_AVISOS, contarCreadosUltimas24h, obtenerPerfil } from '@lib/publicaciones/consultas';
 import { perfilCompleto, puedeCrearAviso } from '@lib/publicaciones/limites';
 import { camposDelFormulario } from '@lib/publicaciones/formulario';
 
@@ -23,11 +18,8 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   const perfil = await obtenerPerfil(supabase, usuario.id);
   if (!perfilCompleto(perfil)) return redirect(`${DESTINO}?error=perfil_incompleto`, 303);
 
-  const [activos, creados24h] = await Promise.all([
-    contarAvisosActivos(supabase, usuario.id),
-    contarCreadosUltimas24h(supabase, usuario.id),
-  ]);
-  const bloqueo = puedeCrearAviso(activos, creados24h);
+  const creados24h = await contarCreadosUltimas24h(supabase, usuario.id);
+  const bloqueo = puedeCrearAviso(creados24h);
   if (bloqueo) return redirect(`${DESTINO}?error=${bloqueo}`, 303);
 
   const campos = camposDelFormulario(await request.formData());

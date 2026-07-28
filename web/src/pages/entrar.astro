@@ -1,5 +1,6 @@
 ---
 import Base from '@layouts/Base.astro';
+import CampoContrasena from '@components/auth/CampoContrasena.astro';
 import { rutaInterna } from '@lib/auth/servidor';
 
 // Página utilitaria y fuera del índice: no aporta contenido rastreable y no debe
@@ -18,7 +19,10 @@ const MENSAJES: Record<string, string> = {
   credenciales: 'Email o contraseña incorrectos.',
   'magic-link': 'No pudimos enviar el enlace. Revisa la dirección e inténtalo de nuevo.',
   google: 'No pudimos iniciar sesión con Google. Inténtalo de nuevo.',
-  sesion: 'El enlace ya se usó o expiró. Pide uno nuevo.',
+  // El enlace de Google y el mágico van por PKCE, que ata el intercambio al
+  // navegador que lo pidió: abrirlos en otro falla igual que si hubieran
+  // expirado, y el mensaje no debe dar por sentada una sola de las dos causas.
+  sesion: 'No pudimos completar el acceso. El enlace pudo expirar o abrirse en otro navegador. Pide uno nuevo.',
   config: 'El inicio de sesión no está disponible en este momento.',
 };
 const mensajeError = error ? (MENSAJES[error] ?? 'No pudimos iniciar sesión. Inténtalo de nuevo.') : null;
@@ -28,7 +32,7 @@ const inputCls =
 ---
 
 <Base titulo="Entrar" descripcion="Inicia sesión en CarFlip." noindex>
-  <div class="max-w-md mx-auto">
+  <div class="max-w-lg mx-auto">
     <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">Entra.</h1>
 
     {mensajeError && (
@@ -56,6 +60,7 @@ const inputCls =
       envía vacía al primer destino, el servidor responde con el mismo error de
       credenciales. Sin JavaScript.
     -->
+    <div class="bg-blue-signal bloque-acento p-element space-y-block">
     <form method="POST" action="/api/auth/entrar" class="space-y-element">
       <input type="hidden" name="volver" value={volver} />
 
@@ -78,17 +83,13 @@ const inputCls =
         </p>
       </div>
 
-      <div>
-        <label for="password" class="block text-base text-ink mb-2">Contraseña</label>
-        <input
-          type="password"
-          id="password"
-          name="password"
-          maxlength="72"
-          autocomplete="current-password"
-          class={inputCls}
-        />
-      </div>
+      <CampoContrasena
+        id="password"
+        name="password"
+        etiqueta="Contraseña"
+        autocomplete="current-password"
+        conValidacion={false}
+      />
 
       <div class="flex flex-wrap items-center gap-element pt-2">
         <button
@@ -102,23 +103,23 @@ const inputCls =
         <button
           type="submit"
           formaction="/api/auth/magic-link"
-          class="text-base text-ink underline underline-offset-4 hover:opacity-70 transition-opacity duration-150 cursor-pointer"
+          class="text-base text-ink-on-tint underline underline-offset-4 hover:opacity-70 transition-opacity duration-150 cursor-pointer"
         >
           Enviarme un enlace por correo
         </button>
       </div>
     </form>
 
-    <div class="flex items-center gap-4 my-block" aria-hidden="true">
-      <span class="flex-1 border-t border-line"></span>
-      <span class="text-sm">o</span>
-      <span class="flex-1 border-t border-line"></span>
+    <div class="flex items-center gap-4" aria-hidden="true">
+      <span class="flex-1 border-t border-ink-on-tint/15"></span>
+      <span class="text-sm text-ink-on-tint">o</span>
+      <span class="flex-1 border-t border-ink-on-tint/15"></span>
     </div>
 
     <a
       href={`/api/auth/google?volver=${encodeURIComponent(volver)}`}
       rel="nofollow"
-      class="w-full inline-flex items-center justify-center gap-3 text-base text-ink border border-line-strong px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150"
+      class="w-full inline-flex items-center justify-center gap-3 text-base text-ink border border-ink px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150"
     >
       <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
         <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/>
@@ -128,6 +129,7 @@ const inputCls =
       </svg>
       Continuar con Google
     </a>
+    </div>
 
     <p class="mt-block text-base ">
       ¿No tienes cuenta?

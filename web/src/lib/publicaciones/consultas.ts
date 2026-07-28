@@ -219,16 +219,6 @@ async function contar(consulta: PromiseLike<{ count: number | null }>): Promise<
   return count ?? 0;
 }
 
-export function contarAvisosActivos(supabase: SupabaseClient, usuarioId: string): Promise<number> {
-  return contar(
-    supabase
-      .from(TABLA_AVISOS)
-      .select('id', { count: 'exact', head: true })
-      .eq('usuario_id', usuarioId)
-      .eq('estado', 'publicado'),
-  );
-}
-
 export function contarCreadosUltimas24h(supabase: SupabaseClient, usuarioId: string): Promise<number> {
   const desde = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   return contar(

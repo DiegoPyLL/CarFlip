@@ -1,11 +1,16 @@
 import type { APIRoute } from 'astro';
+import { guardarEmailPendiente } from '@lib/auth/servidor';
+import { EMAIL_RE } from '@lib/sanitizar';
 
 export const prerender = false;
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const LARGO_MINIMO_CLAVE = 8;
 
-export const POST: APIRoute = async ({ request, url, locals, redirect }) => {
+// La cuenta se confirma con el código de seis dígitos que Supabase envía por
+// correo, no con un enlace: el enlace usa el flujo PKCE, que ata la confirmación
+// al navegador donde se envió este formulario y deja fuera a quien abra el correo
+// en otro dispositivo. Por eso el `signUp` de más abajo no lleva `emailRedirectTo`.
+export const POST: APIRoute = async ({ request, cookies, locals, redirect }) => {
   const datos = await request.formData();
 
   // Honeypot, igual que en /contacto: invisible para personas, un bot lo llena.
@@ -15,17 +20,22 @@ export const POST: APIRoute = async ({ request, url, locals, redirect }) => {
 
   const email = String(datos.get('email') ?? '').trim().toLowerCase();
   const password = String(datos.get('password') ?? '');
+  const passwordConfirmacion = String(datos.get('password_confirmacion') ?? '');
 
-  if (!EMAIL_RE.test(email) || password.length < LARGO_MINIMO_CLAVE) {
+  // El campo de confirmación bloquea pegar en el cliente para forzar a
+  // retipear la clave, pero esa barrera es solo UX: quien apague JS o edite
+  // el POST directamente la evita, así que el servidor revalida igual.
+  if (
+    !EMAIL_RE.test(email) ||
+    password.length < LARGO_MINIMO_CLAVE ||
+    password !== passwordConfirmacion
+  ) {
     return redirect('/registro?error=1', 303);
   }
 
-  const { error } = await locals.supabase.auth.signUp({
-    email,
-    password,
-    options: { emailRedirectTo: new URL('/api/auth/callback?volver=/cuenta', url.origin).href },
-  });
+  const { error } = await locals.supabase.auth.signUp({ email, password });
   if (error) return redirect('/registro?error=1', 303);
 
+  guardarEmailPendiente(cookies, email);
   return redirect('/registro?enviado=1', 303);
 };

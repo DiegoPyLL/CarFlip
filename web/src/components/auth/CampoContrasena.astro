@@ -1,0 +1,132 @@
+---
+/**
+ * Campo de contraseña con botón para mostrarla en claro. Vive siempre sobre
+ * el acento editorial (bg-blue-signal en /entrar y /registro, ver
+ * `.bloque-acento` de global.css), así que sus colores van fijos en
+ * ink-on-tint en vez de depender de esa clase.
+ *
+ * `sinPegar` es para el campo "Confirmar contraseña": bloquea pegar y soltar
+ * para obligar a retipear la clave a mano, que es lo que hace útil confirmar
+ * un segundo campo. El servidor (`/api/auth/registro.ts`) igual revalida que
+ * ambos coincidan — el bloqueo de pegado es UX, no la única barrera.
+ */
+interface Props {
+  id: string;
+  name: string;
+  etiqueta: string;
+  autocomplete: 'current-password' | 'new-password';
+  requerido?: boolean;
+  minlength?: number;
+  maxlength?: number;
+  mensajeError?: string;
+  conValidacion?: boolean;
+  sinPegar?: boolean;
+}
+
+const {
+  id,
+  name,
+  etiqueta,
+  autocomplete,
+  requerido = false,
+  minlength,
+  maxlength = 72,
+  mensajeError = 'Usa al menos 8 caracteres.',
+  conValidacion = true,
+  sinPegar = false,
+} = Astro.props;
+
+const idError = `err-${id}`;
+
+const inputCls =
+  'w-full bg-transparent border border-line-strong pl-4 pr-12 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
+---
+
+<div>
+  <label for={id} class={requerido ? 'flex items-baseline justify-between text-base text-ink mb-2' : 'block text-base text-ink mb-2'}>
+    {etiqueta}
+    {requerido && <span class="text-sm text-scarlet-signal">*Requerido</span>}
+  </label>
+  <div class="relative">
+    <input
+      type="password"
+      id={id}
+      name={name}
+      required={requerido}
+      minlength={minlength}
+      maxlength={maxlength}
+      autocomplete={autocomplete}
+      aria-describedby={conValidacion ? idError : undefined}
+      data-sin-pegar={sinPegar ? true : undefined}
+      class={conValidacion ? `${inputCls} campo` : inputCls}
+    />
+    <button
+      type="button"
+      data-mostrar-contrasena
+      aria-controls={id}
+      aria-pressed="false"
+      aria-label="Mostrar contraseña"
+      class="absolute inset-y-0 right-0 flex items-center px-3.5 text-ink-on-tint hover:opacity-70 transition-opacity duration-150 cursor-pointer"
+    >
+      <svg data-icono-mostrar width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+      <svg data-icono-ocultar class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 3l18 18" />
+        <path d="M9.9 4.24A10.6 10.6 0 0 1 12 4c7 0 11 7 11 7a13.5 13.5 0 0 1-3.1 3.9M6.1 6.6C3.4 8.3 1 11 1 11s4 7 11 7a9.9 9.9 0 0 0 4.2-.9" />
+        <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+      </svg>
+    </button>
+    {conValidacion && (
+      <p id={idError} class="campo-error text-sm text-scarlet-signal mt-1.5">
+        {mensajeError}
+      </p>
+    )}
+  </div>
+</div>
+
+<style>
+  /*
+    Edge dibuja su propio ícono de "mostrar contraseña" (::-ms-reveal) y Chrome
+    el suyo para contraseñas sugeridas (::-webkit-credentials-auto-fill-button),
+    ambos en la misma esquina donde ya va nuestro botón: sin esto, el nativo se
+    dibuja encima y el nuestro queda tapado o el campo muestra dos íconos.
+  */
+  input[type='password']::-ms-reveal,
+  input[type='password']::-ms-clear {
+    display: none;
+  }
+
+  input[type='password']::-webkit-credentials-auto-fill-button {
+    display: none !important;
+    visibility: hidden;
+    pointer-events: none;
+    position: absolute;
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('[data-mostrar-contrasena]').forEach((boton) => {
+    const input = document.getElementById(boton.getAttribute('aria-controls') ?? '') as HTMLInputElement | null;
+    const iconoMostrar = boton.querySelector('[data-icono-mostrar]');
+    const iconoOcultar = boton.querySelector('[data-icono-ocultar]');
+    if (!input) return;
+
+    boton.addEventListener('click', () => {
+      const mostrando = input.type === 'text';
+      input.type = mostrando ? 'password' : 'text';
+      boton.setAttribute('aria-pressed', String(!mostrando));
+      boton.setAttribute('aria-label', mostrando ? 'Mostrar contraseña' : 'Ocultar contraseña');
+      iconoMostrar?.classList.toggle('hidden', !mostrando);
+      iconoOcultar?.classList.toggle('hidden', mostrando);
+    });
+  });
+
+  // Bloquea pegar y soltar: el campo "Confirmar contraseña" solo cumple su
+  // propósito —atrapar errores de tipeo— si la clave se vuelve a escribir a mano.
+  document.querySelectorAll<HTMLInputElement>('input[data-sin-pegar]').forEach((input) => {
+    input.addEventListener('paste', (evento) => evento.preventDefault());
+    input.addEventListener('drop', (evento) => evento.preventDefault());
+  });
+</script>

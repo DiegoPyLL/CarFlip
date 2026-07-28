@@ -3,7 +3,7 @@ import Base from '@layouts/Base.astro';
 import NavCuenta from '@components/cuenta/NavCuenta.astro';
 import FilaAviso from '@components/cuenta/FilaAviso.astro';
 import { listarAvisosPropios, obtenerPerfil, revelacionesPorAviso } from '@lib/publicaciones/consultas';
-import { LIMITES, PALABRA_ELIMINAR, mensajeDeError, perfilCompleto } from '@lib/publicaciones/limites';
+import { PALABRA_ELIMINAR, mensajeDeError, perfilCompleto } from '@lib/publicaciones/limites';
 import { COMUNAS_POR_REGION, REGIONES } from '@lib/publicaciones/opciones';
 
 // El middleware ya redirige a /entrar si no hay sesión; la comprobación se
@@ -30,7 +30,7 @@ const contactos = [...revelaciones.values()].reduce((total, n) => total + n, 0);
 const recientes = avisos.slice(0, 3);
 
 const metricas = [
-  { etiqueta: 'Avisos publicados', valor: `${publicados}`, nota: `de ${LIMITES.avisosActivos} permitidos a la vez` },
+  { etiqueta: 'Avisos publicados', valor: `${publicados}`, nota: 'activos ahora mismo' },
   { etiqueta: 'Vistas', valor: vistas.toLocaleString('es-CL'), nota: 'en todas tus publicaciones' },
   { etiqueta: 'Contactos revelados', valor: contactos.toLocaleString('es-CL'), nota: 'compradores que pidieron tu teléfono' },
 ];
@@ -50,7 +50,7 @@ const enlaceCls =
   <header class="mb-block">
     <p class="text-base text-ink/70 uppercase tracking-widest mb-element">Tu cuenta</p>
     <h1 class="text-5xl sm:text-7xl text-ink leading-none text-balance">
-      {nombre ? `Hola, ${nombre}.` : 'Tu cuenta.'}
+      {nombre ? `Hola, ${nombre}.` : 'Hola!.'}
     </h1>
     <p class="text-base text-ink/70 mt-element break-all">
       {usuario.email}

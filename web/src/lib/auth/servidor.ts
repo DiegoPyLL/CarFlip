@@ -1,6 +1,6 @@
 import { createServerClient, parseCookieHeader } from '@supabase/ssr';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { APIContext } from 'astro';
+import type { APIContext, AstroCookies } from 'astro';
 
 // Cliente con la anon key, sujeto a las políticas RLS y ligado a la sesión que
 // viaja en las cookies de la request. Convive con el de `db/client.ts`, que usa
@@ -67,6 +67,36 @@ export function tieneCookieSesion(request: Request): boolean {
     ({ name, value }) =>
       Boolean(value) && (name === COOKIE_SESION || name.startsWith(`${COOKIE_SESION}.`)),
   );
+}
+
+/**
+ * Correo a la espera de confirmarse, entre el POST de /registro y el formulario
+ * del código.
+ *
+ * Hace falta porque el registro responde con un redirect (patrón POST-Redirect-Get)
+ * y el GET que sigue ya no ve el formulario. No es una credencial —la credencial
+ * es el código que llega por correo— así que solo ahorra teclearlo de nuevo: el
+ * campo queda editable para quien confirme desde otro dispositivo, donde esta
+ * cookie no existe. Va `httpOnly` igual, para no dejar el correo a la vista de
+ * cualquier script de la página.
+ */
+export const COOKIE_EMAIL_PENDIENTE = 'cf-email-pendiente';
+
+// Algo más que la vigencia del código, para que la cookie no caduque antes que él.
+const VIGENCIA_EMAIL_PENDIENTE = 60 * 30;
+
+export function guardarEmailPendiente(cookies: AstroCookies, email: string): void {
+  cookies.set(COOKIE_EMAIL_PENDIENTE, email, {
+    path: '/',
+    maxAge: VIGENCIA_EMAIL_PENDIENTE,
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: import.meta.env.PROD,
+  });
+}
+
+export function olvidarEmailPendiente(cookies: AstroCookies): void {
+  cookies.delete(COOKIE_EMAIL_PENDIENTE, { path: '/' });
 }
 
 const ORIGEN = 'https://carflip.cl';

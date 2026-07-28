@@ -381,6 +381,85 @@ h3 {
 }
 
 /*
+  Bloque sobre el acento editorial (blue-signal): lo comparten el buscador de
+  la portada (BuscadorHome), el bloque de filtros de /avisos (FiltrosBarra,
+  FiltrosSidebar) y de /deals, el consultor de precios de /mercado
+  (ConsultaMercado) y los formularios de /entrar y /registro. Sus labels,
+  mensajes de error, chips y botón de envío parten de --c-ink/--c-scarlet,
+  pensados para fondo canvas, y pierden contraste sobre blue-signal. Se
+  sobrescriben una sola vez acá —vía clase, no por ID de cada componente— en
+  vez de repetir el bloque en cada uno.
+*/
+.bloque-acento label,
+.bloque-acento legend {
+  color: var(--color-ink-on-tint);
+}
+
+/* bg-canvas es negro en tema oscuro: los campos se fundirían con el fondo
+   morado. Se fija un blanco propio (no depende del tema) para que el campo se
+   lea como tal, con el texto en el mismo tono del bloque (5.07:1 en claro,
+   5.70:1 en oscuro). */
+.bloque-acento input,
+.bloque-acento select {
+  background-color: color-mix(in srgb, var(--color-ink-on-tint) 85%, var(--color-blue-signal) 15%);
+  color: rgb(0 0 0 / 80%);
+  border-color: transparent;
+}
+
+.bloque-acento input::placeholder {
+  color: rgb(0 0 0 / 60%);
+}
+
+.bloque-acento .campo-error {
+  color: var(--color-ink-on-tint);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* `.border-ink`, sin restringir a `button`: en /entrar el CTA con caja del
+   sitio (el mismo borde que usa BotonBuscar y el resto de los "botón-con-
+   borde-ink") aparece tanto en un `<button>` (Entrar) como en un `<a>`
+   (Continuar con Google), y ambos deben invertir a blanco sólido igual. El
+   enlace "Enviarme un enlace por correo", que comparte el mismo `<form>`, no
+   lleva `border-ink` — es un enlace subrayado y se recolorea aparte. */
+.bloque-acento .border-ink {
+  background-color: var(--color-ink-on-tint);
+  color: var(--color-blue-signal);
+  border-color: var(--color-ink-on-tint);
+}
+
+.bloque-acento .border-ink:hover {
+  background-color: color-mix(in srgb, var(--color-ink-on-tint) 85%, var(--color-blue-signal) 15%);
+}
+
+/* border-line-strong es gris y se pierde por contraste simultáneo sobre este
+   fondo saturado. Los chips pasan al mismo blanco fijo del resto del bloque.
+   El texto de cualquier `<span>` colgado de un label (el marcador
+   `*Requerido`, notas como "(opcional)") también pasa a blanco fijo: hereda
+   `ink`/`scarlet-signal` de sus propias utilidades, pensadas para canvas. */
+.bloque-acento label span {
+  border-color: var(--color-ink-on-tint);
+  color: var(--color-ink-on-tint);
+}
+
+/* El chip seleccionado usa peer-checked:bg-ink, que es negro en claro y
+   blanco en oscuro (chipCls, definido para fondo canvas). Acá se fija en
+   blanco en ambos temas, a juego con los demás campos del bloque. */
+.bloque-acento input:checked ~ span {
+  background-color: var(--color-ink-on-tint);
+  color: var(--color-blue-signal);
+  border-color: var(--color-ink-on-tint);
+}
+
+/* El escarlata de foco no rinde sobre este fondo (misma familia tonal que
+   blue-signal): se reemplaza por el mismo blanco fijo del resto del bloque. */
+.bloque-acento button.border-ink:focus {
+  outline: 2px solid var(--color-ink-on-tint);
+  outline-offset: 2px;
+  border-color: var(--color-ink-on-tint);
+}
+
+/*
   Vista y densidad de los listados. Los selectores cuelgan de <html>, donde
   Base deja la preferencia guardada, así que viven acá y no en un componente.
 

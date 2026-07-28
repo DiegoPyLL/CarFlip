@@ -1,6 +1,14 @@
 /** Saneamiento de texto entrado por usuarios, compartido por /contacto y las publicaciones. */
 
 /**
+ * Forma mínima de una dirección de correo. Deliberadamente laxa: validar la
+ * sintaxis completa de RFC 5322 con una expresión regular rechaza direcciones
+ * legítimas, y quien decide de verdad si el correo existe es el mensaje que se
+ * envía a él.
+ */
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
  * Normaliza un campo antes de validarlo: unifica la forma Unicode (NFC),
  * elimina caracteres de control invisibles y colapsa espacios. `preservarSaltos`
  * conserva los saltos de línea; el resto queda en una sola línea.

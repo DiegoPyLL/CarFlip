@@ -12,14 +12,14 @@
  */
 
 /**
- * `avisosActivos` y `creacionesPor24h` están replicados en el trigger
- * `particulares_topes` (migración 0018), que es el que los hace cumplir de verdad:
- * la tabla es alcanzable por PostgREST con la anon key. Estos son los que dan el
- * mensaje bueno antes de llegar ahí; si cambian, cambian en los dos lados.
+ * `creacionesPor24h` está replicado en el trigger `particulares_topes`
+ * (migración 0018/0020), que es el que lo hace cumplir de verdad: la tabla es
+ * alcanzable por PostgREST con la anon key. Este es el que da el mensaje bueno
+ * antes de llegar ahí; si cambia, cambia en los dos lados. Los avisos activos
+ * no tienen tope: un usuario puede tener publicados los que quiera.
  */
 export const LIMITES = {
-  avisosActivos: 5,
-  creacionesPor24h: 3,
+  creacionesPor24h: 15,
   fotosPorAviso: 10,
   bytesPorFoto: 2 * 1024 * 1024,
   // Se consume al abrir un aviso, no al pedir el teléfono: tiene que dar para
@@ -32,7 +32,6 @@ export const LIMITES = {
 export const TIPOS_FOTO = ['image/webp', 'image/jpeg', 'image/png'] as const;
 
 export type MotivoError =
-  | 'tope_activos'
   | 'tope_diario'
   | 'tope_fotos'
   | 'foto_pesada'
@@ -49,7 +48,6 @@ export type MotivoError =
 export const PALABRA_ELIMINAR = 'ELIMINAR';
 
 export const MENSAJE_ERROR: Record<MotivoError, string> = {
-  tope_activos: `Tienes ${LIMITES.avisosActivos} avisos publicados, el máximo permitido. Pausa o elimina uno para publicar otro.`,
   tope_diario: `Puedes publicar hasta ${LIMITES.creacionesPor24h} avisos por día. Inténtalo mañana.`,
   tope_fotos: `Cada aviso admite hasta ${LIMITES.fotosPorAviso} fotos.`,
   foto_pesada: 'Cada foto debe pesar menos de 2 MB.',
@@ -70,10 +68,8 @@ export function mensajeDeError(codigo: string | null): string | null {
 }
 
 /** Devuelve el motivo del rechazo, o `null` si la acción está permitida. */
-export function puedeCrearAviso(activos: number, creadosUltimas24h: number): MotivoError | null {
-  if (activos >= LIMITES.avisosActivos) return 'tope_activos';
-  if (creadosUltimas24h >= LIMITES.creacionesPor24h) return 'tope_diario';
-  return null;
+export function puedeCrearAviso(creadosUltimas24h: number): MotivoError | null {
+  return creadosUltimas24h >= LIMITES.creacionesPor24h ? 'tope_diario' : null;
 }
 
 export function puedeSubirFoto(fotosActuales: number, bytes: number, tipo: string): MotivoError | null {

@@ -211,10 +211,11 @@ function esRutaActiva(href: string): boolean {
       <slot />
     </main>
 
-    <!-- Único bloque del sitio con el acento blue-signal: identifica el footer
-         como bloque de marca, no de producto. El acento sigue al tema (azul en
-         claro, morado en oscuro). Todo el texto usa ink-on-tint (blanco fijo),
-         no ink, que en tema claro sería negro y perdería contraste sobre él. -->
+    <!-- Bloque de marca con el acento blue-signal (ver DESIGN.md §12 para el
+         resto de los bloques que lo comparten: BuscadorHome, FiltrosBarra,
+         FiltrosSidebar). El acento sigue al tema (azul en claro, morado en
+         oscuro). Todo el texto usa ink-on-tint (blanco fijo), no ink, que en
+         tema claro sería negro y perdería contraste sobre él. -->
     <footer class="mt-section bg-blue-signal">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-block">
         <div class="flex flex-col gap-block lg:flex-row lg:justify-between">

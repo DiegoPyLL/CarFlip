@@ -26,7 +26,7 @@ pytestmark = pytest.mark.integration
 _TABLA = "particulares_listings"
 
 # Columnas que la aplicación nunca escribe y que dan ventaja a quien las escriba:
-# `vistas` es el contador de interés, `publicado_en` sostiene el tope de 3 por
+# `vistas` es el contador de interés, `publicado_en` sostiene el tope de 15 por
 # 24 h, `ultima_vez_visto` es la clave del orden "reciente" de /avisos (fijarla en
 # el futuro clava el aviso arriba del listado), y `url` es el enlace del aviso.
 _COLUMNAS_VEDADAS = ["vistas", "publicado_en", "primera_vez_visto", "moneda", "fecha_publicacion"]
@@ -143,8 +143,8 @@ async def test_authenticated_sigue_pudiendo_publicar_y_editar(conexion):
 @skip_sin_db
 @pytest.mark.parametrize("trigger", _TRIGGERS_ESPERADOS)
 async def test_los_triggers_del_aviso_existen_y_estan_activos(conexion, trigger):
-    """Derivar `titulo`/`url`/`disponible` y aplicar los topes es lo que hace que
-    los límites de la aplicación signifiquen algo para quien no pasa por ella.
+    """Derivar `titulo`/`url`/`disponible` y aplicar el tope diario es lo que hace
+    que los límites de la aplicación signifiquen algo para quien no pasa por ella.
     `tgenabled = 'O'` es el estado normal (activo en modo origin); la columna es
     del tipo `"char"`, que el driver entrega como bytes."""
     estado = await conexion.scalar(

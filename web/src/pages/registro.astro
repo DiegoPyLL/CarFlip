@@ -1,17 +1,27 @@
 ---
 import Base from '@layouts/Base.astro';
+import CampoContrasena from '@components/auth/CampoContrasena.astro';
 import { parrafoCls } from '@lib/marketing';
+import { COOKIE_EMAIL_PENDIENTE } from '@lib/auth/servidor';
 
 if (Astro.locals.usuario) return Astro.redirect('/cuenta');
 
 const enviado = Astro.url.searchParams.has('enviado');
+const reenviado = Astro.url.searchParams.has('reenviado');
+
+// Solo ahorra retipear el correo en el paso del código. Si falta —porque la
+// confirmación ocurre en otro dispositivo— el campo sale vacío y se escribe a
+// mano, que es justamente lo que el enlace de confirmación no permitía.
+const emailPendiente = Astro.cookies.get(COOKIE_EMAIL_PENDIENTE)?.value ?? '';
+
 const error = Astro.url.searchParams.get('error');
-const mensajeError =
-  error === 'config'
-    ? 'El registro no está disponible en este momento.'
-    : error
-      ? 'No pudimos crear la cuenta. Revisa los datos e inténtalo de nuevo.'
-      : null;
+const MENSAJES_ERROR: Record<string, string> = {
+  config: 'El registro no está disponible en este momento.',
+  codigo: 'El código no es válido o ya expiró. Pide uno nuevo.',
+};
+const mensajeError = error
+  ? (MENSAJES_ERROR[error] ?? 'No pudimos crear la cuenta. Revisa los datos e inténtalo de nuevo.')
+  : null;
 
 const inputCls =
   'w-full bg-transparent border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
@@ -21,25 +31,98 @@ const inputCls =
   <div class="max-w-md mx-auto">
     <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">Crea tu cuenta.</h1>
 
-    {enviado ? (
-      <div role="status">
-        <p class={`${parrafoCls} mb-element`}>
-          Te enviamos un correo para confirmar tu dirección. Ábrelo y sigue el enlace para activar
-          la cuenta.
-        </p>
-        <p class="text-base ">
-          ¿Ya la confirmaste? <a href="/entrar" class="text-ink underline underline-offset-4">Entra aquí</a>.
-        </p>
+    {mensajeError && (
+      <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
+        {mensajeError}
       </div>
-    ) : (
+    )}
+
+    {enviado ? (
       <>
-        {mensajeError && (
-          <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
-            {mensajeError}
+        <p class={`${parrafoCls} mb-element`}>
+          Te enviamos un código de seis dígitos a tu correo. Escríbelo aquí para activar la cuenta.
+        </p>
+
+        {reenviado && (
+          <div class="mb-element px-6 py-2.5 border border-line-strong text-base text-ink" role="status">
+            Te enviamos un código nuevo.
           </div>
         )}
 
-        <form method="POST" action="/api/auth/registro" class="space-y-element">
+        <form method="POST" action="/api/auth/confirmar" class="bg-blue-signal bloque-acento p-element space-y-element">
+          <div>
+            <label for="email" class="flex items-baseline justify-between text-base text-ink mb-2">
+              Email <span class="text-sm text-scarlet-signal">*Requerido</span>
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={emailPendiente}
+              required
+              maxlength="200"
+              autocomplete="email"
+              aria-describedby="err-email"
+              class={`${inputCls} campo`}
+            />
+            <p id="err-email" class="campo-error text-sm text-scarlet-signal mt-1.5">
+              Ingresa un correo electrónico válido.
+            </p>
+          </div>
+
+          <div>
+            <label for="codigo" class="flex items-baseline justify-between text-base text-ink mb-2">
+              Código <span class="text-sm text-scarlet-signal">*Requerido</span>
+            </label>
+            <input
+              type="text"
+              id="codigo"
+              name="codigo"
+              required
+              inputmode="numeric"
+              pattern="[0-9]{6}"
+              maxlength="6"
+              autocomplete="one-time-code"
+              aria-describedby="err-codigo"
+              class={`${inputCls} campo tracking-[0.4em]`}
+            />
+            <p id="err-codigo" class="campo-error text-sm text-scarlet-signal mt-1.5">
+              Son los seis dígitos que llegaron a tu correo.
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-element pt-2">
+            <button
+              type="submit"
+              class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150"
+            >
+              Confirmar
+              <span aria-hidden="true">→</span>
+            </button>
+
+            <!--
+              `formnovalidate` porque el código es `required` y sin esto el
+              navegador bloquearía el reenvío justo cuando no se tiene el código.
+              El servidor valida el correo igual.
+            -->
+            <button
+              type="submit"
+              formaction="/api/auth/reenviar"
+              formnovalidate
+              class="text-base text-ink underline underline-offset-4 hover:opacity-70 transition-opacity duration-150 cursor-pointer"
+            >
+              Reenviar código
+            </button>
+          </div>
+        </form>
+
+        <p class="mt-block text-base ">
+          ¿Ya la confirmaste? <a href="/entrar" class="text-ink underline underline-offset-4">Entra aquí</a>.
+        </p>
+      </>
+    ) : (
+      <>
+        <form method="POST" action="/api/auth/registro" class="bg-blue-signal bloque-acento p-element space-y-element">
           <div>
             <label for="email" class="flex items-baseline justify-between text-base text-ink mb-2">
               Email <span class="text-sm text-scarlet-signal">*Requerido</span>
@@ -59,25 +142,26 @@ const inputCls =
             </p>
           </div>
 
-          <div>
-            <label for="password" class="flex items-baseline justify-between text-base text-ink mb-2">
-              Contraseña <span class="text-sm text-scarlet-signal">*Requerido</span>
-            </label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              required
-              minlength="8"
-              maxlength="72"
-              autocomplete="new-password"
-              aria-describedby="err-password"
-              class={`${inputCls} campo`}
-            />
-            <p id="err-password" class="campo-error text-sm text-scarlet-signal mt-1.5">
-              Usa al menos 8 caracteres.
-            </p>
-          </div>
+          <CampoContrasena
+            id="password"
+            name="password"
+            etiqueta="Contraseña"
+            autocomplete="new-password"
+            requerido
+            minlength={8}
+            mensajeError="Usa al menos 8 caracteres."
+          />
+
+          <CampoContrasena
+            id="password-confirmacion"
+            name="password_confirmacion"
+            etiqueta="Confirmar contraseña"
+            autocomplete="new-password"
+            requerido
+            minlength={8}
+            mensajeError="Debe coincidir con la contraseña."
+            sinPegar
+          />
 
           <!-- Honeypot: invisible para personas, un bot que autocompleta todo lo llena. -->
           <div class="hidden" aria-hidden="true">
@@ -93,6 +177,25 @@ const inputCls =
             <span aria-hidden="true">→</span>
           </button>
         </form>
+
+        <script>
+          // Confirmación de contraseña: sin esto la única barrera contra un
+          // typo es el servidor, que recién avisa tras el POST. `setCustomValidity`
+          // engancha el mismo mecanismo de `.campo`/`.campo-error` que ya usa
+          // el resto del formulario (`:user-invalid`), sin CSS nuevo.
+          const clave = document.getElementById('password') as HTMLInputElement | null;
+          const confirmacion = document.getElementById('password-confirmacion') as HTMLInputElement | null;
+
+          if (clave && confirmacion) {
+            const validar = () => {
+              confirmacion.setCustomValidity(
+                confirmacion.value && confirmacion.value !== clave.value ? 'no-coincide' : '',
+              );
+            };
+            clave.addEventListener('input', validar);
+            confirmacion.addEventListener('input', validar);
+          }
+        </script>
 
         <p class="mt-block text-base ">
           ¿Ya tienes cuenta?
