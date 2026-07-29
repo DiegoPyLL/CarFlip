@@ -1,0 +1,122 @@
+---
+/**
+ * Normaliza lo que se escribe, según el contexto de cada campo. Hermano de
+ * AutoSubmit: sin `onchange` inline (que la CSP bloquea) y dirigido por `data-*`.
+ *
+ *   <input data-normaliza="precio">    → "$1.500.000" mientras se teclea
+ *   <input data-normaliza="km">        → "150.000"
+ *   <input data-normaliza="anio">      → recorte a 4 dígitos
+ *   <input data-normaliza="patente">   → "GSBB20"
+ *   <input data-normaliza="telefono">  → "+56 9 1234 5678"
+ *   <input data-normaliza="texto">     → espacios colapsados, pero solo al enviar
+ *   <input data-min data-max>          → rango validado en cada pulsación
+ *   <form data-limpiar-vacios>         → los campos sin valor no viajan en la URL
+ *
+ * Sin JavaScript los formularios siguen funcionando: se pierde el formato y la
+ * validación de rango en vivo, que el servidor vuelve a hacer igual.
+ */
+---
+
+<script>
+  import { aEntero, digitos, miles, montoCLP, tecleoPatente, tecleoTelefonoCL, textoLimpio } from '@lib/campos';
+
+  type Formato = (valor: string) => string;
+
+  // `texto` no aparece: es el único que no se toca mientras se escribe, porque
+  // colapsar espacios en cada tecla impide separar dos palabras.
+  const FORMATOS: Record<string, Formato> = {
+    precio: (valor) => montoCLP(valor, 9),
+    km: (valor) => miles(valor, 7),
+    anio: (valor) => digitos(valor, 4),
+    patente: tecleoPatente,
+    telefono: tecleoTelefonoCL,
+  };
+
+  const campos = [...document.querySelectorAll<HTMLInputElement>('input[data-normaliza]')];
+
+  /**
+   * Reescribe el valor conservando el cursor. Se cuentan los dígitos a la
+   * derecha del cursor y no a la izquierda: los separadores que el formato
+   * inserta —los puntos de miles, el "+56 9" del teléfono— aparecen delante, y
+   * contar desde el final es lo único que no se corre con ellos. Sin esto el
+   * cursor salta al final y editar un monto por el medio es imposible.
+   */
+  function aplicar(campo: HTMLInputElement, formato: Formato) {
+    const anterior = campo.value;
+    const siguiente = formato(anterior);
+    if (siguiente === anterior) return;
+
+    const fin = campo.selectionEnd;
+    campo.value = siguiente;
+
+    if (fin === null || campo !== document.activeElement) return;
+    const pendientes = anterior.slice(fin).replace(/\D/g, '').length;
+    let posicion = siguiente.length;
+    for (let vistos = 0; posicion > 0 && vistos < pendientes; posicion--) {
+      if (/\d/.test(siguiente[posicion - 1])) vistos++;
+    }
+    campo.setSelectionRange(posicion, posicion);
+  }
+
+  /**
+   * Rango en vivo. Los campos de monto son `type="text"` —los puntos de miles
+   * invalidan un `type="number"` y le hacen descartar lo tipeado—, así que
+   * `min`/`max` no aplican y el aviso lo da `setCustomValidity`. El rojo lo
+   * pintan `.campo.tocado:invalid` y el script de `.tocado` del layout.
+   */
+  function validarRango(campo: HTMLInputElement) {
+    const min = campo.dataset.min;
+    const max = campo.dataset.max;
+    if (min === undefined && max === undefined) return;
+
+    const numero = aEntero(campo.value);
+    const bajo = numero !== null && min !== undefined && numero < Number(min);
+    const alto = numero !== null && max !== undefined && numero > Number(max);
+    campo.setCustomValidity(bajo || alto ? campo.dataset.rango ?? 'Valor fuera de rango.' : '');
+  }
+
+  function normalizar(campo: HTMLInputElement) {
+    const formato = FORMATOS[campo.dataset.normaliza ?? ''];
+    if (formato) aplicar(campo, formato);
+    validarRango(campo);
+  }
+
+  for (const campo of campos) {
+    campo.addEventListener('input', () => normalizar(campo));
+    normalizar(campo); // al volver con el botón atrás puede llegar sin formato
+  }
+
+  for (const form of document.querySelectorAll<HTMLFormElement>('form')) {
+    const propios = campos.filter((campo) => form.contains(campo));
+    const limpiaVacios = form.hasAttribute('data-limpiar-vacios');
+    if (!propios.length && !limpiaVacios) continue;
+
+    form.addEventListener('submit', () => {
+      // Los montos viajan como dígitos pelados y el texto sin espacios de más:
+      // la URL queda legible para compartir y el servidor recibe lo canónico.
+      for (const campo of propios) {
+        const tipo = campo.dataset.normaliza;
+        if (tipo === 'precio' || tipo === 'km') campo.value = campo.value.replace(/\D/g, '');
+        else if (tipo === 'texto') campo.value = textoLimpio(campo.value);
+      }
+
+      // Deja los campos vacíos fuera de la URL, para compartir
+      // /avisos?modelo=corolla y no /avisos?modelo=corolla&marca=&anio=.
+      const vacios = limpiaVacios
+        ? [...form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input[name], select[name]')].filter(
+            (control) => !control.value,
+          )
+        : [];
+
+      for (const control of vacios) control.disabled = true;
+
+      // Se reactivan en el tick siguiente —el navegador ya serializó el
+      // formulario— para que al volver con el botón atrás no queden inertes, y
+      // los campos recuperan su formato visible.
+      setTimeout(() => {
+        for (const control of vacios) control.disabled = false;
+        for (const campo of propios) normalizar(campo);
+      });
+    });
+  }
+</script>

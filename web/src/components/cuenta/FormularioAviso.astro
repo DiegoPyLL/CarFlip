@@ -1,7 +1,8 @@
 ---
 import CamposUbicacion from '@components/cuenta/CamposUbicacion.astro';
 import type { AvisoPropio } from '@lib/publicaciones/consultas';
-import { ANIO_MINIMO, COMBUSTIBLES, TRACCIONES, TRANSMISIONES, anioMaximo } from '@lib/publicaciones/opciones';
+import { ANIO_MINIMO, COMBUSTIBLES, KM_MAXIMO, PRECIO_MAXIMO, TRACCIONES, TRANSMISIONES, anioMaximo } from '@lib/publicaciones/opciones';
+import { PATRON } from '@lib/regex';
 
 interface Props {
   accion: string;
@@ -19,46 +20,53 @@ const [comunaActual = '', regionActual = ''] = (aviso?.ubicacion ?? '')
 
 const anioTope = anioMaximo();
 
+// El mismo texto sirve de mensaje bajo el campo y de `data-rango`, que es lo que
+// `Normalizacion` le pasa a `setCustomValidity` al pasarse del tope.
+const errorKm = `Ingresa el kilometraje en números, hasta ${KM_MAXIMO.toLocaleString('es-CL')} km.`;
+const errorPrecio = `Ingresa el precio en pesos, hasta $${PRECIO_MAXIMO.toLocaleString('es-CL')}.`;
+
 const inputCls =
   'w-full bg-transparent border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
 const labelCls = 'flex items-baseline justify-between text-base text-ink mb-2';
 const requerido = 'text-sm text-scarlet-signal';
 ---
 
-<!-- Validación nativa del navegador: required/min/max/pattern. Cero JavaScript. -->
+<!-- Validación nativa del navegador (required/pattern) más el formato en vivo
+     de `Normalizacion`, que monta la página que usa este formulario. -->
 <form method="POST" action={accion} class="space-y-element">
   <div class="grid gap-element sm:grid-cols-2">
     <div>
       <label for="marca" class={labelCls}>Marca <span class={requerido}>*Requerido</span></label>
-      <input type="text" id="marca" name="marca" required maxlength="100" value={aviso?.marca ?? ''} class={`${inputCls} campo`} aria-describedby="err-marca" />
+      <input type="text" id="marca" name="marca" data-normaliza="texto" required maxlength="100" value={aviso?.marca ?? ''} class={`${inputCls} campo`} aria-describedby="err-marca" />
       <p id="err-marca" class="campo-error text-sm text-scarlet-signal mt-1.5">Indica la marca del auto.</p>
     </div>
 
     <div>
       <label for="modelo" class={labelCls}>Modelo <span class={requerido}>*Requerido</span></label>
-      <input type="text" id="modelo" name="modelo" required maxlength="100" value={aviso?.modelo ?? ''} class={`${inputCls} campo`} aria-describedby="err-modelo" />
+      <input type="text" id="modelo" name="modelo" data-normaliza="texto" required maxlength="100" value={aviso?.modelo ?? ''} class={`${inputCls} campo`} aria-describedby="err-modelo" />
       <p id="err-modelo" class="campo-error text-sm text-scarlet-signal mt-1.5">Indica el modelo del auto.</p>
     </div>
 
     <div>
       <label for="version" class={labelCls}>Versión</label>
-      <input type="text" id="version" name="version" maxlength="100" placeholder="XEI 1.8 Aut." value={aviso?.version ?? ''} class={inputCls} />
+      <input type="text" id="version" name="version" data-normaliza="texto" maxlength="100" placeholder="XEI 1.8 Aut." value={aviso?.version ?? ''} class={inputCls} />
     </div>
 
     <div>
       <label for="patente" class={labelCls}>Patente <span class={requerido}>*Requerido</span></label>
-      <!-- El pattern es espejo exacto del servidor (normalizarPatente), para que
-           un error se corrija en el navegador y no en el POST, que pierde lo
-           tipeado. La serie desde 2007 no usa vocales ni M, N, Ñ, Q. -->
+      <!-- El pattern sale de `PATRON.patente`, la misma fuente de la que el
+           servidor deriva su `RE.patente`: un error se corrige en el navegador
+           y no en el POST, que pierde lo tipeado. -->
       <input
         type="text"
         id="patente"
         name="patente"
         required
         maxlength="6"
-        pattern="([A-Za-z]{2}[0-9]{3,4}|[BbCcDdFfGgHhJjKkLlPpRrSsTtVvWwXxYyZz]{3,4}[0-9]{2})"
+        pattern={PATRON.patente}
         placeholder="GSBB20"
         autocapitalize="characters"
+        data-normaliza="patente"
         autocomplete="off"
         spellcheck="false"
         value={aviso?.patente ?? ''}
@@ -76,14 +84,14 @@ const requerido = 'text-sm text-scarlet-signal';
 
     <div>
       <label for="km" class={labelCls}>Kilometraje <span class={requerido}>*Requerido</span></label>
-      <input type="number" id="km" name="km" required min="0" max="2000000" step="1" inputmode="numeric" value={aviso?.km ?? ''} class={`${inputCls} campo tabular-nums`} aria-describedby="err-km" />
-      <p id="err-km" class="campo-error text-sm text-scarlet-signal mt-1.5">Ingresa el kilometraje en números.</p>
+      <input type="text" id="km" name="km" required inputmode="numeric" maxlength="9" pattern={PATRON.monto} data-normaliza="km" data-max={KM_MAXIMO} data-rango={errorKm} value={aviso?.km ?? ''} class={`${inputCls} campo tabular-nums`} aria-describedby="err-km" />
+      <p id="err-km" class="campo-error text-sm text-scarlet-signal mt-1.5">{errorKm}</p>
     </div>
 
     <div>
       <label for="precio" class={labelCls}>Precio en pesos <span class={requerido}>*Requerido</span></label>
-      <input type="number" id="precio" name="precio" required min="1" max="999000000" step="1" inputmode="numeric" value={aviso?.precio ?? ''} class={`${inputCls} campo tabular-nums`} aria-describedby="err-precio" />
-      <p id="err-precio" class="campo-error text-sm text-scarlet-signal mt-1.5">Ingresa el precio en pesos, sin puntos.</p>
+      <input type="text" id="precio" name="precio" required inputmode="numeric" maxlength="12" pattern={PATRON.monto} data-normaliza="precio" data-min="1" data-max={PRECIO_MAXIMO} data-rango={errorPrecio} value={aviso?.precio ?? ''} class={`${inputCls} campo tabular-nums`} aria-describedby="err-precio" />
+      <p id="err-precio" class="campo-error text-sm text-scarlet-signal mt-1.5">{errorPrecio}</p>
     </div>
 
     <div>

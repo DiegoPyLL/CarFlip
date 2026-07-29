@@ -1,12 +1,6 @@
 /** Saneamiento de texto entrado por usuarios, compartido por /contacto y las publicaciones. */
 
-/**
- * Forma mínima de una dirección de correo. Deliberadamente laxa: validar la
- * sintaxis completa de RFC 5322 con una expresión regular rechaza direcciones
- * legítimas, y quien decide de verdad si el correo existe es el mensaje que se
- * envía a él.
- */
-export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { RE } from './regex';
 
 /**
  * Normaliza un campo antes de validarlo: unifica la forma Unicode (NFC),
@@ -48,6 +42,6 @@ export function normalizarTelefonoCL(valor: FormDataEntryValue | null): string |
   const digitos = String(valor ?? '').replace(/\D/g, '');
   // Acepta 56912345678 y 912345678; ambos terminan en los mismos 8 dígitos.
   const nacional = digitos.startsWith('569') ? digitos.slice(2) : digitos;
-  if (!/^9\d{8}$/.test(nacional)) return null;
+  if (!RE.movilCL.test(nacional)) return null;
   return `+56 9 ${nacional.slice(1)}`;
 }

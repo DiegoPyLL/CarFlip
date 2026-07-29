@@ -1,5 +1,6 @@
 ---
 import Base from '@layouts/Base.astro';
+import { PATRON } from '@lib/regex';
 
 // Página utilitaria, no editorial: sin ritmo `editorial` (reservado a
 // /quienes-somos y /como-funciona, ver DESIGN.md). La confirmación de envío
@@ -80,7 +81,7 @@ const inputCls =
               name="nombre"
               required
               maxlength="100"
-              pattern="[\p{L}\s]+"
+              pattern={PATRON.nombre}
               title="Solo letras y espacios, sin números ni signos."
               aria-describedby="err-nombre"
               class={`${inputCls} campo`}

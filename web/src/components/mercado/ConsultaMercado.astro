@@ -7,6 +7,8 @@
 import type { ConsultaMercado } from '@lib/db';
 import { posicionMercado } from '@lib/db';
 import { formatearPrecio, formatearKm } from '@lib/formato';
+import CampoNumero from '@components/filtros/CampoNumero.astro';
+import { inputCls, selectCls } from '@components/filtros/estilos';
 import MedidorMercado from './MedidorMercado.astro';
 
 interface Props {
@@ -27,10 +29,8 @@ const posicion =
 // de 5 avisos la mediana es demasiado frágil como para presentarla sin reserva.
 const muestraDebil = resultado != null && resultado.comparables < 8;
 
-const selectCls =
-  'text-base bg-canvas border border-line-strong px-3 py-2 text-ink appearance-none cursor-pointer focus:outline-hidden focus:border-scarlet-signal transition-colors w-full';
-const inputCls =
-  'text-base bg-canvas border border-line-strong px-3 py-2 text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors w-full';
+// `labelCls` es propio: el de `filtros/estilos` lleva el `mb-2` que acá pone la
+// grilla del formulario. Los controles sí son los mismos de los filtros.
 const labelCls = 'text-sm text-muted uppercase tracking-wider';
 ---
 <section id="consulta" class="border border-line scroll-mt-20">
@@ -64,6 +64,7 @@ const labelCls = 'text-sm text-muted uppercase tracking-wider';
         placeholder="Ej. Corolla"
         autocomplete="off"
         maxlength="100"
+        data-normaliza="texto"
         class={`${inputCls} campo`}
         required
         aria-describedby="err-q-modelo"
@@ -85,27 +86,13 @@ const labelCls = 'text-sm text-muted uppercase tracking-wider';
       <p id="err-q-anio" class="campo-error text-sm text-scarlet-signal">Elige un año.</p>
     </div>
 
-    <div class="flex flex-col gap-2">
-      <label for="q_precio" class={labelCls}>Tu precio <span class="normal-case text-muted">(opcional)</span></label>
-      <!-- `step="any"` y no un salto de 100.000: con un step fijo el navegador
-           declara inválido cualquier precio que no sea múltiplo, y la validación
-           en vivo lo marcaría en rojo mientras se escribe un monto correcto. -->
-      <input
-        id="q_precio"
-        name="q_precio"
-        type="number"
-        inputmode="numeric"
-        min="0"
-        step="any"
-        value={consulta.precio ?? ''}
-        placeholder="$ CLP"
-        aria-describedby="err-q-precio"
-        class={`${inputCls} campo`}
-      />
-      <p id="err-q-precio" class="campo-error text-sm text-scarlet-signal">
-        Ingresa un monto en números, sin negativos.
-      </p>
-    </div>
+    <CampoNumero
+      tipo="precio"
+      nombre="q_precio"
+      etiqueta="Tu precio (opcional)"
+      valor={consulta.precio ?? undefined}
+      placeholder="$ CLP"
+    />
 
     <button
       type="submit"

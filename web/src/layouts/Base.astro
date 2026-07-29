@@ -386,7 +386,7 @@ function esRutaActiva(href: string): boolean {
           // La barra del navegador cambia con el resto: es el único trozo de
           // chrome que no vive dentro del documento y quedaría fuera del cambio.
           document.querySelector('meta[name="theme-color"]')?.setAttribute(
-            'content', oscuro ? '#ffffff' : '#000000',
+            'content', oscuro ? '#ffffff' : '#1C1C1E',
           );
           try { localStorage.setItem('tema', oscuro ? 'claro' : 'oscuro'); } catch (_) {}
           rotular();

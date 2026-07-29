@@ -442,3 +442,12 @@ export const ETIQUETA_REPORTE: Record<EstadoReporte, string> = {
 /** El año del auto: se admite el modelo del año siguiente, que ya se vende. */
 export const ANIO_MINIMO = 1950;
 export const anioMaximo = () => new Date().getFullYear() + 1;
+
+/**
+ * Topes de los dos campos numéricos libres. Viven acá, junto al resto de las
+ * cotas del dominio, porque los usan las tres capas: el `maxlength` y el
+ * `data-max` del formulario, el rango que valida `Normalizacion` en vivo y la
+ * comprobación del servidor en `formulario.ts`.
+ */
+export const KM_MAXIMO = 2_000_000;
+export const PRECIO_MAXIMO = 999_000_000;

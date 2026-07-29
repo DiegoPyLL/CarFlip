@@ -55,6 +55,38 @@ describe('parsearFiltrosUrl — región, transmisión y tracción', () => {
   });
 });
 
+describe('parsearFiltrosUrl — campos numéricos', () => {
+  it('entiende un monto con los puntos de miles que muestra el formulario', () => {
+    // El `parseFloat` anterior leía "1.500.000" como 1,5 y el filtro se perdía
+    // en silencio: pasaba con cualquier URL compartida o editada a mano.
+    expect(filtrosDe('precio_min=1.500.000').precio_min).toBe(1500000);
+    expect(filtrosDe('precio_max=12.000.000').precio_max).toBe(12000000);
+    expect(filtrosDe('km_max=150.000').km_max).toBe(150000);
+  });
+
+  it('sigue aceptando el número plano que envía el formulario', () => {
+    expect(filtrosDe('precio_min=1500000&km_max=150000')).toMatchObject({
+      precio_min: 1500000,
+      km_max: 150000,
+    });
+  });
+
+  it('descarta lo que no es un entero en vez de quedarse con un prefijo', () => {
+    // parseFloat('12abc') daba 12; ahora el filtro simplemente no se aplica.
+    for (const query of ['precio_max=12abc', 'precio_max=sajhdgdsa', 'precio_max=-5', 'precio_max=1,5']) {
+      expect('precio_max' in filtrosDe(query)).toBe(false);
+    }
+    expect('km_max' in filtrosDe('km_max=-1')).toBe(false);
+  });
+
+  it('mantiene el año dentro del rango y la página en 1 por defecto', () => {
+    expect(filtrosDe('anio=2018').anio).toBe(2018);
+    expect('anio' in filtrosDe('anio=1800')).toBe(false);
+    expect(filtrosDe('pagina=abc').pagina).toBe(1);
+    expect(filtrosDe('pagina=3').pagina).toBe(3);
+  });
+});
+
 describe('parsearFiltrosDeals', () => {
   it('hereda los campos base del listado', () => {
     const filtros = dealsDe('marca=Toyota&anio=2018&region=Metropolitana&traccion=4x4');

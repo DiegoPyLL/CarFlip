@@ -1,10 +1,12 @@
 ---
 import Base from '@layouts/Base.astro';
 import NavCuenta from '@components/cuenta/NavCuenta.astro';
+import Normalizacion from '@components/Normalizacion.astro';
 import CamposUbicacion from '@components/cuenta/CamposUbicacion.astro';
 import FilaAviso from '@components/cuenta/FilaAviso.astro';
 import { listarAvisosPropios, obtenerPerfil, revelacionesPorAviso } from '@lib/publicaciones/consultas';
 import { PALABRA_ELIMINAR, mensajeDeError, perfilCompleto } from '@lib/publicaciones/limites';
+import { PATRON } from '@lib/regex';
 
 // El middleware ya redirige a /entrar si no hay sesión; la comprobación se
 // repite aquí para que el tipo de `usuario` sea no nulo en el template.
@@ -159,10 +161,11 @@ const enlaceCls =
             name="nombre"
             required
             maxlength="100"
-            pattern="[\p{L}\s]+"
+            pattern={PATRON.nombre}
             title="Solo letras y espacios, sin números ni signos."
             autocomplete="name"
             value={perfil?.nombre ?? ''}
+            data-normaliza="texto"
             aria-describedby="err-nombre"
             class={`${inputCls} campo`}
           />
@@ -181,11 +184,12 @@ const enlaceCls =
             name="telefono"
             required
             maxlength="20"
-            pattern="(\+?56)?\s?9\s?\d{4}\s?\d{4}"
+            pattern={PATRON.telefonoCL}
             title="Un móvil chileno: 9 seguido de 8 dígitos."
             autocomplete="tel"
             placeholder="+56 9 1234 5678"
             value={perfil?.telefono ?? ''}
+            data-normaliza="telefono"
             aria-describedby="err-telefono"
             class={`${inputCls} campo tabular-nums`}
           />
@@ -194,7 +198,7 @@ const enlaceCls =
           </p>
         </div>
 
-        <CamposUbicacion region={perfil?.region} comuna={perfil?.comuna} />
+        <CamposUbicacion region={perfil?.region ?? undefined} comuna={perfil?.comuna ?? undefined} />
       </div>
 
       <button type="submit" class={`${botonCls} cursor-pointer`}>
@@ -257,4 +261,6 @@ const enlaceCls =
     </details>
   </section>
 
+
+  <Normalizacion />
 </Base>

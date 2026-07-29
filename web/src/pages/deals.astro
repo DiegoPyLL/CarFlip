@@ -4,11 +4,11 @@ import Paginacion from '@components/avisos/Paginacion.astro';
 import ToolbarVista from '@components/avisos/ToolbarVista.astro';
 import CardDeal from '@components/deals/CardDeal.astro';
 import BotonBuscar from '@components/filtros/BotonBuscar.astro';
-import CampoPrecio from '@components/filtros/CampoPrecio.astro';
+import CampoNumero from '@components/filtros/CampoNumero.astro';
 import CampoRegion from '@components/filtros/CampoRegion.astro';
 import CampoTraccion from '@components/filtros/CampoTraccion.astro';
 import CampoTransmision from '@components/filtros/CampoTransmision.astro';
-import MejorasFiltros from '@components/filtros/MejorasFiltros.astro';
+import Normalizacion from '@components/Normalizacion.astro';
 import { chipCls, labelCls, selectCls } from '@components/filtros/estilos';
 import { obtenerDeals, obtenerFiltrosDeals } from '@lib/db';
 import { POR_PAGINA } from '@lib/db/client';
@@ -160,7 +160,7 @@ const puntajes = [60, 70, 80, 90];
 
       <CampoTransmision id="d-transmision" valor={filtros.transmision} />
 
-      <CampoPrecio nombre="precio_max" etiqueta="Precio máximo" valor={filtros.precio_max} placeholder="Sin límite" />
+      <CampoNumero tipo="precio" nombre="precio_max" etiqueta="Precio máximo" valor={filtros.precio_max} placeholder="Sin límite" />
 
       <!-- Puntaje mínimo: propio de deals, no existe en el listado general. -->
       <div>
@@ -227,5 +227,5 @@ const puntajes = [60, 70, 80, 90];
     </div>
   )}
 
-  <MejorasFiltros />
+  <Normalizacion />
 </Base>

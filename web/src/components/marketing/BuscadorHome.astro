@@ -10,7 +10,7 @@
 // El campo de texto viaja como `modelo`, que en la capa de datos hace OR sobre
 // titulo/marca/modelo y además pasa por `normalizarBusqueda` ("peugot" → "Peugeot").
 import BotonBuscar from '@components/filtros/BotonBuscar.astro';
-import CampoPrecio from '@components/filtros/CampoPrecio.astro';
+import CampoNumero from '@components/filtros/CampoNumero.astro';
 import CampoRegion from '@components/filtros/CampoRegion.astro';
 import CampoTraccion from '@components/filtros/CampoTraccion.astro';
 import CampoTransmision from '@components/filtros/CampoTransmision.astro';
@@ -47,6 +47,7 @@ const anioMax = new Date().getFullYear();
         placeholder="Corolla, Jeep, Sail…"
         maxlength="100"
         autocomplete="off"
+        data-normaliza="texto"
         class={inputCls}
       />
     </div>
@@ -73,7 +74,7 @@ const anioMax = new Date().getFullYear();
         min="1950"
         max={anioMax}
         placeholder="2020"
-        data-anio
+        data-normaliza="anio"
         aria-describedby="q-anio-error"
         class={`${inputCls} campo tabular-nums`}
       />
@@ -82,7 +83,7 @@ const anioMax = new Date().getFullYear();
       </p>
     </div>
 
-    <CampoPrecio nombre="precio_max" etiqueta="Precio máximo" placeholder="$10.000.000" />
+    <CampoNumero tipo="precio" nombre="precio_max" etiqueta="Precio máximo" placeholder="$10.000.000" />
   </div>
 
   <!-- Los chips de tracción necesitan una fila propia: cuatro con icono no

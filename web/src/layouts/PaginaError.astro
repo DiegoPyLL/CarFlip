@@ -20,16 +20,17 @@ Astro.response.status = codigo;
 <Base titulo={titulo} descripcion={descripcion} noindex>
   <div class="max-w-2xl py-block">
     <p class="text-base mb-element tabular-nums">Error {codigo}</p>
-    <h1 class="text-5xl sm:text-7xl text-ink leading-none text-balance mb-element">
+    <h1 id="pe-encabezado" class="text-5xl sm:text-7xl text-ink leading-none text-balance mb-element">
       {encabezado}
     </h1>
-    <p class="text-base leading-relaxed mb-block"><slot /></p>
+    <p id="pe-detalle" class="text-base leading-relaxed mb-block" aria-live="polite"><slot /></p>
     <a
+      id="pe-accion"
       href={accion.href}
       class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-3 hover:bg-ink hover:text-canvas transition-colors duration-150"
     >
       <span class="w-1.5 h-1.5 bg-scarlet-signal" aria-hidden="true"></span>
-      {accion.texto}
+      <span id="pe-accion-texto">{accion.texto}</span>
       <span aria-hidden="true">→</span>
     </a>
   </div>

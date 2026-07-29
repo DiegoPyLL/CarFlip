@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
-import { EMAIL_RE, escaparHtml, normalizar } from '@lib/sanitizar';
+import { RE } from '@lib/regex';
+import { escaparHtml, normalizar } from '@lib/sanitizar';
 
 export const prerender = false;
 
@@ -64,9 +65,6 @@ const CONTACT_EMAIL = (import.meta.env.CONTACT_EMAIL as string) || (process.env.
 // Cambiar a algo como "CarFlip <contacto@carflip.cl>" cuando carflip.cl esté verificado en Resend.
 const REMITENTE = 'CarFlip <onboarding@resend.dev>';
 
-// El nombre solo admite letras (de cualquier idioma) y espacios: sin números ni signos.
-const NOMBRE_RE = /^[\p{L}\s]+$/u;
-
 export const POST: APIRoute = async ({ request, redirect, clientAddress }) => {
   // El `redirect` del contexto —el mismo que usa el resto de los endpoints— y no
   // `Response.redirect()`: esa respuesta nace con las cabeceras inmutables, y el
@@ -85,7 +83,7 @@ export const POST: APIRoute = async ({ request, redirect, clientAddress }) => {
   const email = normalizar(datos.get('email'), { max: 200 }).toLowerCase();
   const mensaje = normalizar(datos.get('mensaje'), { max: 2000, preservarSaltos: true });
 
-  if (!nombre || !email || !mensaje || !EMAIL_RE.test(email) || !NOMBRE_RE.test(nombre)) {
+  if (!nombre || !email || !mensaje || !RE.email.test(email) || !RE.nombre.test(nombre)) {
     return redirigir('error');
   }
 

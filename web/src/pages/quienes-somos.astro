@@ -374,10 +374,10 @@ const proximosPasos = [
       background-color: color-mix(in oklab, var(--c-blue) 16%, transparent);
     }
 
-    /* Sobre canvas negro un 16% se apaga hasta desaparecer (el lavado compone
-       contra el fondo, no contra blanco). El tono sube hasta que el hover
-       vuelve a leerse, sin acercarse al régimen de fondo de bloque —el texto
-       sigue en ink, no en ink-on-tint. */
+    /* Sobre canvas oscuro un 16% se apaga hasta desaparecer (el lavado
+       compone contra el fondo, no contra blanco). El tono sube hasta que el
+       hover vuelve a leerse, sin acercarse al régimen de fondo de bloque
+       —el texto sigue en ink, no en ink-on-tint. */
     :global(:root[data-theme="dark"]) .principio-celda:hover {
       background-color: color-mix(in oklab, var(--c-blue) 30%, transparent);
     }
@@ -385,9 +385,9 @@ const proximosPasos = [
 
   /* Velo del cierre: acento de marca virado a negro, casi opaco. Ver el
      comentario del bloque .cierre en el markup. Sigue al tema junto con
-     --c-blue: el morado al 60% sobre negro queda incluso algo más oscuro que
-     el azul (Y 0.029 vs 0.034), así que el piso de contraste del texto blanco
-     sobre la foto se mantiene. */
+     --c-blue: el azul oscuro al 60% sobre negro queda en la misma banda de
+     luminancia que el azul de tema claro (Y 0.058 vs 0.054), así que el
+     piso de contraste del texto blanco sobre la foto se mantiene de sobra. */
   .cierre-velo {
     background-color: color-mix(in oklab, var(--c-blue) 60%, #000000);
     opacity: 0.88;

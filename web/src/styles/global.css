@@ -7,7 +7,7 @@
 
   Contrastes verificados sobre su propio fondo:
     claro  → ink 21:1 · muted 6.39:1 · line-strong 4.54:1 · scarlet 4.85:1
-    oscuro → ink 21:1 · muted 8.03:1 · line-strong 8.03:1 · scarlet 4.33:1
+    oscuro → ink 17.01:1 · muted 6.51:1 · line-strong 6.51:1 · scarlet 3.51:1
   El escarlata solo alcanza AA de texto normal en claro; en oscuro queda
   restringido a elementos gráficos y display (ver uso del punto de 6px).
 */
@@ -67,23 +67,24 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --c-canvas: #000000;
-  --c-surface: #101010;
+  --c-canvas: #1c1c1e;
+  --c-surface: #2c2c2e;
   --c-ink: #ffffff;
   --c-muted: #a0a0a0;
-  --c-line: #484848;
+  --c-line: #525252;
   --c-line-strong: #a0a0a0;
   --c-scarlet: #e4002b;
 
-  /* El acento editorial vira a morado en oscuro. El azul era el último bloque
-     grande que quedaba congelado al alternar de tema —footer y hero de
-     /quienes-somos se veían idénticos en claro y en oscuro—; el morado recoge
-     además el tono de la luna del toggle (--c-moon), que es el único otro
-     color del chrome que solo existe en este tema.
-     Sobre este morado, ink-on-tint (blanco fijo) rinde 5.70:1 → AA de texto
-     normal, y el bloque se despega del canvas negro con 3.69:1 → sobre el 3:1
-     que pide AA para objetos gráficos. */
-  --c-blue: #7c3aed;
+  /* El acento editorial se profundiza en oscuro en vez de reusar el
+     `#1873b3` de tema claro. El azul era el último bloque grande que
+     quedaba congelado al alternar de tema —footer y hero de /quienes-somos
+     se veían casi idénticos en claro y en oscuro—; un azul más profundo
+     marca la diferencia sin salirse de la familia de color.
+     Sobre este azul, ink-on-tint (blanco fijo) rinde 4.77:1 → pasa AA de
+     texto normal, y el bloque se despega del canvas oscuro con 3.57:1 →
+     sobre el 3:1 que pide AA para objetos gráficos, así que se sigue
+     leyendo como bloque aparte y no solo por el texto encima. */
+  --c-blue: #1477bd;
 }
 
 /*

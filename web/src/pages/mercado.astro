@@ -1,6 +1,7 @@
 ---
 import Base from '@layouts/Base.astro';
 import AutoSubmit from '@components/AutoSubmit.astro';
+import Normalizacion from '@components/Normalizacion.astro';
 import Panel from '@components/mercado/Panel.astro';
 import KpiSignal from '@components/mercado/KpiSignal.astro';
 import Treemap from '@components/mercado/Treemap.astro';
@@ -11,6 +12,7 @@ import RangoDumbbell from '@components/mercado/RangoDumbbell.astro';
 import TendenciaMercado from '@components/mercado/TendenciaMercado.astro';
 import ConsultaMercado from '@components/mercado/ConsultaMercado.astro';
 import { obtenerDatosMercado, obtenerHistoriaMercado, consultarMercado } from '@lib/db';
+import { aEntero } from '@lib/campos';
 import { parsearFiltrosUrl } from '@lib/filtros';
 import { formatearPrecio } from '@lib/formato';
 
@@ -23,10 +25,10 @@ const fuente  = filtros.fuente;
 const anioActual = new Date().getFullYear();
 const qMarca  = params.get('q_marca')?.trim().slice(0, 100) ?? '';
 const qModelo = params.get('q_modelo')?.trim().slice(0, 100) ?? '';
-const qAnioN  = parseInt(params.get('q_anio') ?? '');
-const qAnio   = !isNaN(qAnioN) && qAnioN >= 1950 && qAnioN <= anioActual + 1 ? qAnioN : null;
-const qPrecioN = parseFloat(params.get('q_precio') ?? '');
-const qPrecio  = !isNaN(qPrecioN) && qPrecioN > 0 ? qPrecioN : null;
+const qAnioN  = aEntero(params.get('q_anio'));
+const qAnio   = qAnioN !== null && qAnioN >= 1950 && qAnioN <= anioActual + 1 ? qAnioN : null;
+const qPrecioN = aEntero(params.get('q_precio'));
+const qPrecio  = qPrecioN !== null && qPrecioN > 0 ? qPrecioN : null;
 const consulta = { marca: qMarca, modelo: qModelo, anio: qAnio, precio: qPrecio };
 
 // La tendencia histórica es de mercado total (una fila por día); no se filtra
@@ -167,4 +169,5 @@ const kpi = (n: number | null) => (n != null ? formatearPrecio(Math.round(n)) : 
   </div>
 
   <AutoSubmit />
+  <Normalizacion />
 </Base>

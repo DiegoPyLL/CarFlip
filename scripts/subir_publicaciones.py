@@ -19,6 +19,9 @@ una cuenta de prueba, no una real de un usuario del sitio.
 
 Ejecutar con:
     uv run python scripts/subir_publicaciones.py
+
+Pide confirmación por consola. Con `--si` publica sin preguntar (útil cuando se
+ejecuta sin stdin, por ejemplo desde el botón "Run" del editor).
 """
 
 from __future__ import annotations
@@ -79,6 +82,18 @@ AUTOS = [
         "descripcion": "Swift GLX seminuevo, bajo kilometraje, aún en garantía de fábrica.",
     },
 ]
+
+def confirmar() -> None:
+    """Exige un 'si' por consola, salvo que se pase `--si` al ejecutar."""
+    if "--si" in sys.argv:
+        return
+    try:
+        respuesta = input("Escribe 'si' para continuar: ")
+    except EOFError:
+        sys.exit("No hay consola interactiva: vuelve a ejecutarlo con --si para confirmar.")
+    if respuesta.strip().lower() != "si":
+        sys.exit("Cancelado.")
+
 
 def repartir(items: list, en_partes: int) -> list[list]:
     """Reparte `items` en `en_partes` tramos lo más parejos posible."""
@@ -146,8 +161,7 @@ async def main() -> None:
 
     print(f"Se van a publicar {len(AUTOS)} avisos con {len(fotos)} fotos en total,")
     print(f"a nombre de {PUBLICADOR_EMAIL}, contra {base_url} (producción).")
-    if input("Escribe 'si' para continuar: ").strip().lower() != "si":
-        sys.exit("Cancelado.")
+    confirmar()
 
     async with httpx.AsyncClient(base_url=base_url, headers={"apikey": anon_key}, timeout=30) as auth:
         sesion = await iniciar_sesion(auth, PUBLICADOR_EMAIL, PUBLICADOR_PASSWORD)

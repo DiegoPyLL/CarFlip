@@ -7,6 +7,10 @@ import PaginaError from '@layouts/PaginaError.astro';
 // manos de Vercel. El detalle del fallo llega en `Astro.props.error` y se deja
 // deliberadamente sin mostrar: puede filtrar rutas, consultas o credenciales, y
 // ya queda registrado en los logs del servidor.
+
+// El nonce es la única excepción: sin él la CSP bloquearía el script de abajo.
+// Se lee opcional porque si el fallo fue del propio middleware nunca se escribió.
+const nonce = Astro.locals?.nonce;
 ---
 
 <PaginaError
@@ -19,3 +23,33 @@ import PaginaError from '@layouts/PaginaError.astro';
   No es culpa tuya. Vuelve a intentarlo en unos minutos y, si el problema sigue,
   <a href="/contacto" class="underline underline-offset-4">cuéntanos qué estabas buscando</a>.
 </PaginaError>
+
+<script is:inline nonce={nonce}>
+  // Este 500 también se renderiza cuando la petición nunca llegó al servidor
+  // por falta de conexión del visitante: el mensaje por defecto ("no es culpa
+  // tuya") sería engañoso ahí, así que se corrige apenas el navegador confirma
+  // que está offline. `online`/`offline` lo mantienen al día si la conexión
+  // vuelve mientras la página sigue abierta.
+  (() => {
+    const encabezado = document.getElementById('pe-encabezado');
+    const detalle = document.getElementById('pe-detalle');
+    const accion = document.getElementById('pe-accion');
+    const accionTexto = document.getElementById('pe-accion-texto');
+    if (!encabezado || !detalle || !accion || !accionTexto) return;
+
+    const actualizar = () => {
+      if (navigator.onLine) {
+        location.reload();
+        return;
+      }
+      encabezado.textContent = 'No tienes conexión a internet.';
+      detalle.textContent = 'Esto no es un error del sitio: revisa tu WiFi o tus datos móviles e inténtalo de nuevo.';
+      accion.href = location.href;
+      accionTexto.textContent = 'Reintentar';
+    };
+
+    if (!navigator.onLine) actualizar();
+    addEventListener('online', actualizar);
+    addEventListener('offline', actualizar);
+  })();
+</script>

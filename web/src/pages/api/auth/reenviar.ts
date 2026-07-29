@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { guardarEmailPendiente } from '@lib/auth/servidor';
-import { EMAIL_RE } from '@lib/sanitizar';
+import { RE } from '@lib/regex';
 
 export const prerender = false;
 
@@ -11,7 +11,7 @@ export const POST: APIRoute = async ({ request, cookies, locals, redirect }) => 
   if (!locals.supabase) return redirect('/registro?enviado=1&error=config', 303);
 
   const email = String(datos.get('email') ?? '').trim().toLowerCase();
-  if (!EMAIL_RE.test(email)) return redirect('/registro?enviado=1&error=codigo', 303);
+  if (!RE.email.test(email)) return redirect('/registro?enviado=1&error=codigo', 303);
 
   const { error } = await locals.supabase.auth.resend({ type: 'signup', email });
 

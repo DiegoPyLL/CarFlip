@@ -6,10 +6,21 @@
  * llegar sin pasar por el formulario.
  */
 
+import { aEntero } from '@lib/campos';
 import { normalizarPatente } from '@lib/patente';
 import { normalizar } from '@lib/sanitizar';
 
-import { ANIO_MINIMO, COMBUSTIBLES, REGIONES, TRACCIONES, TRANSMISIONES, anioMaximo, comunaEnRegion } from './opciones';
+import {
+  ANIO_MINIMO,
+  COMBUSTIBLES,
+  KM_MAXIMO,
+  PRECIO_MAXIMO,
+  REGIONES,
+  TRACCIONES,
+  TRANSMISIONES,
+  anioMaximo,
+  comunaEnRegion,
+} from './opciones';
 
 export interface CamposAviso {
   marca: string;
@@ -27,16 +38,6 @@ export interface CamposAviso {
   visible_en_deals: boolean;
 }
 
-const KM_MAXIMO = 2_000_000;
-const PRECIO_MAXIMO = 999_000_000;
-
-function entero(valor: FormDataEntryValue | null): number | null {
-  const texto = String(valor ?? '').replace(/[.\s]/g, '');
-  if (!/^\d+$/.test(texto)) return null;
-  const numero = Number(texto);
-  return Number.isSafeInteger(numero) ? numero : null;
-}
-
 function deLista<T extends string>(valor: FormDataEntryValue | null, lista: readonly T[]): T | null {
   const texto = String(valor ?? '').trim();
   return (lista as readonly string[]).includes(texto) ? (texto as T) : null;
@@ -52,9 +53,11 @@ export function camposDelFormulario(datos: FormData): CamposAviso | null {
   const version = normalizar(datos.get('version'), { max: 100 });
   const descripcion = normalizar(datos.get('descripcion'), { max: 2000, preservarSaltos: true });
 
-  const anio = entero(datos.get('anio'));
-  const km = entero(datos.get('km'));
-  const precio = entero(datos.get('precio'));
+  // `aEntero` tolera los puntos de miles, así que el formato que el navegador
+  // pone en vivo llega intacto aunque el script no haya podido limpiarlo.
+  const anio = aEntero(String(datos.get('anio') ?? ''));
+  const km = aEntero(String(datos.get('km') ?? ''));
+  const precio = aEntero(String(datos.get('precio') ?? ''));
   const patente = normalizarPatente(datos.get('patente'));
   const region = deLista(datos.get('region'), REGIONES);
   const comuna = String(datos.get('comuna') ?? '').trim();

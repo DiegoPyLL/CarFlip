@@ -1,5 +1,6 @@
 ---
 import FormularioAviso from '@components/cuenta/FormularioAviso.astro';
+import Normalizacion from '@components/Normalizacion.astro';
 import Base from '@layouts/Base.astro';
 import { obtenerPerfil } from '@lib/publicaciones/consultas';
 import { mensajeDeError, perfilCompleto } from '@lib/publicaciones/limites';
@@ -47,4 +48,6 @@ const mensajeError = mensajeDeError(Astro.url.searchParams.get('error'));
       </div>
     )}
   </div>
+
+  <Normalizacion />
 </Base>

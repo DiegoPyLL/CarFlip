@@ -1,6 +1,7 @@
 ---
 import FormularioAviso from '@components/cuenta/FormularioAviso.astro';
 import SubidorFotos from '@components/cuenta/SubidorFotos.astro';
+import Normalizacion from '@components/Normalizacion.astro';
 import Base from '@layouts/Base.astro';
 import { listarFotos, obtenerAvisoPropio } from '@lib/publicaciones/consultas';
 import { mensajeDeError } from '@lib/publicaciones/limites';
@@ -76,4 +77,6 @@ const mensajeError = mensajeDeError(Astro.url.searchParams.get('error'));
       </form>
     </div>
   </div>
+
+  <Normalizacion />
 </Base>

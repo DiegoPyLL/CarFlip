@@ -6,7 +6,7 @@ import FiltrosSidebar from '@components/avisos/FiltrosSidebar.astro';
 import Paginacion from '@components/avisos/Paginacion.astro';
 import ToolbarVista from '@components/avisos/ToolbarVista.astro';
 import AutoSubmit from '@components/AutoSubmit.astro';
-import MejorasFiltros from '@components/filtros/MejorasFiltros.astro';
+import Normalizacion from '@components/Normalizacion.astro';
 import { obtenerAvisos, obtenerFiltrosDisponibles } from '@lib/db';
 import { parsearFiltrosUrl } from '@lib/filtros';
 import { normalizarBusqueda } from '@lib/busqueda';
@@ -129,5 +129,5 @@ const ordenOptions = [
   </form>
 
   <AutoSubmit />
-  <MejorasFiltros />
+  <Normalizacion />
 </Base>

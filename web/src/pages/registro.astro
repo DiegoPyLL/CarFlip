@@ -2,6 +2,7 @@
 import Base from '@layouts/Base.astro';
 import CampoContrasena from '@components/auth/CampoContrasena.astro';
 import { parrafoCls } from '@lib/marketing';
+import { PATRON } from '@lib/regex';
 import { COOKIE_EMAIL_PENDIENTE } from '@lib/auth/servidor';
 
 if (Astro.locals.usuario) return Astro.redirect('/cuenta');
@@ -80,7 +81,7 @@ const inputCls =
               name="codigo"
               required
               inputmode="numeric"
-              pattern="[0-9]{8}"
+              pattern={PATRON.codigo}
               maxlength="8"
               autocomplete="one-time-code"
               aria-describedby="err-codigo"

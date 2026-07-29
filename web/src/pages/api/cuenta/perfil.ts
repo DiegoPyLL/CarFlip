@@ -1,12 +1,10 @@
 import type { APIRoute } from 'astro';
 
 import { comunaEnRegion } from '@lib/publicaciones/opciones';
+import { RE } from '@lib/regex';
 import { normalizar, normalizarTelefonoCL } from '@lib/sanitizar';
 
 export const prerender = false;
-
-// Mismo criterio que /contacto: letras de cualquier idioma y espacios.
-const NOMBRE_RE = /^[\p{L}\s]+$/u;
 
 export const POST: APIRoute = async ({ request, locals, redirect }) => {
   const usuario = locals.usuario;
@@ -19,7 +17,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   const comuna = String(datos.get('comuna') ?? '').trim();
   const region = String(datos.get('region') ?? '').trim();
 
-  if (!nombre || !NOMBRE_RE.test(nombre) || !telefono) {
+  if (!nombre || !RE.nombre.test(nombre) || !telefono) {
     return redirect('/cuenta?error=datos', 303);
   }
   // El par se valida junto: cada parte por separado admitiría "Arica" en la

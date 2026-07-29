@@ -1,3 +1,4 @@
+import { aEntero } from './campos';
 import { esFuente } from './db/fuentes';
 import { REGIONES, TRACCIONES, TRANSMISIONES } from './publicaciones/opciones';
 import type { CategoriaDeal, FiltrosAviso, FiltrosDeal } from './tipos';
@@ -23,19 +24,22 @@ export function parsearFiltrosUrl(params: URLSearchParams): FiltrosAviso {
   const modelo = params.get('modelo')?.trim().slice(0, 100);
   if (modelo) filtros.modelo = modelo;
 
-  const anio = parseInt(params.get('anio') ?? '');
-  if (!isNaN(anio) && anio >= 1950 && anio <= anioActual + 1) {
+  // `aEntero` y no `parseFloat`: este último lee "1.500.000" como 1,5 —los
+  // puntos de miles chilenos son su separador decimal—, así que una URL
+  // compartida con el precio formateado filtraba por un peso y medio.
+  const anio = aEntero(params.get('anio'));
+  if (anio !== null && anio >= 1950 && anio <= anioActual + 1) {
     filtros.anio = anio;
   }
 
-  const precioMin = parseFloat(params.get('precio_min') ?? '');
-  if (!isNaN(precioMin) && precioMin > 0) filtros.precio_min = precioMin;
+  const precioMin = aEntero(params.get('precio_min'));
+  if (precioMin !== null && precioMin > 0) filtros.precio_min = precioMin;
 
-  const precioMax = parseFloat(params.get('precio_max') ?? '');
-  if (!isNaN(precioMax) && precioMax > 0) filtros.precio_max = precioMax;
+  const precioMax = aEntero(params.get('precio_max'));
+  if (precioMax !== null && precioMax > 0) filtros.precio_max = precioMax;
 
-  const kmMax = parseFloat(params.get('km_max') ?? '');
-  if (!isNaN(kmMax) && kmMax >= 0) filtros.km_max = kmMax;
+  const kmMax = aEntero(params.get('km_max'));
+  if (kmMax !== null) filtros.km_max = kmMax;
 
   const combustible = params.get('combustible')?.trim().slice(0, 50);
   if (combustible) filtros.combustible = combustible;
@@ -57,8 +61,8 @@ export function parsearFiltrosUrl(params: URLSearchParams): FiltrosAviso {
     filtros.orden = orden;
   }
 
-  const pagina = parseInt(params.get('pagina') ?? '1');
-  filtros.pagina = !isNaN(pagina) && pagina >= 1 ? pagina : 1;
+  const pagina = aEntero(params.get('pagina'));
+  filtros.pagina = pagina !== null && pagina >= 1 ? pagina : 1;
 
   return filtros;
 }
@@ -80,8 +84,8 @@ export function parsearFiltrosDeals(params: URLSearchParams): FiltrosDeal {
     filtros.categoria = categoria as CategoriaDeal;
   }
 
-  const puntajeMin = parseInt(params.get('puntaje_min') ?? '');
-  if (!isNaN(puntajeMin) && puntajeMin > 0 && puntajeMin <= 100) {
+  const puntajeMin = aEntero(params.get('puntaje_min'));
+  if (puntajeMin !== null && puntajeMin > 0 && puntajeMin <= 100) {
     filtros.puntaje_min = puntajeMin;
   }
 

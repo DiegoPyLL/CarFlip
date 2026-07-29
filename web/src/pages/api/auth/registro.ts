@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { guardarEmailPendiente } from '@lib/auth/servidor';
-import { EMAIL_RE } from '@lib/sanitizar';
+import { RE } from '@lib/regex';
 
 export const prerender = false;
 
@@ -26,7 +26,7 @@ export const POST: APIRoute = async ({ request, cookies, locals, redirect }) => 
   // retipear la clave, pero esa barrera es solo UX: quien apague JS o edite
   // el POST directamente la evita, así que el servidor revalida igual.
   if (
-    !EMAIL_RE.test(email) ||
+    !RE.email.test(email) ||
     password.length < LARGO_MINIMO_CLAVE ||
     password !== passwordConfirmacion
   ) {

@@ -137,14 +137,14 @@ Los nombres son **semánticos**, no cromáticos: el mismo token cambia de valor 
 
 | Token             | Utilidad Tailwind | Claro     | Oscuro    | Rol                                                             |
 | ----------------- | ----------------- | --------- | --------- | --------------------------------------------------------------- |
-| `--c-canvas`      | `canvas`          | `#ffffff` | `#1C1C1E` | Fondo de página, header, footer, relleno de badges sobre imagen |
-| `--c-surface`     | `surface`         | `#f4f4f4` | `#101010` | Placeholder de imagen, hover de filas, elevación mínima         |
+| `--c-canvas`      | `canvas`          | `#ffffff` | `#1c1c1e` | Fondo de página, header, footer, relleno de badges sobre imagen |
+| `--c-surface`     | `surface`         | `#f4f4f4` | `#2c2c2e` | Placeholder de imagen, hover de filas, elevación mínima         |
 | `--c-ink`         | `ink`             | `#000000` | `#ffffff` | **Todo el texto**, títulos, precios, bordes en hover y estado activo |
 | `--c-muted`       | `muted`           | `#5f5f5f` | `#a0a0a0` | **No es color de texto.** Rellenos de gráfico, `placeholder`, categoría "Otros" |
-| `--c-line`        | `line`            | `#dcdcdc` | `#484848` | Bordes de card, divisores, paginación deshabilitada             |
+| `--c-line`        | `line`            | `#dcdcdc` | `#525252` | Bordes de card, divisores, paginación deshabilitada             |
 | `--c-line-strong` | `line-strong`     | `#767676` | `#a0a0a0` | Bordes de inputs, selects y badges (necesitan 3:1 de contraste)  |
 | `--c-scarlet`     | `scarlet-signal`  | `#e4002b` | `#e4002b` | **Solo borde y objeto gráfico**: foco, campo inválido, botón destructivo |
-| `--c-blue`        | `blue-signal`     | `#1873b3` | `#7c3aed` | Acento editorial: fondo de bloques de marca (footer, hero de `/quienes-somos`) y del módulo de búsqueda/consulta de cada página con uno (`BuscadorHome` en portada; `FiltrosBarra`/`FiltrosSidebar` de `/avisos`; filtro de `/deals`; `ConsultaMercado` de `/mercado`) y de los formularios de `/entrar` y `/registro`; además, lavado rotativo del mosaico de principios de `/quienes-somos`. **Es el único token cuyo nombre es cromático y cambia de familia con el tema**: azul en claro, morado en oscuro |
+| `--c-blue`        | `blue-signal`     | `#1873b3` | `#1477bd` | Acento editorial: fondo de bloques de marca (footer, hero de `/quienes-somos`) y del módulo de búsqueda/consulta de cada página con uno (`BuscadorHome` en portada; `FiltrosBarra`/`FiltrosSidebar` de `/avisos`; filtro de `/deals`; `ConsultaMercado` de `/mercado`) y de los formularios de `/entrar` y `/registro`; además, lavado rotativo del mosaico de principios de `/quienes-somos`. **Es el único token cuyo nombre es cromático y cambia de tono con el tema**: azul de marca en claro, un paso más profundo en oscuro |
 | `--c-green`       | `green-signal`    | `#71db4c` | `#71db4c` | Acento editorial secundario, mismo régimen que `blue-signal`; reservado, sin implementación asignada |
 | `--c-ink-on-tint` | `ink-on-tint`     | `#ffffff` | `#ffffff` | Blanco fijo para texto sobre `blue-signal`/`green-signal`; no invierte con el tema |
 | `--c-github`      | `github-signal`   | `#181717` | `#181717` | Negro de marca de GitHub, solo para el ícono del footer; no es un acento del sistema |
@@ -155,8 +155,8 @@ Los nombres son **semánticos**, no cromáticos: el mismo token cambia de valor 
 
 | Nivel | Utilidad | Dónde | Claro | Oscuro |
 | ----- | -------- | ----- | ----- | ------ |
-| Primario | `text-ink` | Títulos, precios, copy, valores, enlaces | 21:1 | 21:1 |
-| Secundario | `text-ink/70` | Metadatos, rótulos, notas al pie de cifra, ejes de gráfico | 8.52:1 sobre `canvas` · 8.16:1 sobre `surface` | 9.96:1 sobre `canvas` · 9.52:1 sobre `surface` |
+| Primario | `text-ink` | Títulos, precios, copy, valores, enlaces | 21:1 | 17.01:1 |
+| Secundario | `text-ink/70` | Metadatos, rótulos, notas al pie de cifra, ejes de gráfico | 8.52:1 sobre `canvas` · 8.16:1 sobre `surface` | 8.86:1 sobre `canvas` · 7.64:1 sobre `surface` |
 
 Reglas de la opacidad:
 
@@ -168,7 +168,7 @@ Reglas de la opacidad:
 
 **El sistema exige 7:1 (AAA) para todo texto, en ambos temas.** Lighthouse mide contra 4.5:1; el margen existe para que el 100 de Accessibility no dependa de un redondeo ni de un cambio menor de token. Los objetos gráficos (bordes de control, glifos, marcas de gráfico) mantienen el piso de 3:1 que exige AA.
 
-De ahí sale la restricción del escarlata: como texto rinde **4.85:1 en claro y 4.33:1 en oscuro** —el segundo ya está bajo AA—, así que **el escarlata no se usa como color de texto**. Vive en el borde: foco, campo inválido, botón destructivo. Un error de formulario se comunica con el borde escarlata más el texto del error en `ink`; un campo obligatorio, con la palabra `*Requerido`, no con su color.
+De ahí sale la restricción del escarlata: como texto rinde **4.85:1 en claro y 3.51:1 en oscuro** —el segundo ya está bajo AA—, así que **el escarlata no se usa como color de texto**. Vive en el borde: foco, campo inválido, botón destructivo. Un error de formulario se comunica con el borde escarlata más el texto del error en `ink`; un campo obligatorio, con la palabra `*Requerido`, no con su color.
 
 ### Acentos de fondo (`blue-signal` / `green-signal`)
 
@@ -177,12 +177,12 @@ De ahí sale la restricción del escarlata: como texto rinde **4.85:1 en claro y
 | Fondo                              | Contraste con blanco | Contraste con su `canvas` |
 | ----------------------------------- | --------------------- | ------------------------- |
 | `blue-signal` claro (`#1873b3`)     | 5.07:1 — pasa AA      | 5.07:1 sobre `#ffffff`    |
-| `blue-signal` oscuro (`#7c3aed`)    | 5.70:1 — pasa AA      | 3.69:1 sobre `#000000` — sobre el 3:1 de objeto gráfico |
+| `blue-signal` oscuro (`#1477bd`)    | 4.77:1 — pasa AA      | 3.57:1 sobre `#1c1c1e` — sobre el 3:1 de objeto gráfico |
 | `green-signal` (`#71db4c`, sin texto encima) | 1.76:1 — fallaría AA  | —                |
 
 `blue-signal` se profundizó a propósito desde el azul pedido originalmente (`#43a8ee`): ese tono solo daba 2.6:1 con blanco, bajo el 4.5:1 que exige AA. `#1873b3` conserva la misma familia de azul pero con luminancia suficiente para que el texto blanco cumpla. Si `green-signal` llega a implementarse con texto encima, necesita el mismo ajuste antes de usarse — el `#71db4c` documentado es el tono pedido, no uno ya verificado para texto.
 
-**Por qué el acento vira a morado en oscuro.** Era el último bloque grande que quedaba congelado al alternar de tema: footer y hero de `/quienes-somos` se veían idénticos en claro y en oscuro, y el reveal circular del toggle pasaba por encima sin cambiar nada. El morado `#7c3aed` recoge el tono de la luna del toggle (`--c-moon`, `#a78bfa`), el único otro color del chrome que solo existe en este tema, y se separa lo suficiente de `viz-4` (`#8a3fb0`, violeta de la paleta de datos) como para que no se lean como la misma categoría cuando conviven en `/mercado`. El velo de `/quienes-somos` lo hereda: al 60% sobre negro queda algo más oscuro que el azul (Y 0.029 vs 0.034), así que el piso de contraste del texto blanco sobre la foto se mantiene.
+**Por qué el acento se profundiza en oscuro.** Era el último bloque grande que quedaba congelado al alternar de tema: footer y hero de `/quienes-somos` se veían casi idénticos en claro y en oscuro, y el reveal circular del toggle pasaba por encima sin cambiar nada. `#1477bd` es un paso más profundo del mismo azul de marca —no un matiz distinto— elegido tras probar variantes más oscuras (`#0d4166`, `#08273d`): esas ganaban contraste de texto pero perdían casi toda separación visual contra el `canvas` oscuro (hasta 1.11:1), y el bloque dejaba de leerse como bloque. `#1477bd` mantiene los dos pisos a la vez: 4.77:1 de texto blanco y 3.57:1 de separación contra la página, así que el acento sigue siendo tan llamativo en oscuro como en claro.
 
 ### Cambio de tema
 
@@ -475,7 +475,7 @@ El sistema es mayormente acromático. Hay tres acentos cromáticos y cada uno ti
 | Acento           | Rol                                                                       | Dónde                                                      |
 | ---------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | `scarlet-signal` | Funcional: marca el estado de un control, nunca decora ni etiqueta.        | Borde de foco, borde de campo inválido, borde del botón destructivo |
-| `blue-signal`    | Editorial/institucional: identifica el bloque de marca, el módulo de búsqueda/consulta de una página, o un formulario de autenticación — nunca el listado de resultados en sí. | Fondo del footer, hero de `/quienes-somos`, buscador de la portada (`BuscadorHome`), bloque de filtros de `/avisos` (`FiltrosBarra`/`FiltrosSidebar`) y de `/deals`, `ConsultaMercado` de `/mercado`, formularios de `/entrar` y `/registro`; y como lavado de baja opacidad que rota entre las celdas del mosaico de principios de `/quienes-somos` (16% en claro, 30% en oscuro: sobre negro el lavado compone contra el fondo y a 16% desaparece) |
+| `blue-signal`    | Editorial/institucional: identifica el bloque de marca, el módulo de búsqueda/consulta de una página, o un formulario de autenticación — nunca el listado de resultados en sí. | Fondo del footer, hero de `/quienes-somos`, buscador de la portada (`BuscadorHome`), bloque de filtros de `/avisos` (`FiltrosBarra`/`FiltrosSidebar`) y de `/deals`, `ConsultaMercado` de `/mercado`, formularios de `/entrar` y `/registro`; y como lavado de baja opacidad que rota entre las celdas del mosaico de principios de `/quienes-somos` (16% en claro, 30% en oscuro: sobre canvas oscuro el lavado compone contra el fondo y a 16% desaparece) |
 | `green-signal`   | Editorial secundario, mismo régimen que `blue-signal`.                     | Reservado — sin implementación asignada todavía              |
 
 Las páginas de producto son acromáticas por defecto: el escarlata solo asoma cuando el usuario enfoca un control o deja un campo inválido, es decir, en respuesta a una acción y nunca en reposo. `blue-signal`/`green-signal` no decoran el listado ni las cards de `/avisos`, `/deals`, `/mercado` o `/auto/[id]` — la excepción es el módulo de búsqueda o consulta de cada una (`FiltrosBarra`/`FiltrosSidebar` en `/avisos`, el filtro de `/deals`, `ConsultaMercado` en `/mercado`), que lleva el mismo acento que `BuscadorHome` en portada porque cumple la misma función; el grid o los gráficos que siguen debajo no lo heredan. Las páginas utilitarias sin listado (`/entrar`, `/registro`) llevan el acento en su único formulario, por la misma razón: son el bloque que define la página.

@@ -1,0 +1,67 @@
+---
+/**
+ * Campo numérico con separador de miles: precio ("$1.500.000") o kilometraje
+ * ("150.000").
+ *
+ * Es `type="text"` y no `type="number"` a propósito: los puntos de miles del
+ * formato chileno hacen que un input numérico se considere inválido y descarte
+ * lo tipeado. `Normalizacion` le da el formato en vivo, valida el rango contra
+ * `data-min`/`data-max` en cada pulsación y lo devuelve a dígitos pelados al
+ * enviar. Sin JavaScript acepta el número plano, que `aEntero` entiende igual.
+ */
+import { KM_MAXIMO, PRECIO_MAXIMO } from '@lib/publicaciones/opciones';
+import { PATRON } from '@lib/regex';
+import { inputCls, labelCls } from './estilos';
+
+interface Props {
+  tipo: 'precio' | 'km';
+  nombre: string;
+  etiqueta: string;
+  valor?: number;
+  placeholder?: string;
+  required?: boolean;
+}
+
+const { tipo, nombre, etiqueta, valor, placeholder, required } = Astro.props;
+
+const id = `f-${nombre}`;
+const idError = `err-${nombre}`;
+const esPrecio = tipo === 'precio';
+
+// Los dígitos que admite el dato, más los puntos que el formato intercala y el
+// "$" del precio: es el largo del texto ya formateado. `Normalizacion` recorta
+// a la misma cantidad de dígitos.
+const digitos = esPrecio ? 9 : 7;
+const largo = digitos + Math.floor((digitos - 1) / 3) + (esPrecio ? 1 : 0);
+
+const tope = esPrecio ? PRECIO_MAXIMO : KM_MAXIMO;
+// Cubre los dos motivos de rechazo: sin JavaScript el `pattern` frena las
+// letras, y con él lo único que puede fallar es pasarse del tope.
+const mensaje = esPrecio
+  ? `Ingresa un precio en números, hasta $${tope.toLocaleString('es-CL')}.`
+  : `Ingresa un kilometraje en números, hasta ${tope.toLocaleString('es-CL')} km.`;
+---
+
+<div>
+  <label for={id} class={labelCls}>{etiqueta}</label>
+  <input
+    id={id}
+    type="text"
+    name={nombre}
+    value={valor ?? ''}
+    placeholder={placeholder}
+    inputmode="numeric"
+    maxlength={largo}
+    autocomplete="off"
+    pattern={PATRON.monto}
+    required={required}
+    data-normaliza={tipo}
+    data-max={tope}
+    data-rango={mensaje}
+    aria-describedby={idError}
+    class={`${inputCls} campo tabular-nums`}
+  />
+  <p id={idError} class="campo-error text-sm text-scarlet-signal mt-1.5">
+    {mensaje}
+  </p>
+</div>

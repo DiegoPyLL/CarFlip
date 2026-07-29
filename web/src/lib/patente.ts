@@ -13,14 +13,14 @@
  * legibilidad); la serie anterior admite el alfabeto completo.
  */
 
-const FORMATO = /^(?:[A-Z]{2}\d{3,4}|[BCDFGHJKLPRSTVWXYZ]{3,4}\d{2})$/;
+import { RE } from './regex';
 
 /** Canoniza (mayúsculas, sin separadores) y devuelve la patente, o `null` si no es válida. */
 export function normalizarPatente(valor: unknown): string | null {
   const texto = String(valor ?? '')
     .toUpperCase()
     .replace(/[\s.·-]/g, '');
-  return FORMATO.test(texto) ? texto : null;
+  return RE.patente.test(texto) ? texto : null;
 }
 
 /**

@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { olvidarEmailPendiente } from '@lib/auth/servidor';
-import { EMAIL_RE } from '@lib/sanitizar';
+import { RE } from '@lib/regex';
 
 export const prerender = false;
 
@@ -17,7 +17,7 @@ export const POST: APIRoute = async ({ request, cookies, locals, redirect }) => 
   const email = String(datos.get('email') ?? '').trim().toLowerCase();
   const token = String(datos.get('codigo') ?? '').replace(/\D/g, '');
 
-  if (!EMAIL_RE.test(email) || token.length !== LARGO_CODIGO) {
+  if (!RE.email.test(email) || token.length !== LARGO_CODIGO) {
     return redirect('/registro?enviado=1&error=codigo', 303);
   }
 
