@@ -6,7 +6,7 @@ export const prerender = false;
 
 const LARGO_MINIMO_CLAVE = 8;
 
-// La cuenta se confirma con el código de seis dígitos que Supabase envía por
+// La cuenta se confirma con el código de ocho dígitos que Supabase envía por
 // correo, no con un enlace: el enlace usa el flujo PKCE, que ata la confirmación
 // al navegador donde se envió este formulario y deja fuera a quien abra el correo
 // en otro dispositivo. Por eso el `signUp` de más abajo no lleva `emailRedirectTo`.

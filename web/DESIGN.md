@@ -137,7 +137,7 @@ Los nombres son **semánticos**, no cromáticos: el mismo token cambia de valor 
 
 | Token             | Utilidad Tailwind | Claro     | Oscuro    | Rol                                                             |
 | ----------------- | ----------------- | --------- | --------- | --------------------------------------------------------------- |
-| `--c-canvas`      | `canvas`          | `#ffffff` | `#000000` | Fondo de página, header, footer, relleno de badges sobre imagen |
+| `--c-canvas`      | `canvas`          | `#ffffff` | `#1C1C1E` | Fondo de página, header, footer, relleno de badges sobre imagen |
 | `--c-surface`     | `surface`         | `#f4f4f4` | `#101010` | Placeholder de imagen, hover de filas, elevación mínima         |
 | `--c-ink`         | `ink`             | `#000000` | `#ffffff` | **Todo el texto**, títulos, precios, bordes en hover y estado activo |
 | `--c-muted`       | `muted`           | `#5f5f5f` | `#a0a0a0` | **No es color de texto.** Rellenos de gráfico, `placeholder`, categoría "Otros" |

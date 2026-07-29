@@ -40,7 +40,7 @@ const inputCls =
     {enviado ? (
       <>
         <p class={`${parrafoCls} mb-element`}>
-          Te enviamos un código de seis dígitos a tu correo. Escríbelo aquí para activar la cuenta.
+          Te enviamos un código de ocho dígitos a tu correo. Escríbelo aquí para activar la cuenta.
         </p>
 
         {reenviado && (
@@ -80,14 +80,14 @@ const inputCls =
               name="codigo"
               required
               inputmode="numeric"
-              pattern="[0-9]{6}"
-              maxlength="6"
+              pattern="[0-9]{8}"
+              maxlength="8"
               autocomplete="one-time-code"
               aria-describedby="err-codigo"
               class={`${inputCls} campo tracking-[0.4em]`}
             />
             <p id="err-codigo" class="campo-error text-sm text-scarlet-signal mt-1.5">
-              Son los seis dígitos que llegaron a tu correo.
+              Son los ocho dígitos que llegaron a tu correo.
             </p>
           </div>
 

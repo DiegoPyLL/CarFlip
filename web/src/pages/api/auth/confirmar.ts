@@ -4,9 +4,9 @@ import { EMAIL_RE } from '@lib/sanitizar';
 
 export const prerender = false;
 
-const LARGO_CODIGO = 6;
+const LARGO_CODIGO = 8;
 
-// Confirma la cuenta con el código de seis dígitos del correo. A diferencia del
+// Confirma la cuenta con el código de ocho dígitos del correo. A diferencia del
 // enlace, `verifyOtp` no necesita el `code_verifier` que el flujo PKCE deja en
 // una cookie, así que funciona igual en otro navegador o en otro dispositivo.
 export const POST: APIRoute = async ({ request, cookies, locals, redirect }) => {
