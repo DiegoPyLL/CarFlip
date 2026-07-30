@@ -61,6 +61,25 @@ export function parsearFiltrosUrl(params: URLSearchParams): FiltrosAviso {
   return filtros;
 }
 
+/**
+ * URL canónica de un listado (`/avisos`, `/deals`).
+ *
+ * Ningún filtro genera página indexable: son once parámetros, y `precio_min`,
+ * `precio_max` y `km_max` aceptan cualquier entero, así que su combinatoria no
+ * tiene tope. Todos canonicalizan al listado limpio, y con ellos cualquier
+ * parámetro ajeno —`utm_*` y demás tracking— por el mismo camino.
+ *
+ * La paginación es la única excepción: sin filtros de por medio, cada página es
+ * un tramo distinto del catálogo y se referencia a sí misma. Se exige que el
+ * tramo exista, porque `?pagina=9999` renderiza un listado vacío que no tiene
+ * nada que aportar al índice.
+ */
+export function canonicaListado(url: URL, pagina: number, totalPaginas: number): string {
+  const soloPagina = [...url.searchParams.keys()].every((clave) => clave === 'pagina');
+  const tramoReal = pagina > 1 && pagina <= totalPaginas;
+  return soloPagina && tramoReal ? `${url.pathname}?pagina=${pagina}` : url.pathname;
+}
+
 const CATEGORIAS_DEAL: readonly CategoriaDeal[] = ['oportunidad_clara', 'buen_precio', 'revisar'];
 
 /**

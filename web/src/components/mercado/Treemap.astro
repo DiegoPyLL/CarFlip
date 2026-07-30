@@ -94,7 +94,7 @@ const opacidad = (total: number) => 18 + (total / maxTotal) * 42;
   <div class="relative w-full h-full min-h-64" role="img" aria-label={titulo}>
     {rects.map((r, i) => (
       <a
-        href={`/marcas/${encodeURIComponent(r.marca)}`}
+        href={`/marcas/${encodeURIComponent(r.marca.toLowerCase())}`}
         class="absolute block border border-canvas hover:border-ink hover:z-10 overflow-hidden group"
         style={`left:${r.x}%; top:${r.y}%; width:${r.w}%; height:${r.h}%; background-color: color-mix(in srgb, var(--c-viz-1) ${opacidad(r.total)}%, transparent);`}
         title={`${r.marca}: ${r.total.toLocaleString('es-CL')} avisos${r.precio_promedio ? ` · prom. ${formatearPrecio(Math.round(r.precio_promedio))}` : ''}`}

@@ -12,7 +12,7 @@ import Normalizacion from '@components/Normalizacion.astro';
 import { chipCls, labelCls, selectCls } from '@components/filtros/estilos';
 import { obtenerDeals, obtenerFiltrosDeals } from '@lib/db';
 import { POR_PAGINA } from '@lib/db/client';
-import { parsearFiltrosDeals } from '@lib/filtros';
+import { canonicaListado, parsearFiltrosDeals } from '@lib/filtros';
 
 // El tope es parte de la promesa de la página, no un detalle de implementación:
 // Deals es una selección curada, no el catálogo completo.
@@ -63,6 +63,7 @@ const puntajes = [60, 70, 80, 90];
 <Base
   titulo="Deals"
   descripcion="Los 100 autos mejor evaluados de Chile: publicados bajo su valor de mercado y analizados por IA, con categoría, puntaje y riesgos detectados en el aviso."
+  urlCanonica={canonicaListado(Astro.url, pagina, totalPaginas)}
 >
 
   <!-- Header de sección -->

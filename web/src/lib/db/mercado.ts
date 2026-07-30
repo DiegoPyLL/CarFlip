@@ -471,12 +471,14 @@ export async function obtenerDatosMarca(marca: string): Promise<{
   precio_maximo: number | null;
   total: number;
   anios: { anio: number; total: number; precio_promedio: number | null }[];
+  /** La marca con la grafía del catálogo: la URL viene en minúsculas y el `ilike` no la distingue. */
+  nombre: string;
 }> {
-  type Fila = { modelo: string | null; precio: string | null; anio: number | null };
+  type Fila = { marca: string | null; modelo: string | null; precio: string | null; anio: number | null };
 
   async function fetchFuente(f: Aviso['fuente']): Promise<Fila[]> {
     const { data } = await soloPublicados(
-      supabase.from(TABLA_POR_FUENTE[f]).select('modelo, precio, anio'),
+      supabase.from(TABLA_POR_FUENTE[f]).select('marca, modelo, precio, anio'),
       f,
     )
       .ilike('marca', marca)
@@ -486,6 +488,10 @@ export async function obtenerDatosMarca(marca: string): Promise<{
 
   const resultados = await Promise.all(FUENTES.map((f) => fetchFuente(f)));
   const rows = resultados.flat();
+
+  // Sin filas la marca no existe en el catálogo y la página no se llega a
+  // renderizar, así que el valor de reserva solo cubre el tipo.
+  const nombre = rows.find((r) => r.marca)?.marca ?? marca;
 
   // Modelos
   const modeloMap = new Map<string, { total: number; precios: number[] }>();
@@ -500,7 +506,7 @@ export async function obtenerDatosMarca(marca: string): Promise<{
   const modelos: EstadisticaModelo[] = Array.from(modeloMap.entries())
     .map(([modelo, { total, precios }]) => ({
       modelo,
-      marca,
+      marca: nombre,
       total,
       precio_promedio: precios.length ? precios.reduce((a, b) => a + b, 0) / precios.length : null,
     }))
@@ -552,5 +558,5 @@ export async function obtenerDatosMarca(marca: string): Promise<{
     }).length,
   }));
 
-  return { modelos, distribucion, precio_promedio, precio_minimo, precio_maximo, total: rows.length, anios };
+  return { modelos, distribucion, precio_promedio, precio_minimo, precio_maximo, total: rows.length, anios, nombre };
 }

@@ -1,9 +1,44 @@
 import { describe, expect, it } from 'vitest';
 
-import { parsearFiltrosDeals, parsearFiltrosUrl } from '../../src/lib/filtros';
+import { canonicaListado, parsearFiltrosDeals, parsearFiltrosUrl } from '../../src/lib/filtros';
 
 const filtrosDe = (query: string) => parsearFiltrosUrl(new URLSearchParams(query));
 const dealsDe = (query: string) => parsearFiltrosDeals(new URLSearchParams(query));
+
+describe('canonicaListado', () => {
+  const canonica = (query: string, pagina = 1, total = 5) =>
+    canonicaListado(new URL(`https://carflip.cl/avisos${query}`), pagina, total);
+
+  it('deja el listado limpio cuando no hay parámetros', () => {
+    expect(canonica('')).toBe('/avisos');
+  });
+
+  it('descarta cualquier filtro: su combinatoria no tiene tope y no son páginas propias', () => {
+    expect(canonica('?marca=Kia')).toBe('/avisos');
+    expect(canonica('?marca=Kia&anio=2020&orden=precio_asc')).toBe('/avisos');
+    expect(canonica('?precio_min=1&precio_max=99999999')).toBe('/avisos');
+  });
+
+  it('descarta también el tracking, que no cambia lo que se muestra', () => {
+    expect(canonica('?utm_source=newsletter')).toBe('/avisos');
+  });
+
+  it('conserva la página cuando es el único parámetro: es un tramo distinto del catálogo', () => {
+    expect(canonica('?pagina=3', 3)).toBe('/avisos?pagina=3');
+  });
+
+  it('no conserva la primera página, que es el listado sin parámetros', () => {
+    expect(canonica('?pagina=1', 1)).toBe('/avisos');
+  });
+
+  it('no conserva la página si hay filtros: el tramo pertenece a un listado que no se indexa', () => {
+    expect(canonica('?marca=Kia&pagina=3', 3)).toBe('/avisos');
+  });
+
+  it('no conserva un tramo inexistente, que renderiza un listado vacío', () => {
+    expect(canonica('?pagina=99', 99, 5)).toBe('/avisos');
+  });
+});
 
 describe('parsearFiltrosUrl — parámetros desconocidos', () => {
   it('ignora un ?fuente= sobrante sin romper el resto', () => {

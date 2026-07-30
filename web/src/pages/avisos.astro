@@ -8,7 +8,7 @@ import ToolbarVista from '@components/avisos/ToolbarVista.astro';
 import AutoSubmit from '@components/AutoSubmit.astro';
 import Normalizacion from '@components/Normalizacion.astro';
 import { obtenerAvisos, obtenerFiltrosDisponibles } from '@lib/db';
-import { parsearFiltrosUrl } from '@lib/filtros';
+import { canonicaListado, parsearFiltrosUrl } from '@lib/filtros';
 import { normalizarBusqueda } from '@lib/busqueda';
 
 const params = Astro.url.searchParams;
@@ -35,6 +35,7 @@ const ordenOptions = [
 <Base
   titulo="Avisos"
   descripcion="Todos los autos en venta en Chile en un solo lugar. Filtra por marca, año, región, transmisión, tracción, kilometraje y precio, y compara cada aviso contra su precio de mercado."
+  urlCanonica={canonicaListado(Astro.url, resultado.pagina, resultado.total_paginas)}
 >
 
   <div class="mb-block">

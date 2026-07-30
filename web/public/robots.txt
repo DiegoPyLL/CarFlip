@@ -1,8 +1,20 @@
+# Rastreadores de IA: se permiten todos, tanto los que recuperan contenido para
+# responder (OAI-SearchBot, ChatGPT-User, PerplexityBot, Claude-User) como los de
+# entrenamiento (GPTBot, Google-Extended, CCBot). Para un catálogo que recién
+# empieza, ser citado vale más que reservarse el contenido, y los avisos ya son
+# públicos. La regla `User-agent: *` de abajo los cubre a todos; esta nota deja
+# la decisión por escrito para que no se lea como un olvido.
+#
+# Los filtros de /avisos y /deals no se bloquean a propósito: cada uno declara su
+# canonical hacia el listado limpio, y un Disallow impediría leerla.
+
 User-agent: *
 Allow: /
 Disallow: /entrar
 Disallow: /registro
 Disallow: /cuenta
 Disallow: /api/
+
 Sitemap: https://carflip.cl/sitemap-index.xml
 Sitemap: https://carflip.cl/sitemap-avisos.xml
+Sitemap: https://carflip.cl/sitemap-marcas.xml

@@ -9,15 +9,24 @@ const { marca } = Astro.params;
 
 if (!marca) return Astro.redirect('/mercado');
 
-const marcaDecoded = decodeURIComponent(marca);
+const marcaUrl = decodeURIComponent(marca);
+
+// La consulta resuelve la marca con `ilike`, así que /marcas/kia, /marcas/Kia y
+// /marcas/KIA devolvían las tres un 200 idéntico con canonical distinta. Se fija
+// la minúscula como única forma y el resto redirige a ella.
+const slug = marcaUrl.toLowerCase();
+if (marcaUrl !== slug) return Astro.redirect(`/marcas/${encodeURIComponent(slug)}`, 301);
 
 // Cargamos en paralelo: stats de la marca + primeros avisos
 const [datos, resultado] = await Promise.all([
-  obtenerDatosMarca(marcaDecoded),
-  obtenerAvisos({ marca: marcaDecoded, pagina: 1 }),
+  obtenerDatosMarca(slug),
+  obtenerAvisos({ marca: slug, pagina: 1 }),
 ]);
 
 if (datos.total === 0) return Astro.redirect('/mercado');
+
+// Para mostrar se usa la grafía del catálogo ("Kia"), no el slug de la URL.
+const nombreMarca = datos.nombre;
 
 const maxModelo = datos.modelos[0]?.total ?? 1;
 const maxAnio   = datos.anios[0]?.total ?? 1;
@@ -34,8 +43,8 @@ const enlaceCls   = 'text-base text-ink hover: transition-colors';
 ---
 
 <Base
-  titulo={`${marcaDecoded} en Chile — Precios y avisos`}
-  descripcion={`${datos.total} avisos de ${marcaDecoded} en Chile. Precio promedio ${formatearPrecio(datos.precio_promedio ? Math.round(datos.precio_promedio) : null)}. Compara modelos, años y precios.`}
+  titulo={`${nombreMarca} en Chile — Precios y avisos`}
+  descripcion={`${datos.total} avisos de ${nombreMarca} en Chile. Precio promedio ${formatearPrecio(datos.precio_promedio ? Math.round(datos.precio_promedio) : null)}. Compara modelos, años y precios.`}
 >
 
   <!-- Breadcrumb -->
@@ -44,13 +53,13 @@ const enlaceCls   = 'text-base text-ink hover: transition-colors';
     <span aria-hidden="true">/</span>
     <a href="/mercado" class="hover:text-ink transition-colors">Mercado</a>
     <span aria-hidden="true">/</span>
-    <span class="text-ink">{marcaDecoded}</span>
+    <span class="text-ink">{nombreMarca}</span>
   </nav>
 
   <!-- Header -->
   <div class="mb-section">
     <p class="text-base  uppercase tracking-widest mb-element">Marca</p>
-    <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block">{marcaDecoded}</h1>
+    <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block">{nombreMarca}</h1>
 
     <!-- Stats: pares label/valor apilados -->
     <div class="flex flex-wrap gap-x-block gap-y-element">
@@ -97,7 +106,7 @@ const enlaceCls   = 'text-base text-ink hover: transition-colors';
               <div class="flex-1 min-w-0">
                 <div class="flex items-center justify-between mb-2">
                   <a
-                    href={`/avisos?marca=${encodeURIComponent(marcaDecoded)}&modelo=${encodeURIComponent(m.modelo)}`}
+                    href={`/avisos?marca=${encodeURIComponent(nombreMarca)}&modelo=${encodeURIComponent(m.modelo)}`}
                     class={`${enlaceCls} truncate`}
                   >
                     {m.modelo}
@@ -122,10 +131,10 @@ const enlaceCls   = 'text-base text-ink hover: transition-colors';
         <!-- CTA ver todos -->
         <div class="p-element border-t border-line">
           <a
-            href={`/avisos?marca=${encodeURIComponent(marcaDecoded)}`}
+            href={`/avisos?marca=${encodeURIComponent(nombreMarca)}`}
             class={enlaceCls}
           >
-            Ver todos los {datos.total.toLocaleString('es-CL')} avisos de {marcaDecoded} →
+            Ver todos los {datos.total.toLocaleString('es-CL')} avisos de {nombreMarca} →
           </a>
         </div>
       </section>
@@ -141,7 +150,7 @@ const enlaceCls   = 'text-base text-ink hover: transition-colors';
             {datos.anios.map(a => (
               <div class={filaCls}>
                 <a
-                  href={`/avisos?marca=${encodeURIComponent(marcaDecoded)}&anio=${a.anio}`}
+                  href={`/avisos?marca=${encodeURIComponent(nombreMarca)}&anio=${a.anio}`}
                   class={`${enlaceCls} w-12 shrink-0 tabular-nums`}
                 >
                   {a.anio}
@@ -200,10 +209,10 @@ const enlaceCls   = 'text-base text-ink hover: transition-colors';
         <p class="text-sm  uppercase tracking-wider mb-element">Explorar</p>
         <div class="flex flex-col gap-2">
           <a
-            href={`/avisos?marca=${encodeURIComponent(marcaDecoded)}`}
+            href={`/avisos?marca=${encodeURIComponent(nombreMarca)}`}
             class={`${enlaceCls} flex items-center justify-between py-1`}
           >
-            <span>Todos los {marcaDecoded}</span>
+            <span>Todos los {nombreMarca}</span>
             <span aria-hidden="true">→</span>
           </a>
           <a href="/mercado" class={`${enlaceCls} flex items-center justify-between py-1`}>
@@ -225,10 +234,10 @@ const enlaceCls   = 'text-base text-ink hover: transition-colors';
     <section>
       <div class="flex flex-wrap items-center justify-between gap-element mb-element">
         <h2 class="text-2xl text-ink">
-          Últimos avisos de {marcaDecoded}
+          Últimos avisos de {nombreMarca}
         </h2>
         <a
-          href={`/avisos?marca=${encodeURIComponent(marcaDecoded)}`}
+          href={`/avisos?marca=${encodeURIComponent(nombreMarca)}`}
           class={enlaceCls}
         >
           Ver todos →

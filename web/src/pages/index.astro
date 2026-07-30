@@ -7,6 +7,7 @@ import { obtenerDeals, obtenerEstadisticas, obtenerFiltrosDisponibles } from '@l
 import { formatearFecha } from '@lib/formato';
 import { parrafoCls } from '@lib/marketing';
 import { scriptJsonLd } from '@lib/jsonLd';
+import { RESPONSABLE } from '@lib/legal';
 
 // Antes `/` era el listado: los enlaces y backlinks con filtros siguen llegando
 // aquí. Se preservan redirigiendo a /avisos con los mismos parámetros.
@@ -27,12 +28,21 @@ const [estadisticas, destacados, disponibles] = await Promise.all([
 const origen = Astro.site?.origin ?? Astro.url.origin;
 
 // Declara el buscador de la portada para los rastreadores: `modelo` es el mismo
-// parámetro que consume /avisos.
+// parámetro que consume /avisos. El `publisher` va como `Person` y no como
+// `Organization` porque detrás de CarFlip no hay sociedad: los datos salen de
+// `@lib/legal`, los mismos que muestran /legal y /privacidad.
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
   name: 'CarFlip',
   url: origen,
+  inLanguage: 'es-CL',
+  publisher: {
+    '@type': 'Person',
+    name: RESPONSABLE.nombre,
+    email: RESPONSABLE.correo,
+    sameAs: [RESPONSABLE.perfil],
+  },
   potentialAction: {
     '@type': 'SearchAction',
     target: {

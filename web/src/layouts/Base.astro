@@ -1,6 +1,5 @@
 ---
 import Analytics from '@vercel/analytics/astro';
-import { DOCUMENTOS } from '@lib/legal';
 import '../styles/global.css';
 
 interface Props {
@@ -15,7 +14,11 @@ interface Props {
 const {
   titulo,
   descripcion = 'CarFlip — Encuentra oportunidades de autos usados en Chile. Comparamos cada aviso contra el precio de mercado de su marca, modelo y año.',
-  urlCanonica = Astro.url.href,
+  // Sin el query string a propósito: los filtros de /avisos y /deals son once
+  // parámetros, tres de ellos enteros libres, así que autocanonicalizar cada
+  // combinación abría un espacio de URL ilimitado. Las páginas que sí necesitan
+  // conservar un parámetro —la paginación— pasan su propia `urlCanonica`.
+  urlCanonica = Astro.url.pathname,
   urlImagen = '/og-default.png',
   tipo = 'website',
   noindex = false,
