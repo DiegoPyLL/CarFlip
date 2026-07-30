@@ -1,5 +1,6 @@
 ---
 import CtaContacto from '@components/avisos/CtaContacto.astro';
+import GaleriaFotos from '@components/avisos/GaleriaFotos.astro';
 import PatenteChilena from '@components/avisos/PatenteChilena.astro';
 import PosicionMercado from '@components/avisos/PosicionMercado.astro';
 import IconoTraccion from '@components/filtros/IconoTraccion.astro';
@@ -130,7 +131,7 @@ const campoCls =
 >
   <script is:inline nonce={Astro.locals.nonce} slot="head" type="application/ld+json" set:html={scriptJsonLd(jsonLd)} />
 
-  <div class="max-w-6xl mx-auto">
+  <div class="max-w-7xl mx-auto">
     <a
       href={volver}
       class="inline-flex items-center gap-2 text-base hover:text-ink mb-element transition-colors duration-150"
@@ -141,54 +142,20 @@ const campoCls =
 
     <!-- Cabecera en dos columnas: galería a la izquierda, todo lo que decide la
          compra a la derecha, para que la pantalla completa quepa arriba. Bajo md
-         se apila, con las fotos primero. -->
-    <div class="grid md:grid-cols-2 gap-block items-start">
+         se apila, con las fotos primero. Desde lg la foto se lleva 3/5 del
+         ancho, y la columna de datos sigue holgada para el precio a 5xl. -->
+    <div class="grid md:grid-cols-2 lg:grid-cols-[3fr_2fr] gap-block items-start">
 
-      <!-- Galería: carrusel de scroll-snap con miniaturas ancladas. Cero JS y
-           cero layout shift, porque cada foto lleva su proporción fija.
-           `min-w-0` evita que el carrusel ensanche su columna del grid. -->
+      <!-- `min-w-0` evita que el carrusel ensanche su columna del grid. -->
       <div class="min-w-0">
       {fotos.length > 0 ? (
-        <div>
-          <ul class="flex overflow-x-auto snap-x snap-mandatory motion-safe:scroll-smooth">
-            {fotos.map((foto, i) => (
-              <li id={`foto-${i + 1}`} class="snap-start shrink-0 w-full">
-                <img
-                  src={foto.url}
-                  alt={`${aviso.titulo} — foto ${i + 1} de ${fotos.length}`}
-                  width={900}
-                  height={506}
-                  loading={i === 0 ? 'eager' : 'lazy'}
-                  fetchpriority={i === 0 ? 'high' : undefined}
-                  decoding={i === 0 ? 'sync' : 'async'}
-                  class="w-full aspect-[16/9] object-cover bg-surface"
-                />
-              </li>
-            ))}
-          </ul>
-
-          {fotos.length > 1 && (
-            <ul class="flex gap-2 mt-2 overflow-x-auto">
-              {fotos.map((foto, i) => (
-                <li class="shrink-0">
-                  <a
-                    href={`#foto-${i + 1}`}
-                    aria-label={`Ver la foto ${i + 1}`}
-                    class="block border border-line hover:border-ink transition-colors duration-150"
-                  >
-                    <img src={foto.url} alt="" width={96} height={64} loading="lazy" class="w-24 aspect-[3/2] object-cover" />
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <GaleriaFotos fotos={fotos} titulo={aviso.titulo} />
       ) : (
-        <div class="aspect-[16/9] bg-surface flex items-center justify-center text-base">Sin fotos</div>
+        <div class="aspect-[4/3] bg-surface flex items-center justify-center text-base">Sin fotos</div>
       )}
 
       {aviso.patente && (
-        <div class="mt-element">
+        <div class="mt-element flex justify-center">
           <PatenteChilena patente={aviso.patente} />
         </div>
       )}

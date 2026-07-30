@@ -1,0 +1,152 @@
+---
+import type { FotoAviso } from '@lib/publicaciones/consultas';
+
+interface Props {
+  fotos: FotoAviso[];
+  titulo: string;
+}
+
+const { fotos, titulo } = Astro.props;
+
+// El control se apoya en la pista de scroll-snap en vez de reemplazarla: el
+// gesto táctil y el `scrollTo` del script comparten el mismo mecanismo, y sin
+// JavaScript la galería sigue navegándose con las miniaturas, que son anclas.
+const controlCls =
+  'galeria-control absolute top-1/2 -translate-y-1/2 flex items-center justify-center w-11 h-11 text-xl text-ink bg-canvas/90 border border-ink hover:bg-ink hover:text-canvas transition-colors duration-150 cursor-pointer disabled:opacity-30 disabled:pointer-events-none';
+---
+
+<div class="galeria min-w-0" data-galeria>
+  <div class="relative">
+    <ul
+      data-pista
+      tabindex="0"
+      aria-label={`Fotos de ${titulo}`}
+      class="galeria-pista flex overflow-x-auto snap-x snap-mandatory motion-safe:scroll-smooth"
+    >
+      {fotos.map((foto, i) => (
+        <li id={`foto-${i + 1}`} class="snap-start shrink-0 w-full">
+          <img
+            src={foto.url}
+            alt={`${titulo} — foto ${i + 1} de ${fotos.length}`}
+            width={1200}
+            height={900}
+            loading={i === 0 ? 'eager' : 'lazy'}
+            fetchpriority={i === 0 ? 'high' : undefined}
+            decoding={i === 0 ? 'sync' : 'async'}
+            class="w-full aspect-[4/3] object-cover bg-surface"
+          />
+        </li>
+      ))}
+    </ul>
+
+    {fotos.length > 1 && (
+      <>
+        <button type="button" data-paso="-1" aria-label="Foto anterior" class={`left-element ${controlCls}`}>
+          <span aria-hidden="true">←</span>
+        </button>
+        <button type="button" data-paso="1" aria-label="Foto siguiente" class={`right-element ${controlCls}`}>
+          <span aria-hidden="true">→</span>
+        </button>
+        <p
+          data-contador
+          aria-hidden="true"
+          class="galeria-control absolute bottom-element right-element px-3 py-1 text-sm text-ink bg-canvas/90 border border-line tabular-nums"
+        >
+          1 / {fotos.length}
+        </p>
+      </>
+    )}
+  </div>
+
+  {/* `w-fit` + `mx-auto`: la fila se encoge a las miniaturas que haya y queda
+      centrada bajo la foto; con muchas se topa en el ancho y scrollea. */}
+  {fotos.length > 1 && (
+    <ul class="galeria-pista mx-auto mt-2 flex w-fit max-w-full gap-2 overflow-x-auto">
+      {fotos.map((foto, i) => (
+        <li class="shrink-0">
+          <a
+            href={`#foto-${i + 1}`}
+            data-miniatura
+            aria-label={`Ver la foto ${i + 1}`}
+            aria-current={i === 0 ? 'true' : 'false'}
+            class="block border border-line opacity-70 hover:opacity-100 hover:border-ink transition duration-150 aria-[current=true]:opacity-100 aria-[current=true]:border-ink"
+          >
+            <img src={foto.url} alt="" width={96} height={72} loading="lazy" class="w-24 aspect-[4/3] object-cover" />
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
+</div>
+
+<style>
+  /* Las dos pistas scrollean, pero su barra nativa no aporta nada: lo que manda
+     la navegación son las flechas y las miniaturas, y la barra bajo la foto era
+     justo lo que hacía leer la galería como un strip de scroll. */
+  .galeria-pista {
+    scrollbar-width: none;
+  }
+
+  .galeria-pista::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Los controles aparecen recién cuando el script los conectó: sin él, un
+     botón que no mueve nada es peor que no tenerlo. */
+  .galeria:not([data-js]) .galeria-control {
+    display: none;
+  }
+</style>
+
+<script>
+  const galeria = document.querySelector<HTMLElement>('[data-galeria]');
+  const pista = galeria?.querySelector<HTMLElement>('[data-pista]');
+  const laminas = pista ? pista.children.length : 0;
+
+  if (galeria && pista && laminas > 1) {
+    const miniaturas = Array.from(galeria.querySelectorAll<HTMLAnchorElement>('[data-miniatura]'));
+    const contador = galeria.querySelector<HTMLElement>('[data-contador]');
+    const pasos = Array.from(galeria.querySelectorAll<HTMLButtonElement>('[data-paso]'));
+    let actual = 0;
+
+    // Cada foto mide exactamente el ancho de la pista, así que el índice visible
+    // es la división redondeada del scroll: no hace falta observar nada.
+    const sincronizar = (inicial = false) => {
+      const indice = Math.round(pista.scrollLeft / pista.clientWidth);
+      if (indice === actual && !inicial) return;
+      actual = indice;
+
+      miniaturas.forEach((miniatura, i) => miniatura.setAttribute('aria-current', String(i === indice)));
+      if (contador) contador.textContent = `${indice + 1} / ${laminas}`;
+      for (const boton of pasos) {
+        const destino = indice + Number(boton.dataset.paso);
+        boton.disabled = destino < 0 || destino >= laminas;
+      }
+
+      // En la carga no: si el aviso se abrió con el scroll más abajo, arrastraría
+      // la página hasta la galería.
+      if (!inicial) miniaturas[indice]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    };
+
+    const irA = (indice: number) => {
+      pista.scrollTo({ left: Math.min(Math.max(indice, 0), laminas - 1) * pista.clientWidth });
+    };
+
+    for (const boton of pasos) {
+      boton.addEventListener('click', () => irA(actual + Number(boton.dataset.paso)));
+    }
+
+    // El ancla sola funciona, pero el salto de fragmento también sube la página
+    // hasta la foto; con script el desplazamiento es solo horizontal.
+    miniaturas.forEach((miniatura, indice) => {
+      miniatura.addEventListener('click', (evento) => {
+        evento.preventDefault();
+        irA(indice);
+      });
+    });
+
+    pista.addEventListener('scroll', () => requestAnimationFrame(() => sincronizar()), { passive: true });
+    galeria.dataset.js = '';
+    sincronizar(true);
+  }
+</script>

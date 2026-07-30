@@ -77,13 +77,23 @@ const kpi = (n: number | null) => (n != null ? formatearPrecio(Math.round(n)) : 
   <!-- Bento de gráficos -->
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-element">
 
-    <Panel titulo="Marcas más listadas" subtitulo="Área proporcional a la cantidad de avisos" class="lg:col-span-4">
+    <Panel
+      titulo="Marcas más listadas"
+      subtitulo="Área proporcional a la cantidad de avisos"
+      ayuda="Cada rectángulo es una marca y su tamaño es cuántos autos hay publicados de ella: mientras más grande el bloque, más avisos. Se muestran las 20 marcas con más avisos del catálogo. Este gráfico habla de cantidad de oferta, no de precio: que una marca ocupe mucho espacio no significa que sea cara ni barata."
+      class="lg:col-span-4"
+    >
       {datos.marcas.length > 0
         ? <Treemap marcas={datos.marcas} titulo="Marcas más listadas" />
         : <p class="p-element text-sm text-muted">Todavía no hay avisos con marca para graficar.</p>}
     </Panel>
 
-    <Panel titulo="Modelos más listados" subtitulo="Top 15 por cantidad" class="lg:col-span-2">
+    <Panel
+      titulo="Modelos más listados"
+      subtitulo="Top 15 por cantidad"
+      ayuda="Los 15 modelos con más autos publicados, ordenados del más común al menos común. El número de la derecha es la cantidad de avisos activos de ese modelo. Haz clic en cualquiera para ver esos autos en el listado."
+      class="lg:col-span-2"
+    >
       <div class="divide-y divide-line">
         {datos.modelos.map((m, i) => (
           <div class="flex items-center gap-element p-element hover:bg-canvas transition-colors">
@@ -100,31 +110,61 @@ const kpi = (n: number | null) => (n != null ? formatearPrecio(Math.round(n)) : 
       </div>
     </Panel>
 
-    <Panel titulo="Distribución de precios" subtitulo="Avisos por tramo de precio" class="lg:col-span-3">
+    <Panel
+      titulo="Distribución de precios"
+      subtitulo="Avisos por tramo de precio"
+      ayuda="Cada barra es un tramo de precio y su altura es cuántos autos se publican dentro de ese tramo: barra alta, muchos avisos en ese rango. La barra negra es el tramo con más avisos, o sea el precio más habitual del mercado. Sirve para ver dónde se concentra la oferta antes de fijar tu presupuesto."
+      class="lg:col-span-3"
+    >
       <Histograma buckets={datos.histogramaPrecio} unidad="precio" titulo="Distribución de precios" />
     </Panel>
 
-    <Panel titulo="Precio por año" subtitulo="Mediana y banda p25–p75 · depreciación" class="lg:col-span-3">
+    <Panel
+      titulo="Precio por año"
+      subtitulo="Mediana y banda p25–p75 · depreciación"
+      ayuda="Cuánto cuesta un auto según su año. La línea marca el precio del medio de cada año: la mitad de los avisos vale menos y la mitad vale más. La franja alrededor cubre a la mitad central del mercado, dejando fuera el 25% más barato por debajo y el 25% más caro por encima; mientras más ancha, más dispares son los precios de ese año. Los años avanzan de izquierda a derecha, así que la caída hacia la izquierda es lo que pierde un auto al envejecer. Solo se grafican los años con 5 o más avisos."
+      class="lg:col-span-3"
+    >
       {datos.precioPorAnio.length >= 2
         ? <BandaPrecioAnio datos={datos.precioPorAnio} />
         : <p class="p-element text-sm text-muted">Datos insuficientes para la curva por año.</p>}
     </Panel>
 
-    <Panel titulo="Combustible" subtitulo="Mix del mercado" class="lg:col-span-2">
+    <Panel
+      titulo="Combustible"
+      subtitulo="Mix del mercado"
+      ayuda="Con qué se mueve lo que está publicado. La barra entera es el 100% de los avisos que declaran combustible, y cada tramo de color es una categoría: mientras más ancho el tramo, más avisos de ese tipo hay. El porcentaje exacto va en la leyenda de abajo, así que no hace falta distinguir los colores para leerlo."
+      class="lg:col-span-2"
+    >
       {datos.mixCombustible.length > 0
         ? <MixCombustible datos={datos.mixCombustible} />
         : <p class="p-element text-sm text-muted">Todavía no hay avisos con combustible declarado.</p>}
     </Panel>
 
-    <Panel titulo="Distribución de kilometraje" subtitulo="Avisos por tramo de km" class="lg:col-span-2">
+    <Panel
+      titulo="Distribución de kilometraje"
+      subtitulo="Avisos por tramo de km"
+      ayuda="Lo mismo que la distribución de precios, pero por kilómetros recorridos: cada barra es un tramo de kilometraje y su altura es cuántos autos caen ahí. La barra negra es el tramo con más avisos. Te dice qué kilometraje es normal en el mercado y desde qué punto un auto empieza a ser una excepción."
+      class="lg:col-span-2"
+    >
       <Histograma buckets={datos.histogramaKm} unidad="km" titulo="Distribución de kilometraje" />
     </Panel>
 
-    <Panel titulo="Rango de precios por marca" subtitulo="Mínimo · mediana · máximo" class="lg:col-span-2">
+    <Panel
+      titulo="Rango de precios por marca"
+      subtitulo="Mínimo · mediana · máximo"
+      ayuda="Una línea por marca, con tres marcas sobre ella: el punto gris de la izquierda es su auto más barato, el trazo vertical del medio es su precio típico y el punto negro de la derecha es el más caro. Mientras más larga la línea, más lejos están entre sí los precios de esa marca. Todas se dibujan sobre la misma escala, así que se pueden comparar directamente."
+      class="lg:col-span-2"
+    >
       <RangoDumbbell marcas={datos.marcas} />
     </Panel>
 
-    <Panel titulo="Tendencia del mercado" subtitulo="Mediana de precio por día · mercado total" class="lg:col-span-6">
+    <Panel
+      titulo="Tendencia del mercado"
+      subtitulo="Mediana de precio por día · mercado total"
+      ayuda="El precio del medio de todo el catálogo, medido una vez al día durante los últimos 30 días. Si la línea sube, el conjunto de los autos publicados se está encareciendo; si baja, está cediendo. No sigue a un auto en particular: cada punto es una foto del mercado completo de ese día, así que también se mueve cuando cambia la mezcla de lo que hay publicado."
+      class="lg:col-span-6"
+    >
       <TendenciaMercado serie={historia} />
     </Panel>
 

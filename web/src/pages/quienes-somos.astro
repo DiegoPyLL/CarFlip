@@ -107,7 +107,7 @@ const proximosPasos = [
   titulo="Quiénes somos"
   descripcion="CarFlip es un proyecto independiente construido en Chile con una misión: democratizar el acceso a la información de precios en la reventa de autos."
 >
-  <div class="pagina max-w-6xl">
+  <div class="pagina max-w-7xl">
 
     <!-- Portada: dos bloques que se tocan, sin espacio entre sí, y la banda
          completa se sale del contenedor hasta el borde real de la pantalla
@@ -326,23 +326,24 @@ const proximosPasos = [
 <style>
   /* Distancia entre el borde izquierdo de la pantalla y donde empieza el
      contenido: el padding lateral de <main> más el margen que deja su centrado
-     (max-w-7xl = 80rem). Bajo 80rem de viewport el max() cae al padding base.
-     No se usa el idiom left-1/2 + w-screen + -ml-[50vw] porque ese asume que el
-     padre está centrado en la pantalla, y aquí el wrapper max-w-6xl se alinea a
-     la izquierda dentro de <main>: la banda quedaría corrida. */
+     (--container-pagina, definido en global.css). Bajo ese ancho de viewport el
+     max() cae al padding base. No se usa el idiom left-1/2 + w-screen +
+     -ml-[50vw] porque ese asume que el padre está centrado en la pantalla, y
+     aquí el wrapper se alinea a la izquierda dentro de <main>: la banda
+     quedaría corrida. */
   .pagina {
-    --sangria: max(1rem, calc((100vw - 80rem) / 2 + 1rem));
+    --sangria: max(1rem, calc((100vw - var(--container-pagina)) / 2 + 1rem));
   }
 
   @media (min-width: 640px) {
     .pagina {
-      --sangria: max(1.5rem, calc((100vw - 80rem) / 2 + 1.5rem));
+      --sangria: max(1.5rem, calc((100vw - var(--container-pagina)) / 2 + 1.5rem));
     }
   }
 
   @media (min-width: 1024px) {
     .pagina {
-      --sangria: max(2rem, calc((100vw - 80rem) / 2 + 2rem));
+      --sangria: max(2rem, calc((100vw - var(--container-pagina)) / 2 + 2rem));
     }
   }
 

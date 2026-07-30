@@ -139,7 +139,7 @@ function esRutaActiva(href: string): boolean {
          #barra y se dibujan en global.css; los conmuta el script del final. -->
     <header class="h-20 shrink-0">
       <div id="barra" class="fixed inset-x-0 top-0 z-20 bg-canvas">
-        <div id="barra-fila" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+        <div id="barra-fila" class="max-w-pagina mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
           <a href="/" class="flex items-baseline gap-4 shrink-0">
             <span id="barra-marca" class="font-normal text-ink">CarFlip</span>
             <span class="hidden lg:block text-base text-ink/70">Comparador de autos Chile</span>
@@ -153,7 +153,7 @@ function esRutaActiva(href: string): boolean {
               aria-label="Navegación principal"
               class="absolute inset-x-0 top-full bg-canvas border border-line-strong px-4 sm:px-6 md:static md:border-0 md:px-0"
             >
-              <ul class="max-w-7xl mx-auto text-base divide-y divide-line md:flex md:gap-4 md:divide-y-0">
+              <ul class="max-w-pagina mx-auto text-base divide-y divide-line md:flex md:gap-4 md:divide-y-0">
                 {enlacesNav.map(({ href, texto }) => (
                   <li>
                     <a
@@ -211,7 +211,7 @@ function esRutaActiva(href: string): boolean {
       </div>
     </header>
 
-    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 lg:py-block">
+    <main class="flex-1 max-w-pagina mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 lg:py-block">
       <slot />
     </main>
 
@@ -221,7 +221,7 @@ function esRutaActiva(href: string): boolean {
          negro en oscuro. Todo el texto usa ink-on-accent (blanco fijo), no ink,
          que en tema claro sería negro y perdería contraste sobre él. -->
     <footer class="mt-section bg-accent">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-block">
+      <div class="max-w-pagina mx-auto px-4 sm:px-6 lg:px-8 py-block">
         <div class="flex flex-col gap-block lg:flex-row lg:justify-between">
           <div class="max-w-sm">
 

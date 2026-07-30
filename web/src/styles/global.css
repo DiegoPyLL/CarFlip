@@ -134,6 +134,14 @@
   --text-xl: 1.375rem;    /* 20 → 22px */
   --text-2xl: 1.625rem;   /* 24 → 26px */
 
+  /* Ancho del contenedor del sitio, en un solo lugar: lo usan la barra, el
+     <main> y el footer de Base, y las páginas que reconstruyen la sangría
+     lateral por su cuenta (quienes-somos) leen la misma variable. 1440px deja
+     que el listado respire —tres tarjetas y la columna de filtros sin
+     apretarse— sin estirar la línea de texto de las páginas editoriales, que
+     tienen su propia medida. */
+  --container-pagina: 90rem;
+
   /* Ritmo vertical adaptado al producto: 120/240px son de portafolio y hundirían
      un grid de 24 avisos bajo el fold. 120 se reserva a páginas de marketing. */
   --spacing-element: 16px;
@@ -313,6 +321,54 @@ h3 {
 
   .entrada {
     animation: entrada 200ms ease-out;
+  }
+}
+
+/*
+  Desplegable sobre <details> nativo: sin una línea de JS, con el estado
+  abierto/cerrado ya accesible por teclado y anunciado por el lector de pantalla,
+  y con el contenido siempre en el DOM —aunque esté cerrado— para que buscadores
+  y agentes lo lean. Lo comparten las preguntas de /como-funciona y las cabeceras
+  con ayuda de /mercado, y por eso vive acá y no en el <style> de una página.
+
+  El triángulo por defecto lo quita el `display: flex` del summary (deja de ser
+  `list-item`); la regla `-webkit` cubre a los Safari que aún dibujan su propio
+  marcador.
+*/
+.desplegable > summary::-webkit-details-marker {
+  display: none;
+}
+
+/*
+  Apertura suave: el contenido se despliega animando la altura de
+  `::details-content` de 0 a `auto`, y `interpolate-size: allow-keywords`
+  (heredado desde el elemento) es lo que permite transicionar hacia esa palabra
+  clave. `content-visibility` con allow-discrete lo mantiene pintado durante el
+  cierre, para que también se repliegue en vez de desaparecer de golpe. La misma
+  curva exponencial del resto del sitio: sale rápido y frena largo.
+
+  Bajo prefers-reduced-motion la regla no existe: el navegador abre y cierra al
+  instante, que es justo lo que pide quien desactivó el movimiento. En
+  navegadores sin ::details-content el desplegable sigue abriendo, solo que seco.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  .desplegable {
+    interpolate-size: allow-keywords;
+  }
+
+  .desplegable::details-content {
+    height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition:
+      height 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 200ms ease,
+      content-visibility 260ms allow-discrete;
+  }
+
+  .desplegable[open]::details-content {
+    height: auto;
+    opacity: 1;
   }
 }
 
