@@ -25,8 +25,7 @@ const posicionSello = letras.length / 2;
      proporción 360:130 en autos y «CHILE» al pie; las motos son más compactas
      y llevan «CHILE» arriba. Colores fijos en ambos temas y esquinas
      redondeadas porque imita un objeto físico, no es chrome del producto
-     (misma lógica que los colores de marca de Volutus; excepción documentada en
-     DESIGN.md). -->
+     (excepción documentada en DESIGN.md). -->
 <div class={`patente ${esAuto ? 'patente-auto' : 'patente-moto'}`} role="img" aria-label={`Patente ${formatearPatente(patente)}`}>
   {!esAuto && <span class="pais" aria-hidden="true">CHILE</span>}
   <span class="caracteres" aria-hidden="true">

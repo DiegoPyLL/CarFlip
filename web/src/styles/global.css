@@ -71,12 +71,6 @@
   --c-sun: #f5b301;
   --c-sun-line: #a67500;
   --c-moon: #a78bfa;
-
-  /* Colores de la marca Volutus, fijos en ambos temas: son los del logo que
-     anima la confirmación de /contacto, no tokens de nuestro sistema (misma
-     lógica que la placa patente). El blanco sobre el azul rinde 5.07:1. */
-  --c-volutus-blue: #1873b3;
-  --c-volutus-green: #71db4c;
 }
 
 /* Tema oscuro: la misma escalera tonal, en gris y sin acento cromático.
@@ -125,8 +119,6 @@
   --color-sun-signal: var(--c-sun);
   --color-sun-line: var(--c-sun-line);
   --color-moon-signal: var(--c-moon);
-  --color-volutus-blue: var(--c-volutus-blue);
-  --color-volutus-green: var(--c-volutus-green);
 }
 
 @theme {

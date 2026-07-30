@@ -170,13 +170,11 @@ Los grises del tema oscuro son **neutros** (`#212121`, `#2e2e2e`), no los grises
 
 No son tokens del sistema y no participan de la escalera: son el color de un objeto que existe fuera de CarFlip, y por eso van fijos en ambos temas. La regla es que **una marca ajena nunca define un plano del producto**; entra solo dentro de la ilustración que la representa.
 
-| Token               | Valor     | Dónde                                                                    |
-| ------------------- | --------- | ------------------------------------------------------------------------ |
-| `--c-volutus-blue`  | `#1873b3` | Logo animado, barra de progreso y botón de la confirmación de `/contacto` |
-| `--c-volutus-green` | `#71db4c` | Logo animado de la confirmación de `/contacto`                            |
-| —                   | `#fff` / `#000` | Placa patente chilena (`PatenteChilena`), que además es la única pieza con radio |
+| Token | Valor     | Dónde                                                                    |
+| ----- | --------- | ------------------------------------------------------------------------ |
+| —     | `#fff` / `#000` | Placa patente chilena (`PatenteChilena`), que además es la única pieza con radio |
 
-`--c-volutus-blue` coincide en valor con el `accent` de tema claro, y esa coincidencia es deliberada: el acento salió del azul de marca. Son tokens distintos porque su régimen es distinto — el acento sigue al tema, el color de marca no.
+No hay tokens de color de marca ajena: los valores fijos de la placa se declaran en el propio componente, porque son de la ilustración y no del sistema.
 
 ### Sin texto gris
 
@@ -237,7 +235,7 @@ El tema se aplica con `data-theme="dark"` en `<html>` y se persiste en `localSto
 
 `<meta name="theme-color">` va **sin** `media`: lo escriben los mismos dos scripts que aplican el tema, con el valor de `canvas` (`#ffffff` / `#212121`) — es el único hex que se repite fuera de `global.css`, porque un `<meta>` no lee variables CSS. Con el media query seguía al SO y no al sitio, así que el caso más común —SO en oscuro, sitio en su tema claro por defecto— dejaba la barra del navegador negra sobre una página blanca.
 
-**Regla:** nada del chrome se queda quieto al alternar. La única excepción son las fotografías, que son las mismas en los dos temas; todo lo que las acompaña —velos, mezclas y planos— sí cambia. Cuando un color no puede invertirse (marcas ajenas como el logo de Google en `/entrar` o los colores de Volutus en `/contacto`), va en su valor de marca y no cuenta como token del sistema.
+**Regla:** nada del chrome se queda quieto al alternar. La única excepción son las fotografías, que son las mismas en los dos temas; todo lo que las acompaña —velos, mezclas y planos— sí cambia. Cuando un color no puede invertirse (marcas ajenas como el logo de Google en `/entrar`, o la placa patente chilena), va en su valor de marca y no cuenta como token del sistema.
 
 ---
 
@@ -410,7 +408,7 @@ Carrusel horizontal de `scroll-snap` (`snap-x snap-mandatory`) con las fotos a `
 
 ### PatenteChilena
 
-Réplica de la placa patente chilena vigente, bajo la galería del detalle de un particular (`/auto/p/[id]`), solo si el aviso tiene patente. Es una **ilustración de un objeto físico, no chrome del producto**, y por eso carga con dos excepciones deliberadas al sistema: colores fijos `#fff`/`#000` en ambos temas (misma lógica que los colores de marca de Volutus, sección 4) y esquinas redondeadas — la única pieza del sitio exenta de la regla de radio 0.
+Réplica de la placa patente chilena vigente, bajo la galería del detalle de un particular (`/auto/p/[id]`), solo si el aviso tiene patente. Es una **ilustración de un objeto físico, no chrome del producto**, y por eso carga con dos excepciones deliberadas al sistema: colores fijos `#fff`/`#000` en ambos temas (regla de marca ajena, sección 4) y esquinas redondeadas — la única pieza del sitio exenta de la regla de radio 0.
 
 La fidelidad sale de cuatro detalles de la placa real: tipografía **FE-Schrift** (la anti-falsificación que Chile adoptó en 2014), subseteada a A–Z 0–9 en un woff2 de 3,8 KB (`public/fonts/fe-schrift.woff2`, `font-display: swap`, solo se descarga en páginas que pintan una placa); proporción **360:130** con «CHILE» al pie en autos y formato compacto con «CHILE» arriba en motos; grupos en pares con puntos separadores; y el **sello de seguridad** (roseta SVG inline) en el límite letras→dígitos. Cero JavaScript.
 
@@ -492,7 +490,7 @@ Primera sección de `/dashboard`, anclada en `#reportes` y **fuera** del bloque 
 
 ### Footer
 
-`mt-section`, fondo `bg-accent` (azul de marca en claro, casi negro en oscuro — ver sección 12 para el resto de los bloques que comparten este plano). Es el cierre visual de toda página: el plano más profundo que se ve sin abrir un campo. Todo el texto encima usa `ink-on-accent`, no `ink` ni `ink/70`. Tres zonas en `py-block`: wordmark + tagline + una línea de misión que enlaza a `/quienes-somos`; tres columnas de navegación (Producto: Avisos/Deals/Mercado; Compañía: Preguntas Frecuentes/Contáctanos/Github/Volutus; Legal: Condiciones de Uso/Términos de privacidad/Legales); barra inferior con `border-t border-ink-on-accent/15` y el copyright. Sin CTAs, sin íconos de marca — los enlaces externos son texto, igual que los internos.
+`mt-section`, fondo `bg-accent` (azul de marca en claro, casi negro en oscuro — ver sección 12 para el resto de los bloques que comparten este plano). Es el cierre visual de toda página: el plano más profundo que se ve sin abrir un campo. Todo el texto encima usa `ink-on-accent`, no `ink` ni `ink/70`. Tres zonas en `py-block`: wordmark + tagline + una línea de misión que enlaza a `/quienes-somos`; tres columnas de navegación (Producto: Avisos/Deals/Mercado; Compañía: Preguntas Frecuentes/Contáctanos/Github; Legal: Condiciones de Uso/Términos de privacidad/Legales); barra inferior con `border-t border-ink-on-accent/15` y el copyright. Sin CTAs, sin íconos de marca — los enlaces externos son texto, igual que los internos.
 
 ---
 
@@ -532,7 +530,7 @@ El sistema es mayormente acromático, y el tema oscuro lo es **por completo** sa
 
 Las páginas de producto son acromáticas por defecto: el escarlata solo asoma cuando el usuario enfoca un control o deja un campo inválido, es decir, en respuesta a una acción y nunca en reposo. `accent` no decora el listado ni las cards de `/avisos`, `/deals`, `/mercado` o `/auto/[id]` — la excepción es el módulo de búsqueda o consulta de cada una (`FiltrosBarra`/`FiltrosSidebar` en `/avisos`, el filtro de `/deals`, `ConsultaMercado` en `/mercado`), que lleva el mismo plano que `BuscadorHome` en portada porque cumple la misma función; el grid o los gráficos que siguen debajo no lo heredan. Las páginas utilitarias sin listado (`/entrar`, `/registro`) llevan el acento en su único formulario, por la misma razón: son el bloque que define la página.
 
-**No hay un acento secundario.** El `green-signal` que este documento reservaba nunca se implementó como acento: su único uso real era el logo de Volutus en la confirmación de `/contacto`, así que pasó a ser lo que siempre fue —un color de marca ajena (sección 4)— y el token reservado se eliminó. Antes de agregar un acento nuevo hay que responder qué pregunta del usuario contesta que la escalera tonal no contesta ya.
+**No hay un acento secundario.** El `green-signal` que este documento reservaba nunca se implementó y su token se eliminó. Antes de agregar un acento nuevo hay que responder qué pregunta del usuario contesta que la escalera tonal no contesta ya.
 
 ---
 
