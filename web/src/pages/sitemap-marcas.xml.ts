@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 
-import { obtenerFiltrosDisponibles } from '@lib/db';
+import { obtenerMarcas } from '@lib/db';
 
 export const prerender = false;
 
@@ -11,14 +11,14 @@ export const prerender = false;
 export const GET: APIRoute = async ({ site, url }) => {
   const origen = (site ?? new URL(url.origin)).origin;
 
-  const { marcas } = await obtenerFiltrosDisponibles();
+  // `obtenerMarcas` es la misma fuente que enlaza el hub /marcas, y ya entrega
+  // los slugs en minúsculas y agrupados —la única forma que sirve un 200, el
+  // resto redirige—. Compartirla evita que el sitemap liste una URL que el hub
+  // no enlaza, o al revés.
+  const marcas = await obtenerMarcas();
 
-  // En minúsculas y sin repetir: es la única forma que sirve un 200, el resto
-  // redirige. `Set` porque el catálogo puede traer "Kia" y "KIA" de dos fuentes.
-  const slugs = [...new Set(marcas.map((m) => m.toLowerCase()))].sort();
-
-  const entradas = slugs
-    .map((slug) => `<url><loc>${origen}/marcas/${encodeURIComponent(slug)}</loc></url>`)
+  const entradas = marcas
+    .map(({ slug }) => `<url><loc>${origen}/marcas/${encodeURIComponent(slug)}</loc></url>`)
     .join('');
 
   return new Response(

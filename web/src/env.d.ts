@@ -19,6 +19,9 @@ declare namespace App {
       id: string;
       email: string;
       emailConfirmado: boolean;
+      // Dirección nueva pendiente de confirmar durante un cambio de correo, o
+      // cadena vacía si no hay ninguno en curso.
+      emailPendiente: string;
       rol: 'admin' | 'usuario';
     } | null;
   }

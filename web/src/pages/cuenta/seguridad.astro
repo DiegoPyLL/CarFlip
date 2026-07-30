@@ -1,0 +1,248 @@
+---
+import Base from '@layouts/Base.astro';
+import NavCuenta from '@components/cuenta/NavCuenta.astro';
+import CampoContrasena from '@components/auth/CampoContrasena.astro';
+import { avisoDeSeguridad, mensajeDeSeguridad } from '@lib/auth/seguridad';
+import { PATRON } from '@lib/regex';
+
+// El middleware ya redirige a /entrar si no hay sesión; la comprobación se
+// repite aquí para que el tipo de `usuario` sea no nulo en el template.
+const usuario = Astro.locals.usuario;
+if (!usuario) return Astro.redirect('/entrar?volver=/cuenta/seguridad');
+
+const error = Astro.url.searchParams.get('error');
+const mensajeError = mensajeDeSeguridad(error);
+const aviso = avisoDeSeguridad(Astro.url.searchParams.get('estado'));
+
+// El cambio en curso lo manda la sesión, no la querystring: sobrevive a un
+// refresco y no se puede simular escribiendo en la barra de direcciones.
+const correoPendiente = usuario.emailPendiente;
+
+// El campo del nonce solo aparece cuando el servidor lo pidió —porque la sesión
+// pasó las 24 horas— o cuando el código ya está en camino. Con sesión reciente
+// el cambio de contraseña no tiene paso extra.
+const pideNonce =
+  error === 'reautenticar' ||
+  error === 'nonce_invalido' ||
+  Astro.url.searchParams.get('estado') === 'nonce_enviado';
+
+const inputCls =
+  'w-full bg-field border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
+const botonCls =
+  'inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150 cursor-pointer';
+const enlaceCls =
+  'text-base text-ink-on-accent underline underline-offset-4 hover:opacity-70 transition-opacity duration-150 cursor-pointer';
+---
+
+<Base titulo="Seguridad" descripcion="Cambia tu correo y tu contraseña en CarFlip." noindex>
+  <header class="mb-block">
+    <p class="text-base text-ink/70 uppercase tracking-widest mb-element">Tu cuenta</p>
+    <h1 class="text-5xl sm:text-7xl text-ink leading-none text-balance">Seguridad.</h1>
+  </header>
+
+  <NavCuenta />
+
+  {mensajeError && (
+    <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
+      {mensajeError}
+    </div>
+  )}
+
+  {aviso && (
+    <div class="mb-element px-6 py-2.5 border border-line-strong text-base text-ink" role="status">
+      {aviso}
+    </div>
+  )}
+
+  <!-- Correo -->
+  <section class="mb-block max-w-3xl">
+    <h2 class="text-2xl text-ink mb-element">Tu correo</h2>
+    <p class="text-base text-ink/70 leading-relaxed mb-element break-all">
+      Hoy entras con <strong class="text-ink">{usuario.email}</strong>. Al cambiarlo confirmamos en
+      las dos direcciones, la actual y la nueva: así nadie puede llevarse tu cuenta a otro buzón.
+    </p>
+
+    {correoPendiente && (
+      <div class="bg-accent bloque-acento p-element space-y-element mb-element">
+        <p class="text-base text-ink-on-accent leading-relaxed break-all">
+          Cambio en curso hacia <strong>{correoPendiente}</strong>. Escribe el código que llegó a
+          cada dirección.
+        </p>
+
+        <form method="POST" action="/api/cuenta/correo/confirmar" class="space-y-element">
+          <div class="grid gap-element sm:grid-cols-2">
+            <div>
+              <label for="codigo-actual" class="flex items-baseline justify-between text-base text-ink mb-2">
+                Código de tu correo actual <span class="text-sm text-scarlet-signal">*Requerido</span>
+              </label>
+              <input
+                type="text"
+                id="codigo-actual"
+                name="codigo_actual"
+                required
+                inputmode="numeric"
+                pattern={PATRON.codigo}
+                maxlength="8"
+                autocomplete="off"
+                aria-describedby="err-codigo-actual"
+                class={`${inputCls} campo tracking-[0.4em]`}
+              />
+              <p id="err-codigo-actual" class="campo-error text-sm text-scarlet-signal mt-1.5">
+                Son los ocho dígitos que llegaron a {usuario.email}.
+              </p>
+            </div>
+
+            <div>
+              <label for="codigo-nuevo" class="flex items-baseline justify-between text-base text-ink mb-2">
+                Código del correo nuevo <span class="text-sm text-scarlet-signal">*Requerido</span>
+              </label>
+              <input
+                type="text"
+                id="codigo-nuevo"
+                name="codigo_nuevo"
+                required
+                inputmode="numeric"
+                pattern={PATRON.codigo}
+                maxlength="8"
+                autocomplete="off"
+                aria-describedby="err-codigo-nuevo"
+                class={`${inputCls} campo tracking-[0.4em]`}
+              />
+              <p id="err-codigo-nuevo" class="campo-error text-sm text-scarlet-signal mt-1.5">
+                Son los ocho dígitos que llegaron a {correoPendiente}.
+              </p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-element pt-2">
+            <button type="submit" class={botonCls}>
+              Confirmar el cambio
+              <span aria-hidden="true">→</span>
+            </button>
+
+            <!--
+              El reenvío va en su propio formulario y no con `formaction`: así el
+              POST no arrastra los códigos ya tecleados a un endpoint que no los
+              usa. El atributo `form` lo deja igual dentro de esta fila de botones
+              sin anidar formularios, que el HTML no permite. La dirección de
+              destino la pone el servidor desde la sesión.
+            -->
+            <button type="submit" form="reenviar-codigos" name="reenviar" value="1" class={enlaceCls}>
+              Enviarme códigos nuevos
+            </button>
+          </div>
+        </form>
+
+        <form id="reenviar-codigos" method="POST" action="/api/cuenta/correo"></form>
+      </div>
+    )}
+
+    <!--
+      El formulario sigue a la vista aunque haya un cambio en curso: si la
+      dirección se tecleó mal, el código nunca llega y sin esta salida la cuenta
+      quedaba con un cambio pendiente imposible de completar ni de corregir.
+      Pedirlo de nuevo reemplaza el cambio anterior.
+    -->
+    <form method="POST" action="/api/cuenta/correo" class="bg-accent bloque-acento p-element space-y-element">
+      <div>
+        <label for="email" class="flex items-baseline justify-between text-base text-ink mb-2">
+          {correoPendiente ? '¿Te equivocaste? Escribe otra dirección' : 'Correo nuevo'}
+          <span class="text-sm text-scarlet-signal">*Requerido</span>
+        </label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          required
+          maxlength="200"
+          autocomplete="email"
+          aria-describedby="err-email"
+          class={`${inputCls} campo`}
+        />
+        <p id="err-email" class="campo-error text-sm text-scarlet-signal mt-1.5">
+          Ingresa un correo electrónico válido.
+        </p>
+      </div>
+
+      <button type="submit" class={botonCls}>
+        {correoPendiente ? 'Cambiar la dirección' : 'Cambiar mi correo'}
+        <span aria-hidden="true">→</span>
+      </button>
+    </form>
+  </section>
+
+  <!-- Contraseña -->
+  <section class="max-w-3xl">
+    <h2 class="text-2xl text-ink mb-element">Tu contraseña</h2>
+    <p class="text-base text-ink/70 leading-relaxed mb-element">
+      Al cambiarla te avisamos por correo. Si ese aviso te llega sin haberla cambiado tú, alguien
+      tiene acceso a tu cuenta.
+    </p>
+
+    <form method="POST" action="/api/cuenta/contrasena" class="bg-accent bloque-acento p-element space-y-element">
+      <CampoContrasena
+        id="password"
+        name="password"
+        etiqueta="Contraseña nueva"
+        autocomplete="new-password"
+        requerido
+        minlength={8}
+        mensajeError="Usa al menos 8 caracteres."
+      />
+
+      <CampoContrasena
+        id="password-confirmacion"
+        name="password_confirmacion"
+        etiqueta="Confirmar contraseña"
+        autocomplete="new-password"
+        requerido
+        minlength={8}
+        mensajeError="Debe coincidir con la contraseña."
+        confirmaA="password"
+      />
+
+      {pideNonce && (
+        <div>
+          <label for="nonce" class="flex items-baseline justify-between text-base text-ink mb-2">
+            Código de confirmación <span class="text-sm text-scarlet-signal">*Requerido</span>
+          </label>
+          <input
+            type="text"
+            id="nonce"
+            name="nonce"
+            required
+            inputmode="numeric"
+            pattern={PATRON.codigo}
+            maxlength="8"
+            autocomplete="one-time-code"
+            aria-describedby="err-nonce"
+            class={`${inputCls} campo tracking-[0.4em]`}
+          />
+          <p id="err-nonce" class="campo-error text-sm text-scarlet-signal mt-1.5">
+            Son los ocho dígitos que llegaron a {usuario.email}.
+          </p>
+        </div>
+      )}
+
+      <div class="flex flex-wrap items-center gap-element pt-2">
+        <button type="submit" class={botonCls}>
+          Guardar contraseña
+          <span aria-hidden="true">→</span>
+        </button>
+
+        <!--
+          El reenvío va en su propio formulario, igual que el de los códigos de
+          correo: pedir otro código no tiene por qué mandar la contraseña recién
+          tecleada a un endpoint que ni la lee.
+        -->
+        {pideNonce && (
+          <button type="submit" form="reenviar-nonce" class={enlaceCls}>
+            Enviarme un código nuevo
+          </button>
+        )}
+      </div>
+    </form>
+
+    {pideNonce && <form id="reenviar-nonce" method="POST" action="/api/cuenta/reautenticar"></form>}
+  </section>
+</Base>

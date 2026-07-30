@@ -29,6 +29,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
         email: data.user.email ?? '',
         // Publicar exige correo confirmado. Google llega confirmado de origen.
         emailConfirmado: Boolean(data.user.email_confirmed_at),
+        // Dirección nueva a la espera de confirmarse, mientras dura un cambio de
+        // correo. Sale de acá y no de una consulta aparte porque `getUser()` ya
+        // la trae, y porque es la única fuente que no puede falsear el formulario
+        // de /cuenta/seguridad.
+        emailPendiente: data.user.new_email ?? '',
         // El rol vive en `app_metadata`, que solo se escribe desde el servidor
         // de Supabase: el usuario no puede modificarlo y viaja en el JWT, así
         // que no cuesta una consulta por request.

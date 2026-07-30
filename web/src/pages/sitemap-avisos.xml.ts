@@ -8,7 +8,9 @@ export const prerender = false;
 // `@astrojs/sitemap` solo descubre rutas estáticas, así que las publicaciones
 // —que son SSR y cambian a diario— necesitan su propio sitemap. El tope evita
 // que un catálogo grande genere una respuesta desmedida; el límite del formato
-// son 50.000 URLs.
+// son 50.000 URLs, así que hay margen antes de tener que partir el archivo.
+// Alcanzarlo se avisa por consola: el problema de truncar no es truncar, es
+// hacerlo en silencio.
 const MAXIMO = 5000;
 
 export const GET: APIRoute = async ({ site, url }) => {
@@ -22,6 +24,16 @@ export const GET: APIRoute = async ({ site, url }) => {
     .limit(MAXIMO);
 
   if (error) console.error('No se pudo generar el sitemap de avisos:', error.message);
+
+  // Si volvieron exactamente `MAXIMO` filas es que había al menos esa cantidad
+  // publicadas, así que las sobrantes quedaron fuera. Toca partir el sitemap en
+  // varios archivos y declararlos en un sitemap index.
+  if (data && data.length === MAXIMO) {
+    console.warn(
+      `Sitemap de avisos: se alcanzó el tope de ${MAXIMO} URLs y hay avisos publicados ` +
+        'quedando fuera. Toca partirlo en varios archivos con un sitemap index.',
+    );
+  }
 
   const entradas = (data ?? [])
     .map(

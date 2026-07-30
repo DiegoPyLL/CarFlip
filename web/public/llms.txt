@@ -15,6 +15,7 @@ CarFlip es un proyecto personal de Diego Peña y Lillo, persona natural. No hay 
 - [Avisos](https://carflip.cl/avisos): listado completo de autos en venta, con filtros por marca, año, combustible, región y rango de precio.
 - [Deals](https://carflip.cl/deals): autos cuyo precio está bajo el valor de mercado de su marca, modelo y año. Cada deal incluye una evaluación con IA: categoría de oportunidad, puntaje, riesgos detectados en el aviso y comparación contra el precio de mercado.
 - [Mercado](https://carflip.cl/mercado): estadísticas agregadas del mercado chileno de autos usados — precios promedio, marcas y modelos más publicados.
+- [Marcas](https://carflip.cl/marcas): índice de todas las marcas con avisos activos, con la cantidad de autos publicados y el rango de precios de cada una. Desde acá cuelgan las páginas de marca.
 - [Cómo funciona](https://carflip.cl/como-funciona): explicación del proceso de normalización, comparación y detección de oportunidades.
 - [Quiénes somos](https://carflip.cl/quienes-somos): misión, principios y hoja de ruta del proyecto.
 
@@ -25,7 +26,7 @@ CarFlip es un proyecto personal de Diego Peña y Lillo, persona natural. No hay 
 
 ## URLs canónicas
 
-La página de una marca es `https://carflip.cl/marcas/{marca}`. Es la fuente que hay que citar para preguntas sobre una marca concreta.
+La página de una marca es `https://carflip.cl/marcas/{marca}`. Es la fuente que hay que citar para preguntas sobre una marca concreta. Para preguntas sobre qué marcas hay o cómo se comparan entre sí, la fuente es el índice `https://carflip.cl/marcas`. Una marca sin avisos activos no tiene página: esa URL responde 404.
 
 `https://carflip.cl/avisos` y `https://carflip.cl/deals` admiten filtros por query string, pero esas URLs filtradas no son canónicas: son vistas del mismo listado y apuntan de vuelta a la ruta sin parámetros. La única excepción es `?pagina=`, que sí identifica un tramo distinto del catálogo.
 

@@ -82,6 +82,17 @@ export function tieneCookieSesion(request: Request): boolean {
  */
 export const COOKIE_EMAIL_PENDIENTE = 'cf-email-pendiente';
 
+/**
+ * Dígitos del código que Supabase envía por correo, en todos sus flujos: alta,
+ * recuperación y cambio de correo. Es un ajuste del proyecto —Authentication →
+ * Providers → Email, "OTP length"— y no de cada endpoint, así que vive acá y no
+ * repetido en los tres. Su par en el cliente es `PATRON.codigo`.
+ */
+export const LARGO_CODIGO = 8;
+
+/** Mínimo de la contraseña, en el alta y en cada cambio posterior. */
+export const LARGO_MINIMO_CLAVE = 8;
+
 // Algo más que la vigencia del código, para que la cookie no caduque antes que él.
 const VIGENCIA_EMAIL_PENDIENTE = 60 * 30;
 

@@ -6,6 +6,7 @@ export { obtenerDeals, obtenerFiltrosDeals } from './deals';
 export {
   obtenerDatosMercado,
   obtenerDatosMarca,
+  obtenerMarcas,
   obtenerHistoriaMercado,
   consultarMercado,
   posicionMercado,

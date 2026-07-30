@@ -1,36 +1,48 @@
 ---
 import Base from '@layouts/Base.astro';
-import CampoContrasena from '@components/auth/CampoContrasena.astro';
 import { parrafoCls } from '@lib/marketing';
 import { PATRON } from '@lib/regex';
 import { COOKIE_EMAIL_PENDIENTE } from '@lib/auth/servidor';
 
-if (Astro.locals.usuario) return Astro.redirect('/cuenta');
+// Página utilitaria y fuera del índice, como /entrar y /registro: no aporta
+// contenido rastreable y no debe competir con las páginas de producto.
+if (Astro.locals.usuario) return Astro.redirect('/cuenta/seguridad');
 
 const enviado = Astro.url.searchParams.has('enviado');
 const reenviado = Astro.url.searchParams.has('reenviado');
 
-// Solo ahorra retipear el correo en el paso del código. Si falta —porque la
-// confirmación ocurre en otro dispositivo— el campo sale vacío y se escribe a
-// mano, que es justamente lo que el enlace de confirmación no permitía.
+// Solo ahorra retipear el correo en el paso del código. Si falta —porque el
+// correo se abre en otro dispositivo— el campo sale vacío y se escribe a mano,
+// que es justamente lo que un enlace de un solo uso no permitiría.
 const emailPendiente = Astro.cookies.get(COOKIE_EMAIL_PENDIENTE)?.value ?? '';
 
 const error = Astro.url.searchParams.get('error');
 const MENSAJES_ERROR: Record<string, string> = {
-  config: 'El registro no está disponible en este momento.',
+  config: 'La recuperación de contraseña no está disponible en este momento.',
+  email: 'Ingresa un correo electrónico válido.',
   codigo: 'El código no es válido o ya expiró. Pide uno nuevo.',
 };
 const mensajeError = error
-  ? (MENSAJES_ERROR[error] ?? 'No pudimos crear la cuenta. Revisa los datos e inténtalo de nuevo.')
+  ? (MENSAJES_ERROR[error] ?? 'No pudimos completar la recuperación. Inténtalo de nuevo.')
   : null;
 
 const inputCls =
   'w-full bg-field border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
+const botonCls =
+  'inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150';
+const enlaceCls =
+  'text-base text-ink-on-accent underline underline-offset-4 hover:opacity-70 transition-opacity duration-150 cursor-pointer';
 ---
 
-<Base titulo="Crear cuenta" descripcion="Crea tu cuenta en CarFlip." noindex>
+<Base
+  titulo="Recuperar contraseña"
+  descripcion="Recupera el acceso a tu cuenta de CarFlip."
+  noindex
+>
   <div class="max-w-md mx-auto">
-    <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">Crea tu cuenta.</h1>
+    <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">
+      Recupera tu cuenta.
+    </h1>
 
     {mensajeError && (
       <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
@@ -41,7 +53,8 @@ const inputCls =
     {enviado ? (
       <>
         <p class={`${parrafoCls} mb-element`}>
-          Te enviamos un código de ocho dígitos a tu correo. Escríbelo aquí para activar la cuenta.
+          Si esa dirección tiene una cuenta, te enviamos un código de ocho dígitos. Escríbelo aquí
+          para elegir una contraseña nueva.
         </p>
 
         {reenviado && (
@@ -50,7 +63,11 @@ const inputCls =
           </div>
         )}
 
-        <form method="POST" action="/api/auth/confirmar" class="bg-accent bloque-acento p-element space-y-element">
+        <form
+          method="POST"
+          action="/api/auth/recuperar/confirmar"
+          class="bg-accent bloque-acento p-element space-y-element"
+        >
           <div>
             <label for="email" class="flex items-baseline justify-between text-base text-ink mb-2">
               Email <span class="text-sm text-scarlet-signal">*Requerido</span>
@@ -93,37 +110,37 @@ const inputCls =
           </div>
 
           <div class="flex flex-wrap items-center gap-element pt-2">
-            <button
-              type="submit"
-              class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150"
-            >
-              Confirmar
+            <button type="submit" class={botonCls}>
+              Continuar
               <span aria-hidden="true">→</span>
             </button>
 
             <!--
               `formnovalidate` porque el código es `required` y sin esto el
               navegador bloquearía el reenvío justo cuando no se tiene el código.
-              El servidor valida el correo igual.
+              El servidor valida el correo igual. El campo oculto distingue el
+              reenvío del primer envío, que comparten endpoint.
             -->
             <button
               type="submit"
-              formaction="/api/auth/reenviar"
+              formaction="/api/auth/recuperar"
               formnovalidate
-              class="text-base text-ink underline underline-offset-4 hover:opacity-70 transition-opacity duration-150 cursor-pointer"
+              name="reenviar"
+              value="1"
+              class={enlaceCls}
             >
               Reenviar código
             </button>
           </div>
         </form>
-
-        <p class="mt-block text-base ">
-          ¿Ya la confirmaste? <a href="/entrar" class="text-ink underline underline-offset-4">Entra aquí</a>.
-        </p>
       </>
     ) : (
       <>
-        <form method="POST" action="/api/auth/registro" class="bg-accent bloque-acento p-element space-y-element">
+        <p class={`${parrafoCls} mb-element`}>
+          Escribe tu correo y te enviamos un código para elegir una contraseña nueva.
+        </p>
+
+        <form method="POST" action="/api/auth/recuperar" class="bg-accent bloque-acento p-element space-y-element">
           <div>
             <label for="email" class="flex items-baseline justify-between text-base text-ink mb-2">
               Email <span class="text-sm text-scarlet-signal">*Requerido</span>
@@ -143,55 +160,16 @@ const inputCls =
             </p>
           </div>
 
-          <CampoContrasena
-            id="password"
-            name="password"
-            etiqueta="Contraseña"
-            autocomplete="new-password"
-            requerido
-            minlength={8}
-            mensajeError="Usa al menos 8 caracteres."
-          />
-
-          <CampoContrasena
-            id="password-confirmacion"
-            name="password_confirmacion"
-            etiqueta="Confirmar contraseña"
-            autocomplete="new-password"
-            requerido
-            minlength={8}
-            mensajeError="Debe coincidir con la contraseña."
-            confirmaA="password"
-          />
-
-          <!-- Honeypot: invisible para personas, un bot que autocompleta todo lo llena. -->
-          <div class="hidden" aria-hidden="true">
-            <label for="web">No completar este campo</label>
-            <input type="text" id="web" name="web" tabindex="-1" autocomplete="off" />
-          </div>
-
-          <button
-            type="submit"
-            class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150"
-          >
-            Crear cuenta
+          <button type="submit" class={botonCls}>
+            Enviarme el código
             <span aria-hidden="true">→</span>
           </button>
         </form>
-
-        <p class="mt-block text-base ">
-          ¿Ya tienes cuenta?
-          <a href="/entrar" class="text-ink underline underline-offset-4">Entra</a>.
-        </p>
-
-        <p class="mt-element text-sm leading-relaxed">
-          Al crear una cuenta aceptas las
-          <a href="/condiciones-de-uso" class="text-ink underline underline-offset-4">condiciones de uso</a>
-          y la
-          <a href="/privacidad" class="text-ink underline underline-offset-4">política de privacidad</a>.
-        </p>
-
       </>
     )}
+
+    <p class="mt-block text-base">
+      ¿La recordaste? <a href="/entrar" class="text-ink underline underline-offset-4">Entra aquí</a>.
+    </p>
   </div>
 </Base>

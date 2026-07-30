@@ -1,0 +1,69 @@
+---
+import Base from '@layouts/Base.astro';
+import { obtenerMarcas } from '@lib/db';
+import { formatearPrecio } from '@lib/formato';
+
+// Índice de las páginas de marca. Antes solo se llegaba a ellas desde el treemap
+// de /mercado, que es un componente: este hub les da un enlace interno directo y
+// estable, y es la superficie que responde a "marcas de autos usados en Chile".
+const marcas = await obtenerMarcas();
+
+const totalAvisos = marcas.reduce((suma, m) => suma + m.total, 0);
+
+// El rango de precios va acá y no en URLs propias por tramo: responde a la
+// intención de precio sin abrir un espacio de URLs que habría que canonicalizar.
+const rango = (m: (typeof marcas)[number]) =>
+  m.precio_minimo !== null && m.precio_maximo !== null
+    ? `${formatearPrecio(Math.round(m.precio_minimo))} — ${formatearPrecio(Math.round(m.precio_maximo))}`
+    : 'Sin precios publicados';
+---
+
+<Base
+  titulo="Marcas de autos usados en Chile"
+  descripcion={`Las ${marcas.length} marcas con avisos activos en CarFlip, con la cantidad de autos publicados y el rango de precios de cada una.`}
+>
+
+  <nav class="text-base mb-block flex items-center gap-2">
+    <a href="/avisos" class="hover:text-ink transition-colors">Avisos</a>
+    <span aria-hidden="true">/</span>
+    <span class="text-ink">Marcas</span>
+  </nav>
+
+  <div class="mb-section">
+    <p class="text-base uppercase tracking-widest mb-element">Índice</p>
+    <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block">Marcas</h1>
+    <p class="text-base leading-relaxed max-w-xl">
+      {marcas.length.toLocaleString('es-CL')} marcas con avisos activos, {totalAvisos.toLocaleString('es-CL')} autos
+      publicados en total. Cada marca tiene su página con los modelos más listados, la
+      distribución por año y el precio de mercado.
+    </p>
+  </div>
+
+  {marcas.length > 0 ? (
+    <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-element">
+      {marcas.map((m) => (
+        <li class="bg-surface border border-line">
+          <a
+            href={`/marcas/${encodeURIComponent(m.slug)}`}
+            class="block p-element hover:bg-canvas transition-colors"
+          >
+            <div class="flex items-baseline justify-between gap-element">
+              <!-- `min-w-0` + `truncate`: sin ellos una marca larga desborda la
+                   tarjeta en S y arrastra el ancho de toda la fila del grid. -->
+              <span class="text-base text-ink truncate min-w-0">{m.nombre}</span>
+              <span class="text-base tabular-nums shrink-0">
+                {m.total.toLocaleString('es-CL')}<span class="sr-only"> avisos</span>
+              </span>
+            </div>
+            <span class="block text-sm tabular-nums mt-1">{rango(m)}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  ) : (
+    <p class="bg-surface border border-line p-element text-base">
+      Todavía no hay avisos publicados con marca. Vuelve pronto.
+    </p>
+  )}
+
+</Base>

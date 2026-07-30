@@ -83,9 +83,22 @@ const kpi = (n: number | null) => (n != null ? formatearPrecio(Math.round(n)) : 
       ayuda="Cada rectángulo es una marca y su tamaño es cuántos autos hay publicados de ella: mientras más grande el bloque, más avisos. Se muestran las 20 marcas con más avisos del catálogo. Este gráfico habla de cantidad de oferta, no de precio: que una marca ocupe mucho espacio no significa que sea cara ni barata."
       class="lg:col-span-4"
     >
-      {datos.marcas.length > 0
-        ? <Treemap marcas={datos.marcas} titulo="Marcas más listadas" />
-        : <p class="p-element text-sm text-muted">Todavía no hay avisos con marca para graficar.</p>}
+      <!-- El envoltorio en columna es necesario: Treemap es `h-full`, y un
+           hermano suelto en el slot del panel lo desbordaría. El pie enlaza el
+           índice de marcas, que cubre las que no entran en el top 20. -->
+      <div class="h-full flex flex-col">
+        <div class="flex-1 min-h-0">
+          {datos.marcas.length > 0
+            ? <Treemap marcas={datos.marcas} titulo="Marcas más listadas" />
+            : <p class="p-element text-sm text-muted">Todavía no hay avisos con marca para graficar.</p>}
+        </div>
+        <a
+          href="/marcas"
+          class="p-element border-t border-line text-base text-ink hover:text-muted transition-colors"
+        >
+          Ver todas las marcas del catálogo →
+        </a>
+      </div>
     </Panel>
 
     <Panel

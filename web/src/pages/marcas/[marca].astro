@@ -7,15 +7,20 @@ import { formatearPrecio } from '@lib/formato';
 
 const { marca } = Astro.params;
 
-if (!marca) return Astro.redirect('/mercado');
+if (!marca) return Astro.rewrite('/404');
 
-const marcaUrl = decodeURIComponent(marca);
-
+// El param se usa tal como llega, sin `decodeURIComponent`: Astro ya decodifica
+// el pathname antes de extraerlo (`safeDecodeURI`), así que decodificar de nuevo
+// era un segundo pase y costaba dos cosas. /marcas/%256Eissan servía un 200 de
+// Nissan bajo una URL arbitraria —con su propia canónica, o sea un espacio de URL
+// sin tope—, y una ruta malformada (/marcas/100%), que Astro entrega cruda, hacía
+// lanzar al decode y respondía 500.
+//
 // La consulta resuelve la marca con `ilike`, así que /marcas/kia, /marcas/Kia y
 // /marcas/KIA devolvían las tres un 200 idéntico con canonical distinta. Se fija
 // la minúscula como única forma y el resto redirige a ella.
-const slug = marcaUrl.toLowerCase();
-if (marcaUrl !== slug) return Astro.redirect(`/marcas/${encodeURIComponent(slug)}`, 301);
+const slug = marca.toLowerCase();
+if (marca !== slug) return Astro.redirect(`/marcas/${encodeURIComponent(slug)}`, 301);
 
 // Cargamos en paralelo: stats de la marca + primeros avisos
 const [datos, resultado] = await Promise.all([
@@ -23,7 +28,10 @@ const [datos, resultado] = await Promise.all([
   obtenerAvisos({ marca: slug, pagina: 1 }),
 ]);
 
-if (datos.total === 0) return Astro.redirect('/mercado');
+// Una marca sin avisos no tiene página. Redirigir a /mercado mandaba a un
+// destino que no equivale a lo pedido; el 404 conserva la URL y da el estado que
+// corresponde, igual que hace /auto/p/{id} con un aviso dado de baja.
+if (datos.total === 0) return Astro.rewrite('/404');
 
 // Para mostrar se usa la grafía del catálogo ("Kia"), no el slug de la URL.
 const nombreMarca = datos.nombre;
@@ -51,7 +59,7 @@ const enlaceCls   = 'text-base text-ink hover: transition-colors';
   <nav class="text-base  mb-block flex items-center gap-2">
     <a href="/avisos" class="hover:text-ink transition-colors">Avisos</a>
     <span aria-hidden="true">/</span>
-    <a href="/mercado" class="hover:text-ink transition-colors">Mercado</a>
+    <a href="/marcas" class="hover:text-ink transition-colors">Marcas</a>
     <span aria-hidden="true">/</span>
     <span class="text-ink">{nombreMarca}</span>
   </nav>
@@ -215,8 +223,12 @@ const enlaceCls   = 'text-base text-ink hover: transition-colors';
             <span>Todos los {nombreMarca}</span>
             <span aria-hidden="true">→</span>
           </a>
-          <a href="/mercado" class={`${enlaceCls} flex items-center justify-between py-1`}>
+          <a href="/marcas" class={`${enlaceCls} flex items-center justify-between py-1`}>
             <span>Todas las marcas</span>
+            <span aria-hidden="true">→</span>
+          </a>
+          <a href="/mercado" class={`${enlaceCls} flex items-center justify-between py-1`}>
+            <span>Estadísticas de mercado</span>
             <span aria-hidden="true">→</span>
           </a>
           <a href="/deals" class={`${enlaceCls} flex items-center justify-between py-1`}>

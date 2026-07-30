@@ -1,10 +1,8 @@
 import type { APIRoute } from 'astro';
-import { olvidarEmailPendiente } from '@lib/auth/servidor';
+import { LARGO_CODIGO, olvidarEmailPendiente } from '@lib/auth/servidor';
 import { RE } from '@lib/regex';
 
 export const prerender = false;
-
-const LARGO_CODIGO = 8;
 
 // Confirma la cuenta con el código de ocho dígitos del correo. A diferencia del
 // enlace, `verifyOtp` no necesita el `code_verifier` que el flujo PKCE deja en

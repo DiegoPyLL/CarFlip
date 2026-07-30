@@ -1,5 +1,6 @@
 import { supabase } from './client';
 import { FUENTES, TABLA_POR_FUENTE, soloPublicados } from './fuentes';
+import { agruparMarcas, type MarcaListada } from '../marcas';
 import type { Aviso } from '../tipos';
 
 export interface EstadisticaMarca {
@@ -559,4 +560,28 @@ export async function obtenerDatosMarca(marca: string): Promise<{
   }));
 
   return { modelos, distribucion, precio_promedio, precio_minimo, precio_maximo, total: rows.length, anios, nombre };
+}
+
+/**
+ * Todas las marcas con avisos publicados, de mayor a menor cantidad.
+ *
+ * Es la fuente única de "qué páginas de marca existen": la consumen el hub
+ * /marcas y sitemap-marcas.xml, de modo que el sitemap no puede listar una URL
+ * que el hub no enlaza ni al revés.
+ */
+export async function obtenerMarcas(): Promise<MarcaListada[]> {
+  type Fila = { marca: string | null; precio: string | null };
+
+  async function fetchFuente(f: Aviso['fuente']): Promise<Fila[]> {
+    const { data } = await soloPublicados(
+      supabase.from(TABLA_POR_FUENTE[f]).select('marca, precio'),
+      f,
+    )
+      .not('marca', 'is', null)
+      .limit(10000);
+    return (data ?? []) as Fila[];
+  }
+
+  const resultados = await Promise.all(FUENTES.map((f) => fetchFuente(f)));
+  return agruparMarcas(resultados.flat());
 }

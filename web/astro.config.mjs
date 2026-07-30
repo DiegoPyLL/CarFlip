@@ -17,7 +17,9 @@ export default defineConfig({
     // sitemap sería contradictorio para los rastreadores.
     sitemap({
       filter: (page) =>
-        !['/dashboard', '/entrar', '/registro', '/cuenta', '/403', '/500'].some((r) => page.includes(r)),
+        !['/dashboard', '/entrar', '/registro', '/recuperar-contrasena', '/cuenta', '/403', '/500'].some(
+          (r) => page.includes(r),
+        ),
     }),
   ],
   vite: {

@@ -6,10 +6,11 @@
  * tinta que el texto que se escribe al lado— y no el blanco fijo del resto del
  * bloque, que sobre el campo blanco de tema claro era invisible.
  *
- * `sinPegar` es para el campo "Confirmar contraseña": bloquea pegar y soltar
- * para obligar a retipear la clave a mano, que es lo que hace útil confirmar
- * un segundo campo. El servidor (`/api/auth/registro.ts`) igual revalida que
- * ambos coincidan — el bloqueo de pegado es UX, no la única barrera.
+ * `confirmaA` convierte el campo en un "Confirmar contraseña": recibe el id del
+ * campo con el que debe coincidir, avisa en cuanto difieren y bloquea pegar y
+ * soltar para obligar a retipear la clave a mano, que es lo que hace útil un
+ * segundo campo. El servidor revalida la coincidencia igual — lo de acá es UX,
+ * no la única barrera.
  */
 interface Props {
   id: string;
@@ -21,7 +22,7 @@ interface Props {
   maxlength?: number;
   mensajeError?: string;
   conValidacion?: boolean;
-  sinPegar?: boolean;
+  confirmaA?: string;
 }
 
 const {
@@ -34,7 +35,7 @@ const {
   maxlength = 72,
   mensajeError = 'Usa al menos 8 caracteres.',
   conValidacion = true,
-  sinPegar = false,
+  confirmaA,
 } = Astro.props;
 
 const idError = `err-${id}`;
@@ -58,7 +59,7 @@ const inputCls =
       maxlength={maxlength}
       autocomplete={autocomplete}
       aria-describedby={conValidacion ? idError : undefined}
-      data-sin-pegar={sinPegar ? true : undefined}
+      data-confirma-a={confirmaA}
       class={conValidacion ? `${inputCls} campo` : inputCls}
     />
     <button
@@ -124,10 +125,24 @@ const inputCls =
     });
   });
 
-  // Bloquea pegar y soltar: el campo "Confirmar contraseña" solo cumple su
-  // propósito —atrapar errores de tipeo— si la clave se vuelve a escribir a mano.
-  document.querySelectorAll<HTMLInputElement>('input[data-sin-pegar]').forEach((input) => {
-    input.addEventListener('paste', (evento) => evento.preventDefault());
-    input.addEventListener('drop', (evento) => evento.preventDefault());
+  // Campo "Confirmar contraseña". Sin esto la única barrera contra un typo es el
+  // servidor, que recién avisa tras el POST. `setCustomValidity` engancha el
+  // mismo mecanismo de `.campo`/`.campo-error` que ya usan los demás campos
+  // (`:user-invalid`), sin CSS nuevo. Y se bloquea pegar y soltar, porque
+  // confirmar solo atrapa errores de tipeo si la clave se retipea a mano.
+  document.querySelectorAll<HTMLInputElement>('input[data-confirma-a]').forEach((confirmacion) => {
+    const clave = document.getElementById(confirmacion.dataset.confirmaA ?? '') as HTMLInputElement | null;
+    if (!clave) return;
+
+    const validar = () => {
+      confirmacion.setCustomValidity(
+        confirmacion.value && confirmacion.value !== clave.value ? 'no-coincide' : '',
+      );
+    };
+    clave.addEventListener('input', validar);
+    confirmacion.addEventListener('input', validar);
+
+    confirmacion.addEventListener('paste', (evento) => evento.preventDefault());
+    confirmacion.addEventListener('drop', (evento) => evento.preventDefault());
   });
 </script>
