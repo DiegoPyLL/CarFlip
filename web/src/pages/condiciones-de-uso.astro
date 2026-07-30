@@ -1,145 +1,173 @@
 ---
-import Base from '@layouts/Base.astro';
+import Legal from '@layouts/Legal.astro';
 import { parrafoCls } from '@lib/marketing';
-
-const rubroCls = 'text-2xl text-ink mb-element';
+import { rubroCls, enlaceCls } from '@lib/legal';
 ---
 
-<Base
+<Legal
   titulo="Condiciones de Uso"
-  descripcion="Condiciones que rigen el uso del sitio CarFlip, comparador de avisos de autos usados en Chile."
+  descripcion="Condiciones que rigen el uso de CarFlip: cuentas, reglas para publicar, moderación y responsabilidades de cada parte."
 >
-  <div class="max-w-3xl">
-    <div class="mb-section">
-      <p class="text-base  uppercase tracking-widest mb-element">Legal</p>
-      <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">Condiciones de Uso</h1>
-      <p class="text-base ">Última actualización: 21 de julio de 2026.</p>
-    </div>
-
-    <div class="space-y-block mb-section">
-      <section>
-        <h2 class={rubroCls}>Qué es CarFlip</h2>
-        <p class={parrafoCls}>
-          CarFlip es un proyecto sin fines de lucro que hace dos cosas. Recopila y compara avisos
-          de autos usados publicados en portales de terceros (Autocosmos, Yapo, Autosusados y
-          Checkeados), y aloja avisos que publican directamente personas particulares con una
-          cuenta en el sitio. En ninguno de los dos casos vende autos ni intermedia en la
-          transacción entre comprador y vendedor.
-        </p>
-      </section>
-
-      <section>
-        <h2 class={rubroCls}>Cuentas</h2>
-        <p class={parrafoCls}>
-          Navegar y comparar no requiere cuenta. Publicar un auto y ver el teléfono de un vendedor
-          particular sí: para eso hace falta registrarse, confirmar el correo y cargar nombre y
-          teléfono. Cada persona responde por la actividad de su cuenta y por mantener sus
-          credenciales a resguardo. Puedes eliminar tu cuenta cuando quieras desde
-          <a href="/cuenta" class="text-ink underline underline-offset-4">tu cuenta</a>.
-        </p>
-      </section>
-
-      <section>
-        <h2 class={rubroCls}>Reglas para publicar</h2>
-        <p class={parrafoCls}>
-          Solo puedes publicar vehículos que te pertenezcan o que estés autorizado a vender, con
-          datos reales de precio, año, kilometraje y estado, y con fotos propias del auto que
-          ofreces. Un aviso por vehículo. La publicación es inmediata y hay topes de uso: hasta 5
-          avisos publicados a la vez, 3 nuevos por día y 10 fotos por aviso.
-        </p>
-      </section>
-
-      <section>
-        <h2 class={rubroCls}>Contenido prohibido</h2>
-        <p class={parrafoCls}>
-          No se admiten avisos falsos, duplicados o engañosos; vehículos robados, con encargo por
-          robo o de procedencia irregular; publicaciones que no correspondan a un auto en venta;
-          contenido ofensivo, discriminatorio o ilícito; datos de contacto de terceros sin su
-          autorización; ni el uso del aviso como canal de publicidad, estafa o captación de datos.
-          CarFlip puede despublicar sin aviso previo cualquier publicación que infrinja estas
-          reglas o la ley.
-        </p>
-      </section>
-
-      <section>
-        <h2 class={rubroCls}>Reportes y moderación</h2>
-        <p class={parrafoCls}>
-          Cualquier persona con sesión iniciada puede reportar un aviso desde su propia página.
-          Los reportes se revisan y, si corresponde, el aviso se retira de la vista pública; su
-          autor lo seguirá viendo en sus publicaciones. La moderación es posterior a la
-          publicación: CarFlip no revisa los avisos antes de que se publiquen y no puede garantizar
-          que todo el contenido de terceros cumpla estas condiciones en todo momento.
-        </p>
-      </section>
-
-      <section>
-        <h2 class={rubroCls}>Contacto con vendedores particulares</h2>
-        <p class={parrafoCls}>
-          El teléfono de un vendedor particular solo se muestra a usuarios con sesión iniciada, a
-          petición explícita y con un tope diario. Se entrega para contactar por esa venta y nada
-          más: usarlo para publicidad, mensajería masiva o cualquier otro fin está prohibido y
-          puede dar lugar al cierre de la cuenta.
-        </p>
-      </section>
-
-      <section>
-        <h2 class={rubroCls}>Exactitud de la información</h2>
-        <p class={parrafoCls}>
-          Los datos de cada aviso (precio, kilometraje, año, fotos y descripción) los aporta el
-          portal de origen o la persona que publicó, y pueden estar desactualizados o contener
-          errores ajenos a CarFlip. Verifica siempre el auto y sus antecedentes con el vendedor
-          antes de tomar cualquier decisión de compra o entregar dinero.
-        </p>
-      </section>
-
-      <section>
-        <h2 class={rubroCls}>Uso permitido</h2>
-        <p class={parrafoCls}>
-          El sitio se ofrece para uso personal e informativo. No está permitido extraer datos de
-          forma masiva y automatizada (scraping), interferir con su funcionamiento normal, ni
-          usarlo con fines ilícitos.
-        </p>
-      </section>
-
-      <section>
-        <h2 class={rubroCls}>Propiedad intelectual</h2>
-        <p class={parrafoCls}>
-          El nombre CarFlip, el diseño y el código del sitio pertenecen a sus desarrolladores. El
-          contenido de los avisos recopilados pertenece a su portal de origen o al vendedor que lo
-          publicó. Las fotos y textos que subes a tu propio aviso siguen siendo tuyos: al
-          publicarlos autorizas a CarFlip a mostrarlos y difundirlos en el sitio mientras el aviso
-          esté activo, y esa autorización termina cuando lo eliminas o cierras tu cuenta.
-        </p>
-      </section>
-
-      <section>
-        <h2 class={rubroCls}>Enlaces a terceros</h2>
-        <p class={parrafoCls}>
-          CarFlip no se hace responsable del contenido, disponibilidad ni prácticas de los portales
-          externos a los que enlaza.
-        </p>
-      </section>
-
-      <section>
-        <h2 class={rubroCls}>Cambios a estas condiciones</h2>
-        <p class={parrafoCls}>
-          Estas condiciones pueden actualizarse a medida que el sitio evoluciona. La fecha de
-          arriba indica la última revisión.
-        </p>
-      </section>
-
-      <section>
-        <h2 class={rubroCls}>Ley aplicable</h2>
-        <p class={parrafoCls}>
-          Estas condiciones se rigen por las leyes de la República de Chile.
-        </p>
-      </section>
-    </div>
-
+  <section>
+    <h2 class={rubroCls}>Qué es CarFlip</h2>
     <p class={parrafoCls}>
-      Ver también: <a href="/privacidad" class="text-ink underline underline-offset-4">Términos de privacidad</a>,
-      {' '}<a href="/legal" class="text-ink underline underline-offset-4">Legales</a> y
-      {' '}<a href="/contacto" class="text-ink underline underline-offset-4">Contáctanos</a>.
+      CarFlip es una plataforma de avisos de autos usados en Chile. Aloja las publicaciones de
+      personas particulares con cuenta en el sitio y los catálogos de automotoras que autorizan su
+      publicación, y ofrece herramientas para compararlos: precio de mercado por marca, modelo y
+      año, historial de precio y detección de oportunidades.
     </p>
-  </div>
-</Base>
+    <p class={`${parrafoCls} mt-element`}>
+      CarFlip no vende autos ni intermedia en la transacción entre comprador y vendedor. El
+      detalle de su rol y sus límites está en el
+      <a href="/legal" class={enlaceCls}>Aviso Legal</a>.
+    </p>
+  </section>
+
+  <section>
+    <h2 class={rubroCls}>Cuentas</h2>
+    <p class={parrafoCls}>
+      Navegar y comparar no requiere cuenta. Publicar un auto y ver el teléfono de un vendedor
+      particular sí: para eso hace falta registrarse, confirmar el correo y cargar nombre y
+      teléfono. Cada persona responde por la actividad de su cuenta y por mantener sus
+      credenciales a resguardo. Puedes eliminar tu cuenta cuando quieras desde
+      <a href="/cuenta" class={enlaceCls}>tu cuenta</a>.
+    </p>
+  </section>
+
+  <section>
+    <h2 class={rubroCls}>Reglas para publicar</h2>
+    <p class={parrafoCls}>
+      Solo puedes publicar vehículos que te pertenezcan o que estés autorizado a vender, con
+      datos reales de precio, año, kilometraje y estado, y con fotos propias del auto que
+      ofreces. Un aviso por vehículo. La publicación es inmediata y hay topes de uso: hasta 5
+      avisos publicados a la vez, 3 nuevos por día y 10 fotos por aviso.
+    </p>
+  </section>
+
+  <section>
+    <h2 class={rubroCls}>Contenido prohibido</h2>
+    <p class={parrafoCls}>
+      No se admiten avisos falsos, duplicados o engañosos; vehículos robados, con encargo por
+      robo o de procedencia irregular; publicaciones que no correspondan a un auto en venta;
+      contenido ofensivo, discriminatorio o ilícito; datos de contacto de terceros sin su
+      autorización; ni el uso del aviso como canal de publicidad, estafa o captación de datos.
+    </p>
+  </section>
+
+  <section id="reportes">
+    <h2 class={rubroCls}>Reportes y moderación</h2>
+    <p class={parrafoCls}>
+      Cualquier persona con sesión iniciada puede reportar un aviso desde su propia página. Los
+      reportes se revisan y, si el aviso infringe estas condiciones o la ley, se retira de la
+      vista pública; su autor lo seguirá viendo en sus publicaciones. Quien no tenga cuenta, o
+      quiera reportar una infracción de derechos, puede escribir a
+      <a href="mailto:dpenaylilloluhrs@gmail.com" class={enlaceCls}>dpenaylilloluhrs@gmail.com</a> indicando la
+      URL del aviso y el motivo.
+    </p>
+    <p class={`${parrafoCls} mt-element`}>
+      La moderación es posterior a la publicación: CarFlip no revisa los avisos antes de que se
+      publiquen y no puede garantizar que todo el contenido de terceros cumpla estas condiciones
+      en todo momento. Los reportes se atienden en el menor plazo posible, y los que denuncian un
+      contenido manifiestamente ilícito tienen prioridad.
+    </p>
+  </section>
+
+  <section>
+    <h2 class={rubroCls}>Suspensión y terminación</h2>
+    <p class={parrafoCls}>
+      CarFlip puede despublicar sin aviso previo cualquier publicación que infrinja estas reglas
+      o la ley. Ante infracciones graves o reiteradas puede además suspender o cerrar la cuenta
+      responsable, lo que conlleva la despublicación de todos sus avisos. Se avisa por correo a
+      la dirección registrada, salvo que hacerlo comprometa una investigación en curso o el
+      cumplimiento de una orden de autoridad.
+    </p>
+    <p class={`${parrafoCls} mt-element`}>
+      Puedes terminar esta relación en cualquier momento eliminando tu cuenta. CarFlip también
+      puede discontinuar el servicio, total o parcialmente, avisando con antelación razonable.
+    </p>
+  </section>
+
+  <section>
+    <h2 class={rubroCls}>Contacto con vendedores particulares</h2>
+    <p class={parrafoCls}>
+      El teléfono de un vendedor particular solo se muestra a usuarios con sesión iniciada, a
+      petición explícita y con un tope diario. Se entrega para contactar por esa venta y nada
+      más: usarlo para publicidad, mensajería masiva o cualquier otro fin está prohibido y puede
+      dar lugar al cierre de la cuenta.
+    </p>
+  </section>
+
+  <section>
+    <h2 class={rubroCls}>Exactitud de la información</h2>
+    <p class={parrafoCls}>
+      Los datos de cada aviso —precio, kilometraje, año, fotos y descripción— los aporta quien
+      publica, y pueden estar desactualizados o contener errores ajenos a CarFlip. Las
+      comparaciones y el precio de mercado que muestra el sitio son referenciales y no
+      constituyen una tasación. Verifica siempre el auto y sus antecedentes con el vendedor antes
+      de tomar cualquier decisión de compra o entregar dinero.
+    </p>
+  </section>
+
+  <section>
+    <h2 class={rubroCls}>Uso permitido</h2>
+    <p class={parrafoCls}>
+      El sitio se ofrece para uso personal e informativo. No está permitido extraer datos de
+      forma masiva y automatizada, interferir con su funcionamiento normal, eludir los topes de
+      uso ni emplearlo con fines ilícitos.
+    </p>
+  </section>
+
+  <section>
+    <h2 class={rubroCls}>Contenido que publicas</h2>
+    <p class={parrafoCls}>
+      Las fotos y textos que subes a tu propio aviso siguen siendo tuyos. Al publicarlos
+      autorizas a CarFlip a alojarlos, mostrarlos y difundirlos en el sitio y en sus resultados de
+      búsqueda mientras el aviso esté activo. Esa autorización es gratuita, no exclusiva y
+      termina cuando eliminas el aviso o cierras tu cuenta.
+    </p>
+    <p class={`${parrafoCls} mt-element`}>
+      La titularidad del nombre, el diseño y el código de CarFlip está en el
+      <a href="/legal" class={enlaceCls}>Aviso Legal</a>.
+    </p>
+  </section>
+
+  <section>
+    <h2 class={rubroCls}>Datos personales</h2>
+    <p class={parrafoCls}>
+      El tratamiento de los datos que entregas al registrarte, publicar o contactarnos se detalla
+      en la <a href="/privacidad" class={enlaceCls}>Política de Privacidad</a>.
+    </p>
+  </section>
+
+  <section>
+    <h2 class={rubroCls}>Cambios a estas condiciones</h2>
+    <p class={parrafoCls}>
+      Estas condiciones pueden actualizarse a medida que el sitio evoluciona. La fecha del
+      encabezado indica la última revisión, y seguir usando el sitio después de un cambio implica
+      aceptarlo.
+    </p>
+  </section>
+
+  <section>
+    <h2 class={rubroCls}>Divisibilidad</h2>
+    <p class={parrafoCls}>
+      Si un tribunal declara nula o inaplicable alguna de estas cláusulas, las demás mantienen
+      plena vigencia.
+    </p>
+  </section>
+
+  <section>
+    <h2 class={rubroCls}>Aceptación y capacidad</h2>
+    <p class={parrafoCls}>
+      Usar el sitio implica aceptar estas condiciones.
+    </p>
+  </section>
+  
+  <section>
+    <h2 class={rubroCls}>Ley aplicable</h2>
+    <p class={parrafoCls}>
+      Estas condiciones se rigen por las leyes de la República de Chile, y cualquier controversia
+      se somete a la competencia de sus tribunales ordinarios.
+    </p>
+  </section>
+</Legal>

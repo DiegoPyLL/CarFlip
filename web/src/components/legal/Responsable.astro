@@ -1,0 +1,21 @@
+---
+// Identificación del responsable del sitio y del tratamiento de datos. Idéntica
+// en /legal y /privacidad, por eso vive acá: un cambio de domicilio o de correo
+// es un solo edit y los dos documentos no pueden contradecirse.
+//
+// Se publica comuna y región, no calle y número: la ley exige un domicilio, no
+// que la dirección particular de una persona natural quede indexada. El
+// domicilio completo se entrega a requerimiento, y así lo dice /privacidad.
+import { enlaceCls } from '@lib/legal';
+---
+
+<dl class="mb-element grid grid-cols-[auto_1fr] gap-x-element gap-y-1 text-lg leading-relaxed">
+  <dt class="text-ink/70">Responsable</dt>
+  <dd class="text-ink">Diego Peña y Lillo, persona natural</dd>
+
+  <dt class="text-ink/70">Domicilio</dt>
+  <dd class="text-ink">Huechuraba, Región Metropolitana, Chile</dd>
+
+  <dt class="text-ink/70">Contacto</dt>
+  <dd><a href="mailto:dpenaylilloluhrs@gmail.com" class={enlaceCls}>dpenaylilloluhrs@gmail.com</a></dd>
+</dl>

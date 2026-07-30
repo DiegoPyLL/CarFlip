@@ -10,4 +10,4 @@ services:
       - ../.env
     volumes:
       - ../logs:/app/logs
-    command: ["run"]
+    command: ["deals"]

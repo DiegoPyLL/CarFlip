@@ -1,0 +1,39 @@
+---
+import Base from '@layouts/Base.astro';
+import { parrafoCls } from '@lib/marketing';
+import { ACTUALIZADO, DOCUMENTOS, enlaceCls } from '@lib/legal';
+
+interface Props {
+  titulo: string;
+  descripcion: string;
+}
+
+const { titulo, descripcion } = Astro.props;
+
+// El pie "Ver también" se arma quitando la página actual de la lista canónica.
+const rutaActual = Astro.url.pathname.replace(/\/+$/, '') || '/';
+const otros = DOCUMENTOS.filter((d) => d.href !== rutaActual);
+---
+
+<Base titulo={titulo} descripcion={descripcion}>
+  <div class="max-w-3xl">
+    <div class="mb-section">
+      <p class="text-base uppercase tracking-widest mb-element">Legal</p>
+      <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">{titulo}</h1>
+      <p class="text-base">Última actualización: {ACTUALIZADO}.</p>
+    </div>
+
+    <div class="space-y-block mb-section">
+      <slot />
+    </div>
+
+    <p class={parrafoCls}>
+      Ver también:{' '}
+      {otros.map((d, i) => (
+        <Fragment>
+          <a href={d.href} class={enlaceCls}>{d.texto}</a>{i < otros.length - 1 ? ' y ' : '.'}
+        </Fragment>
+      ))}
+    </p>
+  </div>
+</Base>

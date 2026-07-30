@@ -2,13 +2,13 @@ name: Carflip Deals
 
 on:
   schedule:
-    - cron: "0 10 * * *" # 06:00 UTC (scrapeo) + 4 h = 10:00 UTC = 06:00/07:00 en Chile
+    - cron: "0 10 * * *" # 10:00 UTC = 06:00/07:00 en Chile
   workflow_dispatch:
 
-# Mismo grupo que scrape.yml: si el scrapeo todavía corre a las 10:00, esta
-# corrida espera en cola hasta que termine, así la selección lee una base completa.
+# Una corrida a la vez: dos detectores en paralelo se pisarían en el upsert de
+# `deals` y en la desactivación de los que dejaron de ser candidatos.
 concurrency:
-  group: Carflip Scraper
+  group: Carflip Deals
   cancel-in-progress: false
 
 jobs:

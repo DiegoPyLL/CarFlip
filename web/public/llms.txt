@@ -1,21 +1,28 @@
 # CarFlip
 
-> Comparador de precios de autos usados en Chile. CarFlip recopila automáticamente los avisos publicados en los principales portales del país, los normaliza a un esquema común y detecta oportunidades de compra comparando cada aviso contra el valor de mercado de su marca, modelo y año.
+> Comparador de precios de autos usados en Chile. CarFlip reúne los avisos que publican los particulares y los catálogos de las automotoras con acuerdo vigente, los normaliza a un esquema común y detecta oportunidades de compra comparando cada aviso contra el valor de mercado de su marca, modelo y año.
 
-CarFlip no publica avisos propios ni intermedia ventas: es una capa de comparación sobre avisos de terceros. Cada aviso enlaza al portal original, donde ocurre el contacto con el vendedor.
+CarFlip no vende autos ni intermedia ventas: aloja los avisos y agrega una capa de comparación sobre ellos. El contacto con el vendedor ocurre en la ficha del aviso y el trato se cierra entre las partes, fuera del sitio.
 
-Fuentes agregadas actualmente: Autocosmos (autocosmos.cl), Yapo (yapo.cl), Autosusados (autosusados.cl) y Checkeados (checkeados.cl). Los datos se actualizan a diario; cada aviso conserva su precio anterior y la variación porcentual, lo que permite identificar bajadas de precio.
+Publicar un auto es gratuito y requiere una cuenta. Los avisos de particulares aparecen al instante; los catálogos de automotoras se actualizan a diario. Cada aviso conserva su precio anterior y la variación porcentual, lo que permite identificar bajadas de precio.
 
 Todos los precios están en pesos chilenos (CLP) y el contenido está en español de Chile.
 
 ## Páginas
 
-- [Avisos](https://carflip.cl/): listado completo de autos en venta, con filtros por fuente, marca, año, combustible y rango de precio.
+- [Avisos](https://carflip.cl/avisos): listado completo de autos en venta, con filtros por marca, año, combustible, región y rango de precio.
 - [Deals](https://carflip.cl/deals): autos cuyo precio está bajo el valor de mercado de su marca, modelo y año. Cada deal incluye una evaluación con IA: categoría de oportunidad, puntaje, riesgos detectados en el aviso y comparación contra el precio de mercado.
 - [Mercado](https://carflip.cl/mercado): estadísticas agregadas del mercado chileno de autos usados — precios promedio, marcas y modelos más publicados.
-- [Cómo funciona](https://carflip.cl/como-funciona): explicación del proceso de recopilación, normalización y detección de oportunidades.
+- [Cómo funciona](https://carflip.cl/como-funciona): explicación del proceso de normalización, comparación y detección de oportunidades.
+- [Quiénes somos](https://carflip.cl/quienes-somos): misión, principios y hoja de ruta del proyecto.
 
 ## Secciones dinámicas
 
-- Detalle de aviso (`https://carflip.cl/auto/{fuente}-{id}`): ficha de un auto con precio, kilometraje, año, combustible, ubicación, imágenes y enlace al aviso original en el portal de origen.
+- Detalle de un aviso de particular (`https://carflip.cl/auto/p/{id}`): ficha de un auto con precio, kilometraje, año, combustible, ubicación, imágenes y contacto del vendedor, que se revela solo a usuarios con sesión iniciada.
 - Marca (`https://carflip.cl/marcas/{marca}`): avisos, precio promedio y modelos disponibles de una marca específica en Chile.
+
+## Legal
+
+- [Condiciones de Uso](https://carflip.cl/condiciones-de-uso)
+- [Política de Privacidad](https://carflip.cl/privacidad)
+- [Aviso Legal](https://carflip.cl/legal)

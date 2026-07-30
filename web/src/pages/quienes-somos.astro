@@ -9,16 +9,17 @@ const historia = [
 `A inicios de 2026 surgió la idea de crear CarFlip: una página que reuniera los mejores
   vehículos de particulares y de automotoras pequeñas y medianas en un solo lugar, sin que
   nadie tuviera que pagar para aparecer primero.`,
-  `CarFlip nació de una necesidad real, no de un plan de negocio. Somos un grupo de amigos
-  que vio un mercado repartido por todo Chile, sin un lugar donde comparar precios y donde
+  `CarFlip nació de una necesidad real, no de un plan de negocio. Empezó entre amigos que
+  vieron un mercado repartido por todo Chile, sin un lugar donde comparar precios y donde
   un buen vehículo termina opacado por las promociones de otros.`,
   `Todo empezó como un script privado para responder una sola pregunta: ¿este auto está caro?
   Comparar a mano un modelo entre todos los portales tomaba una tarde entera, y al día
   siguiente los avisos ya eran otros. Automatizar esa comparación resultó más útil de lo
   esperado, así que la convertimos en un sitio público, gratuito y abierto a cualquiera que
   esté comprando o vendiendo.`,
-  `Hoy CarFlip revisa a diario miles de avisos de distintos portales y los ordena bajo un
-  mismo criterio: precio, estado, antigüedad, kilometraje, etc. Ningún aviso sube por
+  `Hoy CarFlip reúne los avisos que publican los particulares y los catálogos de las
+  automotoras con acuerdo, y los ordena bajo un mismo criterio: precio, estado, antigüedad,
+  kilometraje, etc. Ningún aviso sube por
   publicidad. Si un auto aparece arriba es porque, comparado con el resto del mercado, lo
   merece. Esa es la regla que nos dio origen y la que no vamos a romper.`,
 ];
@@ -30,12 +31,12 @@ const principios = [
     texto: 'Damos una vuelta al mercado de autos usados y democratizamos el acceso a la información.'
   },
   {
-    titulo: 'Sin fines de lucro',
-    texto: 'No cobramos comisión, no vendemos tus datos, no vendemos autos y ningún vendedor puede pagar por aparecer más arriba.',
+    titulo: 'Nadie paga por aparecer primero',
+    texto: 'No cobramos comisión por venta, no vendemos tus datos y ningún vendedor puede subir en el listado pagando. El orden lo decide el precio frente al mercado.',
   },
   {
-    titulo: 'Devolver el tráfico a la fuente original',
-    texto: 'Si la publicación viene de una fuente externa, cada ficha enlaza al aviso original.',
+    titulo: 'Publicar tu auto es gratis',
+    texto: 'Cualquier persona puede publicar el suyo sin pagar. El contacto va directo al vendedor: CarFlip no se queda en medio de la venta.',
   },
   {
     titulo: 'Transparencia en el código',
@@ -99,12 +100,12 @@ const proximosPasos = [
 //     que está bajo el cursor (ver <style> al final).
 //
 // Orden narrativo: misión → origen → cómo operamos (principios) → hacia dónde
-// vamos (próximos pasos) → por qué sin fines de lucro → quién está detrás.
+// vamos (próximos pasos) → por qué somos independientes → quién está detrás.
 ---
 
 <Base
   titulo="Quiénes somos"
-  descripcion="CarFlip es un proyecto sin fines de lucro construido por un grupo de desarrolladores chilenos con una misión: democratizar el acceso a la información de precios en la reventa de autos."
+  descripcion="CarFlip es un proyecto independiente construido en Chile con una misión: democratizar el acceso a la información de precios en la reventa de autos."
 >
   <div class="pagina max-w-6xl">
 
@@ -295,11 +296,11 @@ const proximosPasos = [
       <div class="cierre-velo absolute inset-0 -z-10"></div>
 
       <div class="p-block lg:p-section">
-        <h2 class={`${rubroCls} mb-block`}>Por qué sin fines de lucro</h2>
+        <h2 class={`${rubroCls} mb-block`}>Por qué somos independientes</h2>
         <p class={parrafoCls}>
-          No cobramos comisión, no vendemos autos y no tenemos ningún interés comercial en qué auto
-          compras ni a quién. CarFlip se sostiene como un proyecto independiente, mantenido por el
-          mismo grupo de desarrolladores que lo construyó. Creemos que la transparencia de precio en
+          No cobramos comisión por venta, no vendemos autos y no tenemos ningún interés comercial en qué auto
+          compras ni a quién. CarFlip se sostiene como un proyecto independiente, y lo que cueste
+          mantenerlo en pie nunca va a decidir qué aviso ves primero. Creemos que la transparencia de precio en
           un mercado tan grande como el de los autos usados no debería depender de un modelo de negocio.
         </p>
       </div>

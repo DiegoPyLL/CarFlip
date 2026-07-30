@@ -62,7 +62,7 @@ const RESEND_API_KEY = (import.meta.env.RESEND_API_KEY as string) || (process.en
 // dirección personal expuesta, y si la variable falta hay que enterarse.
 const CONTACT_EMAIL = (import.meta.env.CONTACT_EMAIL as string) || (process.env.CONTACT_EMAIL as string);
 // Remitente de pruebas de Resend: válido sin verificar un dominio propio.
-// Cambiar a algo como "CarFlip <contacto@carflip.cl>" cuando carflip.cl esté verificado en Resend.
+// Cambiar a algo como "CarFlip <dpenaylilloluhrs@gmail.com>" cuando carflip.cl esté verificado en Resend.
 const REMITENTE = 'CarFlip <onboarding@resend.dev>';
 
 export const POST: APIRoute = async ({ request, redirect, clientAddress }) => {

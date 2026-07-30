@@ -4,304 +4,201 @@
 
 # CarFlip
 
-Plataforma que agrega avisos de autos en venta desde portales chilenos, normaliza los datos, los almacena en PostgreSQL y detecta oportunidades de compra (deals) comparando cada aviso contra su mercado y evaluándolo con IA. Los particulares también publican sus autos directamente en el sitio, y esos avisos se integran como una fuente más.
+**Buscar auto usado en Chile significa abrir cinco pestañas y comparar a ojo.** CarFlip junta todos esos avisos en un solo lugar, los ordena y avisa cuáles están baratos de verdad.
 
-**Stack actual:** Python 3.12 + httpx/Playwright · PostgreSQL (Supabase) · Cloudflare R2 · Groq (evaluación IA de deals) · Astro 7 + Vercel
+👉 **[carflip.cl](https://carflip.cl)**
 
 ---
 
-## Arquitectura
+## Qué hace
+
+**Reúne los avisos.** Todos los días, de madrugada, CarFlip revisa cuatro portales chilenos (Autosusados, Checkeados, Autocosmos y Yapo) y guarda los autos nuevos que aparecieron. También cualquier persona puede publicar su auto directamente en el sitio: esos avisos conviven con el resto, sin distinción.
+
+**Ordena la información.** Cada aviso queda con los mismos campos —marca, modelo, año, kilometraje, precio, fotos— aunque el portal de origen los mostrara de otra forma. Eso es lo que permite compararlos entre sí.
+
+**Detecta oportunidades.** CarFlip calcula cuánto vale realmente cada auto: toma todos los avisos parecidos (misma marca, modelo y año, con kilometraje similar) y saca el precio típico. Si uno está bastante por debajo, entra a la página **/deals**.
+
+**Pero un precio bajo no siempre es una ganga.** Puede ser un auto chocado, sin papeles o con el motor malo. Por eso, antes de mostrarlo, una IA lee la descripción del aviso y lo clasifica: *oportunidad clara*, *buen precio*, *revisar* o *descartar*, con un puntaje y los riesgos que detectó.
+
+---
+
+## Cómo está hecho
+
+Son dos piezas que casi no se hablan entre sí. Comparten la base de datos y nada más.
 
 ```
-GitHub Actions  (ingesta — cron diario)
-  └─ Scrapers (Autosusados, Checkeados, Autocosmos, Yapo)
-       ├─ Fotos AVIF  →  Cloudflare R2 (CDN)
-       ├─ Metadata validada  →  PostgreSQL
-       └─ Métricas de la corrida  →  `scrape_runs` / `run_fail_logs`
-  └─ Detección de deals (al final de cada ciclo)
-       ├─ SQL: outliers de precio vs mediana del grupo comparable
-       └─ Groq: categorización IA  →  tabla `deals`
-
-Vercel  (web)
-  └─ Astro 7 SSR
-       ├─ Consulta PostgreSQL vía Supabase JS client
-       ├─ Página /deals con evaluación IA
-       ├─ Imágenes desde R2
-       └─ Avisos de particulares (cuentas, publicación y moderación)
-            ├─ Auth de Supabase  →  cliente anon sujeto a RLS
-            ├─ Fotos  →  Supabase Storage
-            └─ `particulares_listings` — quinta fuente de /avisos, /mercado y /deals
+1. El recolector (Python)          2. El sitio web (Astro)
+   Corre una vez al día en           Vive en Vercel, lee la
+   GitHub Actions, sin servidor      base de datos y muestra
+   propio ni costo fijo.             los avisos.
+              ↓                                ↑
+        ┌─────────────────────────────────────────┐
+        │   Base de datos PostgreSQL (Supabase)   │
+        │   + fotos en Cloudflare R2              │
+        └─────────────────────────────────────────┘
 ```
 
-Cada scraper implementa el pipeline completo dentro de `scrape()`:
+| Pieza | Qué usa |
+| --- | --- |
+| Recolector | Python 3.12 · httpx + BeautifulSoup (tres portales) · Playwright (Yapo, que exige navegador real) |
+| Base de datos | PostgreSQL en Supabase |
+| Fotos | Convertidas a AVIF y guardadas en Cloudflare R2 |
+| IA | Groq (Llama 3.3), solo para clasificar oportunidades |
+| Web | Astro 7 + Tailwind 4, desplegada en Vercel |
 
-1. Paginación HTTP (httpx + BS4) o navegación headless (Playwright)
-2. Descarga de fotos → `data/raw/fotos/`
-3. Conversión a AVIF → `data/processed/fotos/`
-4. Upload a R2 con retry (12 × 10 min)
-5. Append a `data/raw/avisos.jsonl`
-6. Deduplicación → validación → `data/processed/avisos.jsonl`
+La web casi no lleva JavaScript: se arma en el servidor y llega al navegador como HTML listo. Es la razón de que cargue rápido y de que salga bien posicionada en Google.
 
-`ScraperBase.ejecutar()` recibe el resultado, hace upsert en PostgreSQL (por lotes, para no exceder el límite de parámetros de asyncpg) y guarda las métricas de la corrida. Las imágenes AVIF se sirven a la web desde R2 (`CDN_BASE_URL`).
 
-Las fotos se suben con clave estable **`fotos/<fuente>/<id_externo>.avif`**. Como `id_externo` es un hash del URL canónico del aviso, cada aviso ocupa un objeto y solo uno: re-scrapear un aviso ya conocido no vuelve a subir la imagen. Los JSONL se siguen escribiendo en local para depurar una corrida, pero no se suben — PostgreSQL es la fuente de verdad.
-
-Al final de cada ciclo corre la **detección de deals** (`src/carflip/deals/`): una query SQL selecciona candidatos cuyo precio es outlier contra la mediana de su grupo comparable (marca/modelo/año ±1, con guard de kilometraje) y Groq los categoriza leyendo la descripción — categoría (`oportunidad_clara` / `buen_precio` / `revisar` / `descartar`), puntaje 0-100, riesgos y resumen. Un filtro anti-re-tokenización evita volver a llamar al LLM si el precio no cambió y la evaluación es reciente. Un fallo en esta etapa (Groq caído, cuota agotada) no aborta el ciclo de scraping.
-
----
-
-## Fuentes implementadas
-
-| Fuente      | Técnica               | Tabla PostgreSQL         |
-| ----------- | ---------------------- | ------------------------ |
-| Autosusados | httpx + BeautifulSoup4 | `autosusados_listings` |
-| Checkeados  | httpx + BeautifulSoup4 | `checkeados_listings`  |
-| Autocosmos  | httpx + BeautifulSoup4 | `autocosmos_listings`  |
-| Yapo        | Playwright + stealth   | `yapo_listings`        |
-
-> Existe la tabla `mercadolibre_listings` reservada para un scraper futuro vía la API oficial, pero aún no está implementado ni registrado.
->
-> Económicos (`economicos.cl`) fue descartado: el sitio bloquea el scraping (anti-bot). Su scraper, modelo y tabla fueron eliminados (migración Alembic 0007).
-
----
 
 ## Avisos de particulares
 
-La quinta fuente no la alimenta ningún scraper: son avisos que publican personas con una cuenta en el sitio. `particulares_listings` reproduce `ListingMixin` tal cual, así que la capa de lectura de la web y `candidatos.sql` la tratan como una fuente más, sin código especial.
+Cualquiera puede crear una cuenta y publicar su auto. Se publica al instante, sin cola de revisión, pero con límites para evitar abusos: correo confirmado, perfil completo, 15 publicaciones por día como máximo, hasta 10 fotos de 2 MB cada una, y patente obligatoria (validada contra los formatos legales chilenos).
 
-| Tabla                    | Contenido                                                       |
-| ------------------------ | --------------------------------------------------------------- |
-| `perfiles`               | Nombre, teléfono, región y comuna. 1:1 con `auth.users`         |
-| `particulares_listings`  | El aviso, con `estado` (`publicado`/`pausado`/`vendido`)        |
-| `particulares_fotos`     | Hasta 10 fotos por aviso, en el bucket `avisos-particulares`     |
-| `contacto_revelaciones`  | Auditoría de qué cuenta pidió el teléfono de qué aviso           |
-| `reportes_aviso`         | Denuncias, con `estado` (`pendiente`/`resuelto`/`descartado`)   |
+Si un aviso es problemático, cualquier visitante puede reportarlo y el administrador lo baja desde el panel interno. Un aviso que pasa 60 días sin tocarse se pausa solo, para que el listado no se llene de autos vendidos hace meses.
 
-**La autorización vive en la base, no en el código.** Estas cinco tablas las escribe la web con la *anon key* del usuario, sujeta a las políticas RLS de las migraciones `0010` (usuario) y `0011` (administrador). El cliente de `SUPABASE_SERVICE_KEY` sigue existiendo solo para las lecturas públicas —que llevan el filtro de estado explícito— y para eliminar cuentas, que exige la API de administración.
+**Sobre el teléfono del vendedor:** nunca aparece en el HTML público. Un visitante sin cuenta ve `+56 9 •••• ••••`; hay que iniciar sesión para verlo, y cada vez que alguien lo mira queda registrado. Así el número no termina en manos de un bot recolector de datos.
 
-El **rol de administrador** no es una columna: viaja en `app_metadata` del JWT, que solo escribe el servidor de Supabase. Se otorga en **Supabase → Authentication → Users → *usuario* → `app_metadata` = `{"rol":"admin"}`**. Sin él, `/dashboard` redirige a la home y las políticas `*_admin` no devuelven nada.
-
-**Anti-abuso** (la publicación es inmediata, sin cola de revisión): correo confirmado y perfil completo para publicar, 5 avisos activos, 3 creaciones por 24 h, 10 fotos de 2 MB por aviso y 25 revelaciones de contacto al día —que ahora se consumen al abrir el aviso, no al pedir el teléfono—. Los topes están en `web/src/lib/publicaciones/limites.ts`. La defensa reactiva es la bandeja de reportes de `/dashboard`, desde donde se despublica un aviso.
-
-**El teléfono nunca sale en el HTML público:** tener sesión es la única condición para verlo —aparece al abrir el aviso, sin un clic intermedio— y cada revelación queda registrada. Al visitante anónimo no le llega el número ni oculto: en su lugar ve la máscara `+56 9 •••• ••••` y la invitación a entrar, que el detalle repite tres veces.
+**Los permisos viven en la base de datos, no en el código.** Aunque alguien salte la interfaz y hable directo con la base, no puede editar avisos ajenos, poner precios negativos ni saltarse los límites: las reglas están escritas ahí abajo, donde no hay forma de rodearlas.
 
 ---
 
-## Ejecución programada (GitHub Actions)
+## Cuándo corre cada cosa
 
-La ingesta corre en GitHub Actions en dos corridas separadas que comparten el mismo `concurrency` group (una a la vez, sin solape):
+Dos tareas programadas en GitHub Actions, que nunca se pisan entre sí:
 
-- **Scrapeo** — [`scrape.yml`](.github/workflows/scrape.yml) se dispara todos los días a las 06:00 UTC (02:00–03:00 en Chile), construye la imagen Docker del repositorio, aplica las migraciones pendientes (`alembic upgrade head`), ejecuta los 4 scrapers en secuencia (`carflip run --scraper all`) y persiste el snapshot de mercado (`carflip snapshot`).
-- **Deals** — [`deals.yml`](.github/workflows/deals.yml) se dispara a las 10:00 UTC (4 h después del scrapeo) y corre la detección de deals (`carflip deals`). Al compartir el `concurrency` group con el scrapeo, si este aún no termina la corrida de deals espera en cola hasta que la base quede completa.
+- **06:00 UTC** (~02:00 en Chile) — recolecta los avisos de los portales.
+- **10:00 UTC** — cuatro horas después, calcula las oportunidades sobre una base ya completa.
 
-### Secrets requeridos
+Se pueden lanzar a mano desde **Actions → Scrape** (o **Deals**) **→ Run workflow**. Los resultados de cada corrida —páginas revisadas, avisos válidos, errores— quedan guardados y se ven en el panel interno del sitio.
 
-Configurar en **Settings → Secrets and variables → Actions**:
-
-| Secret                                          | Descripción                                                          |
-| ----------------------------------------------- | --------------------------------------------------------------------- |
-| `DATABASE_URL`                                | `postgresql+asyncpg://...` hacia Supabase                           |
-| `R2_ACCOUNT_ID`                               | Account ID de Cloudflare                                              |
-| `R2_BUCKET`                                   | Bucket R2 donde se guardan las fotos                                  |
-| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | API Token de R2 con permisos de escritura                             |
-| `CDN_BASE_URL`                                | Dominio público desde el que se sirven las fotos                     |
-| `GROQ_API_KEY`                                | Key de[console.groq.com](https://console.groq.com/keys) para los deals |
-
-El resto de la configuración (delays, umbral de deals, modelo Groq, etc.) usa los defaults de `src/carflip/config.py`.
-
-### Corrida manual
-
-**Actions → Scrape** (o **Deals**) **→ Run workflow**. Los logs de cada corrida quedan en esa misma pestaña; las métricas por scraper (páginas, avisos válidos/rechazados, FAIL LOGs) se escriben automáticamente en las tablas `scrape_runs` y `run_fail_logs`, que alimentan el dashboard de la web.
-
-### Notas operativas
-
-- El cron de GitHub no es exacto: puede demorar algunos minutos en horas de alta carga.
-- GitHub deshabilita los workflows programados si el repo pasa 60 días sin commits — se reactivan con un clic en la pestaña Actions.
-- Los runners usan rangos de IP compartidos (Azure), más propensos a bloqueos anti-bot que una IP dedicada. Si la tabla `run_fail_logs` empieza a mostrar bloqueos sistemáticos (especialmente en Yapo o Autosusados), la alternativa es correr el mismo workflow en un runner self-hosted.
+> Dos detalles del cron de GitHub: puede atrasarse unos minutos en horas peak, y se desactiva solo si el repositorio pasa 60 días sin commits (se reactiva con un clic).
 
 ---
 
-## Ejecución local
+## Levantarlo en tu máquina
 
-**Requisitos:** Python 3.12 + [uv](https://docs.astral.sh/uv/), PostgreSQL externo con base `carflip` (p. ej. Supabase) y un bucket de Cloudflare R2.
+### Solo la web
+
+Es lo más simple y lo más habitual: no necesitas Python ni base de datos local, todo conecta a Supabase por internet.
+
+**Necesitas:** Node.js 22.12 o superior.
 
 ```bash
-git clone https://github.com/VolutusDevGroup/CarFlip
-cd CarFlip
-uv sync
-uv run playwright install chromium
+git clone https://github.com/DiegoPyLL/CarFlip
+cd CarFlip/web
+npm install
+npm run dev
 ```
 
-Crear `.env` en la raíz:
+Abre http://localhost:4321
+
+El archivo `.env` va en la **raíz** del repositorio, no dentro de `web/`:
 
 ```env
-# Base de datos
+SUPABASE_URL=https://<tu-proyecto>.supabase.co
+SUPABASE_SERVICE_KEY=<service_role key — Supabase → Settings → API>
+CDN_BASE_URL=https://<tu-dominio-de-fotos>
+RESEND_API_KEY=<para el formulario de contacto>
+CONTACT_EMAIL=<correo donde llegan esos mensajes>
+
+# Cuentas y avisos de particulares.
+# Sin estas dos el sitio funciona igual, solo se desactiva el login.
+PUBLIC_SUPABASE_URL=https://<tu-proyecto>.supabase.co
+PUBLIC_SUPABASE_ANON_KEY=<anon key — Supabase → Settings → API>
+```
+
+> El prefijo `PUBLIC_` es a propósito: esa clave está diseñada para llegar al navegador y sus permisos los limita la base de datos. **`SUPABASE_SERVICE_KEY` no debe llevarlo nunca** — esa sí es secreta.
+
+### El recolector
+
+**Necesitas:** Python 3.12, [uv](https://docs.astral.sh/uv/), una base PostgreSQL y un bucket de Cloudflare R2.
+
+```bash
+uv sync
+uv run playwright install chromium
+uv run alembic upgrade head   # crear/actualizar las tablas
+uv run carflip run            # una corrida completa
+```
+
+Al `.env` hay que agregarle:
+
+```env
 DATABASE_URL=postgresql+asyncpg://usuario:password@host:5432/carflip
 USE_SSL=true
 
-# MercadoLibre API (opcional, para futuro scraper)
-MERCADOLIBRE_APP_ID=tu_app_id
-MERCADOLIBRE_CLIENT_SECRET=tu_client_secret
-
-# Cloudflare R2 — almacenamiento de las fotos AVIF
 R2_ACCOUNT_ID=tu_account_id
 R2_BUCKET=carflip-fotos
 R2_ACCESS_KEY_ID=tu_access_key
 R2_SECRET_ACCESS_KEY=tu_secret_key
-
-# Dominio público desde el que R2 sirve las imágenes
 CDN_BASE_URL=https://img.carflip.cl
 
-# Rate limiting
-MIN_DELAY_SECONDS=2.0
-MAX_DELAY_SECONDS=6.0
-
-# Scheduler
-SCRAPE_INTERVAL_HOURS=24
-
-# Deals
-DEAL_THRESHOLD_PCT=15.0
-
-# Groq — categorización IA de deals (key en https://console.groq.com/keys)
-GROQ_API_KEY=tu_groq_api_key
+GROQ_API_KEY=tu_key            # https://console.groq.com/keys
 GROQ_MODEL=llama-3.3-70b-versatile
 
-# Logs
+MIN_DELAY_SECONDS=2.0          # pausa entre peticiones, para no saturar los portales
+MAX_DELAY_SECONDS=6.0
+DEAL_THRESHOLD_PCT=15.0        # cuánto bajo el mercado para considerarse oportunidad
 LOG_LEVEL=INFO
-LOG_FILE=logs/carflip.log
 ```
+
+El resto de la configuración usa valores por defecto razonables (`src/carflip/config.py`).
+
+También corre en Docker, igual que en CI:
 
 ```bash
-uv run alembic upgrade head   # aplicar migraciones
-uv run carflip run            # ciclo único
+docker compose -f docker/docker-compose.yml up --build
 ```
 
-También se puede correr con Docker, igual que en CI: `docker compose -f docker/docker-compose.yml up --build`.
+### Comandos
+
+| Comando | Qué hace |
+| --- | --- |
+| `carflip run` | Recolecta de todos los portales, una vez |
+| `carflip run --scraper autocosmos` | Solo uno |
+| `carflip start` | Deja el recolector corriendo en bucle |
+| `carflip market <marca> <modelo> <año>` | Precios de mercado de un modelo |
+| `carflip deals` | Busca y clasifica oportunidades |
+
+Los portales se recorren de a uno, nunca en paralelo, con pausas entre medio.
 
 ---
 
-## Comandos disponibles
+## Desplegar
 
-| Comando                                    | Descripción                            |
-| ------------------------------------------ | --------------------------------------- |
-| `carflip run`                            | Ejecuta todos los scrapers una vez      |
-| `carflip run --scraper autocosmos`       | Ejecuta un scraper específico          |
-| `carflip start`                          | Inicia el scheduler automático         |
-| `carflip market <marca> <modelo> <año>` | Estadísticas de mercado                |
-| `carflip deals`                          | Detecta y categoriza deals (SQL + Groq) |
+La web va a Vercel con las mismas variables del `.env` (como variables de servidor, en Production y Preview). El recolector necesita sus claves en **Settings → Secrets and variables → Actions** del repositorio: `DATABASE_URL`, las cuatro de R2, `CDN_BASE_URL` y `GROQ_API_KEY`.
 
-Los scrapers corren de forma **secuencial** (uno a la vez), con una pausa configurable entre cada uno. Scrapers registrados actualmente: `autosusados`, `checkeados`, `autocosmos`, `yapo`. La detección de deals ya no corre dentro del ciclo de scrapeo: es un paso aparte (`carflip deals`), programado 4 h después del scrapeo en GitHub Actions.
+Un paso que se olvida fácil: en **Supabase → Authentication → URL Configuration** hay que agregar `https://carflip.cl/api/auth/callback` y `http://localhost:4321/api/auth/callback` a *Redirect URLs*. Sin eso, el login por Google y por enlace mágico vuelve con error.
 
 ---
 
-## Web (Vercel + Astro)
-
-La web está en `web/` y se despliega en Vercel bajo el dominio **[carflip.cl](https://carflip.cl)**. Es un proyecto **Astro 7 SSR** (Tailwind 4, sin más JavaScript de cliente que Vercel Analytics) que consulta PostgreSQL vía el cliente JS de Supabase y sirve las imágenes desde Cloudflare R2.
-
-El dominio canónico se declara en `web/astro.config.mjs` (`site`). De ahí lo toman el sitemap, el `<link rel="canonical">` y los metadatos Open Graph del layout `Base.astro`, de modo que los deploys de preview (`*.vercel.app`) no compitan en SEO con el dominio productivo.
-
-Páginas principales: listado con filtros por fuente (`/`), detalle de aviso (`/auto/...`), detalle por marca (`/marcas/...`), estadísticas de mercado (`/mercado`), `/como-funciona`, y `/deals` — oportunidades de compra con la evaluación IA (badge de categoría, puntaje, riesgos, precio vs mercado y resumen), filtrables por fuente y categoría.
-
-### Levantar en local
-
-**Requisitos:** Node.js 22.12+ (requisito de Astro 7)
+## Para desarrollar
 
 ```bash
-# 1. Entrar a la carpeta web
-cd web
-
-# 2. Instalar dependencias
-npm install
-
-# 3. Usa el .env de la raíz del repo (mismo archivo que el backend Python)
+uv sync                                           # dependencias del recolector
+alembic upgrade head                              # aplicar cambios de base de datos
+alembic revision --autogenerate -m "descripcion"  # crear uno nuevo
+pytest                                            # tests
 ```
 
-El `.env` vive en la raíz del proyecto, no en `web/` — Astro lo lee de ahí vía
-`envDir` en `astro.config.mjs`. Debe incluir, además de las variables del
-backend:
+### Agregar un portal nuevo
 
-```env
-SUPABASE_URL=https://<tu-proyecto>.supabase.co
-SUPABASE_SERVICE_KEY=<service_role key desde Supabase → Settings → API>
-CDN_BASE_URL=https://<tu-dominio-r2>
-RESEND_API_KEY=<API key desde https://resend.com/api-keys>
-CONTACT_EMAIL=<correo donde llegan los mensajes de /contacto>
-
-# Autenticación y avisos de particulares. Sin ellas el sitio público sigue en
-# pie y solo se desactiva el inicio de sesión.
-PUBLIC_SUPABASE_URL=https://<tu-proyecto>.supabase.co
-PUBLIC_SUPABASE_ANON_KEY=<anon/publishable key desde Supabase → Settings → API>
-```
-
-> El prefijo `PUBLIC_` es deliberado: la *anon key* está pensada para viajar al cliente y toda su autoridad la acotan las políticas RLS. `SUPABASE_SERVICE_KEY` **nunca** debe llevarlo.
-
-```bash
-# 4. Levantar servidor de desarrollo
-npm run dev
-```
-
-Abrir: http://localhost:4321
-
-> No se necesita PostgreSQL local, Python ni ninguna otra dependencia. Todo conecta directo a Supabase vía HTTPS.
-
-### Variables de entorno en Vercel
-
-Configurar como variables de servidor, en Production y Preview:
-
-```env
-SUPABASE_URL=https://<tu-proyecto>.supabase.co
-SUPABASE_SERVICE_KEY=<service_role key>
-CDN_BASE_URL=https://<tu-dominio-r2>
-RESEND_API_KEY=<API key de Resend>
-CONTACT_EMAIL=<correo donde llegan los mensajes de /contacto>
-PUBLIC_SUPABASE_URL=https://<tu-proyecto>.supabase.co
-PUBLIC_SUPABASE_ANON_KEY=<anon/publishable key>
-```
-
-Además, en **Supabase → Authentication → URL Configuration**, `https://carflip.cl/api/auth/callback` y `http://localhost:4321/api/auth/callback` deben estar en *Redirect URLs*, o el login por enlace mágico y por Google vuelve con error.
-
----
-
-## Desarrollo
-
-```bash
-uv sync                                            # instalar/actualizar dependencias
-alembic upgrade head                               # aplicar migraciones
-alembic revision --autogenerate -m "descripcion"  # nueva migración
-pytest                                             # correr tests
-pytest -x -v tests/BD/test_price_tracker.py       # test específico
-```
-
-### Agregar un nuevo scraper
-
-1. Crear `src/carflip/scrapers/NombreSitio/NombreSitioCloud.py` heredando de `ScraperBase`
-2. Crear `NuevoSitioListing(ListingMixin, Base)` en `src/carflip/database/models.py`
-3. Generar y aplicar migración Alembic
+1. Crear el scraper en `src/carflip/scrapers/NombreSitio/`, heredando de `ScraperBase`
+2. Agregar su tabla en `src/carflip/database/models.py` (usando `ListingMixin`)
+3. Generar y aplicar la migración de base de datos
 4. Declarar `model_class` y `fuente` en el scraper
-5. Registrar en `src/carflip/scheduler/runner.py`
-6. Actualizar los 5 puntos de la web (`tipos.ts`, `filtros.ts`, `FiltrosBarra.astro`, `lib/db/`, `index.astro`)
+5. Registrarlo en `src/carflip/scheduler/runner.py`
+6. Sumarlo en la web: `tipos.ts`, `filtros.ts`, `FiltrosBarra.astro`, `lib/db/` e `index.astro`
+
+### Si algo falla
+
+**Yapo da timeouts.** Sube las pausas en el `.env`: `MIN_DELAY_SECONDS=3.0` y `MAX_DELAY_SECONDS=8.0`.
+
+**La tarea programada dejó de correr.** GitHub la desactiva tras 60 días sin commits. Se reactiva en **Actions → Scrape → Enable workflow**.
 
 ---
 
-## Resolución de problemas
+## Más documentación
 
-**Timeouts o errores en Yapo (Playwright)**
-
-Aumentar delays en `.env`:
-
-```env
-MIN_DELAY_SECONDS=3.0
-MAX_DELAY_SECONDS=8.0
-```
-
-**El workflow programado dejó de correr**
-
-GitHub deshabilita el cron tras 60 días sin commits en el repo. Reactivarlo en **Actions → Scrape → Enable workflow**.
-
----
-
-## Documentación
-
-- [CLAUDE.md](CLAUDE.md) — principios de desarrollo del proyecto (simpleza, rendimiento, SEO)
-- [web/README.md](web/README.md) — stack y estructura de la web
-- [CHANGELOG.md](CHANGELOG.md) — historial de versiones
+- [CLAUDE.md](.claude\CLAUDE.md) — los principios con que se toman las decisiones técnicas aquí
+- [web/README.md](web/README.md) — detalle de la web
+- [CHANGELOG.md](CHANGELOG.md) — qué cambió en cada versión

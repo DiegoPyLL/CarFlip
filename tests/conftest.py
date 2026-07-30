@@ -54,9 +54,8 @@ async def sesion_bd():
         await conn.run_sync(Base.metadata.create_all)
         await conn.execute(
             text(
-                "TRUNCATE autocosmos_listings, yapo_listings, autosusados_listings, "
-                "checkeados_listings, particulares_listings, perfiles, "
-                "market_snapshots, scrape_runs, run_fail_logs RESTART IDENTITY CASCADE"
+                "TRUNCATE particulares_listings, perfiles, market_snapshots, deals "
+                "RESTART IDENTITY CASCADE"
             )
         )
 
@@ -64,12 +63,3 @@ async def sesion_bd():
         yield sesion
 
     await engine.dispose()
-
-
-@pytest.fixture(autouse=True)
-def delays_cero(monkeypatch):
-    """Anula las esperas aleatorias entre requests para que los tests no se ralenticen."""
-    from carflip.config import settings
-
-    monkeypatch.setattr(settings, "min_delay_seconds", 0.0)
-    monkeypatch.setattr(settings, "max_delay_seconds", 0.0)

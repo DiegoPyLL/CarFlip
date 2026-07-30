@@ -8,12 +8,12 @@ import { scriptJsonLd } from '@lib/jsonLd';
 
 const pasos = [
   {
-    titulo: 'Recopilación automática',
-    texto: 'Todos los días un proceso recorre los portales activos y extrae todos los avisos de autos en venta. Descarga imágenes, precios, kilometraje, año y todos los datos disponibles del aviso.',
+    titulo: 'Los autos llegan de dos lados',
+    texto: 'Cualquier persona puede publicar su auto directamente en CarFlip, gratis y con cuenta propia. En paralelo, las automotoras con acuerdo vigente entregan su catálogo, que se actualiza a diario.',
   },
   {
     titulo: 'Normalización',
-    texto: 'Cada portal usa formatos distintos. CarFlip convierte todo a un esquema común: misma estructura de campos, misma moneda, misma escala de kilometraje. Los duplicados se eliminan antes de guardar.',
+    texto: 'Cada origen entrega los datos en un formato distinto. CarFlip convierte todo a un esquema común: misma estructura de campos, misma moneda, misma escala de kilometraje. Los duplicados se eliminan antes de guardar.',
   },
   {
     titulo: 'Detección de oportunidades',
@@ -22,7 +22,7 @@ const pasos = [
   },
   {
     titulo: 'Todo en un solo lugar',
-    texto: 'Filtra por marca, año, kilometraje o precio sobre todos los portales simultáneamente. Cuando encuentras algo, el botón "Ver aviso original" te lleva directo a la fuente para contactar al vendedor.',
+    texto: 'Filtra por marca, año, kilometraje o precio sobre todo el catálogo a la vez. Cuando encuentras algo, contactas al vendedor desde la ficha del aviso.',
   },
 ];
 
@@ -30,11 +30,11 @@ const pasos = [
 const faq = [
   {
     pregunta: '¿CarFlip vende autos?',
-    respuesta: 'No. CarFlip solo agrega y compara avisos de terceros. Para contactar al vendedor usa el botón "Ver aviso original" en cada ficha — te lleva directo al portal donde está publicado.',
+    respuesta: 'No. CarFlip publica y compara avisos de terceros, pero no vende autos ni participa en la transacción. El contacto con el vendedor ocurre desde la ficha del aviso, y el trato se cierra entre las partes.',
   },
   {
     pregunta: '¿Usar CarFlip tiene algún costo?',
-    respuesta: 'No. El sitio es gratuito y sin fines de lucro: no cobramos comisión, no vendemos autos y ningún vendedor puede pagar por aparecer más arriba. El orden lo decide la comparación de precios, nunca la publicidad.',
+    respuesta: 'No. Buscar, comparar y publicar tu auto es gratis. No cobramos comisión por venta, no vendemos autos y ningún vendedor puede pagar por aparecer más arriba: el orden lo decide la comparación de precios, nunca la publicidad.',
   },
   {
     pregunta: '¿Necesito una cuenta para buscar en la plataforma?',
@@ -42,11 +42,11 @@ const faq = [
   },
   {
     pregunta: '¿Cada cuánto se actualizan los datos?',
-    respuesta: 'Todos los días. Los avisos nuevos aparecen en el siguiente ciclo de recopilación. Los que se eliminan del portal original se marcan como no disponibles.',
+    respuesta: 'Los avisos de particulares aparecen al instante, apenas se publican. Los catálogos de automotoras se actualizan a diario, y los autos que salen de un catálogo se marcan como no disponibles.',
   },
   {
     pregunta: '¿Los precios son exactos?',
-    respuesta: 'Son los que aparecen publicados en cada portal. Algunos vendedores no actualizan el precio en línea o negocian directamente. Siempre verifica con el vendedor antes de asumir el precio final.',
+    respuesta: 'Son los que publicó el vendedor. Algunos no actualizan el precio en línea o negocian directamente. Siempre verifica con el vendedor antes de asumir el precio final.',
   },
   {
     pregunta: '¿Qué significa el badge de bajada de precio?',
@@ -58,7 +58,7 @@ const faq = [
   },
   {
     pregunta: '¿Cómo se calcula el precio de mercado de un auto?',
-    respuesta: 'Con la mediana de los avisos comparables: misma marca, mismo modelo y año similar, sumando todos los portales indexados. Se usa la mediana y no el promedio porque unos pocos precios extremos no la mueven. Si un modelo tiene muy pocos avisos comparables, no se le calcula precio de mercado: preferimos no mostrar una referencia poco confiable.',
+    respuesta: 'Con la mediana de los avisos comparables: misma marca, mismo modelo y año similar, sumando todo el catálogo del sitio. Se usa la mediana y no el promedio porque unos pocos precios extremos no la mueven. Si un modelo tiene muy pocos avisos comparables, no se le calcula precio de mercado: preferimos no mostrar una referencia poco confiable.',
   },
   {
     pregunta: '¿Qué IA evalúa los deals?',
@@ -115,7 +115,7 @@ const nonce = Astro.locals.nonce;
 
 <Base
   titulo="Cómo funciona CarFlip"
-  descripcion="CarFlip recopila avisos de autos en venta desde los principales portales de Chile, normaliza la información y detecta oportunidades de precio en tiempo real."
+  descripcion="CarFlip reúne los avisos de particulares y los catálogos de automotoras de Chile, normaliza la información y detecta oportunidades de precio en tiempo real."
 >
   <script is:inline nonce={nonce} slot="head" type="application/ld+json" set:html={scriptJsonLd(jsonLd)} />
 
@@ -127,9 +127,10 @@ const nonce = Astro.locals.nonce;
     <div class="max-w-3xl">
 
       <!-- Hero -->
-      <HeroMarketing rubro="Cómo funciona" titulo="Un comparador de precios, no un portal de autos.">
-        CarFlip no publica avisos propios. Recopila automáticamente lo que otros portales publican,
-        lo normaliza y lo deja en un solo lugar para que puedas comparar precios sin abrir cinco pestañas.
+      <HeroMarketing rubro="Cómo funciona" titulo="Un comparador de precios, no una automotora.">
+        CarFlip no vende autos. Reúne lo que publican los particulares y las automotoras con
+        acuerdo, lo normaliza y lo deja en un solo lugar para que puedas comparar precios sin
+        abrir cinco pestañas.
       </HeroMarketing>
 
       <!-- Proceso: numeración tipográfica, sin insignias ni conectores -->

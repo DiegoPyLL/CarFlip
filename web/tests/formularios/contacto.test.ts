@@ -41,7 +41,7 @@ function ubicacionDe(respuesta: Response): string {
 describe('POST /api/contacto', () => {
   beforeEach(() => {
     process.env.RESEND_API_KEY = 'test-key';
-    process.env.CONTACT_EMAIL = 'contacto@carflip.cl';
+    process.env.CONTACT_EMAIL = 'dpenaylilloluhrs@gmail.com';
     process.env.CONTACT_RATE_SALT = 'salt-de-prueba';
     rpc.mockReset();
     rpc.mockResolvedValue({ data: false, error: null });
@@ -174,7 +174,7 @@ describe('POST /api/contacto', () => {
     });
 
     const cuerpo = JSON.parse(opciones?.body as string);
-    expect(cuerpo.to).toBe('contacto@carflip.cl');
+    expect(cuerpo.to).toBe('dpenaylilloluhrs@gmail.com');
     expect(cuerpo.reply_to).toBe('ana@example.com');
     expect(cuerpo.subject).toContain('Ana');
     expect(cuerpo.html).toContain('Hola,<br>quiero info.');

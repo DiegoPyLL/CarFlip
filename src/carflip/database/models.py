@@ -25,7 +25,7 @@ class Base(DeclarativeBase):
 
 
 class ListingMixin:
-    """Columnas compartidas por todas las tablas de avisos por fuente."""
+    """Columnas compartidas por todas las tablas de avisos."""
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     id_externo: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
@@ -39,8 +39,9 @@ class ListingMixin:
     km: Mapped[int | None] = mapped_column(Integer, nullable=True)
     ubicacion: Mapped[str | None] = mapped_column(String(200), nullable=True)
     combustible: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    # Normalizadas al escribir (normalizar_transmision / normalizar_traccion en
-    # scrapers/base.py): valores canónicos o NULL, nunca texto libre.
+    # Normalizadas al escribir (TRANSMISIONES / TRACCIONES en
+    # web/src/lib/publicaciones/opciones.ts): valores canónicos o NULL, nunca
+    # texto libre.
     transmision: Mapped[str | None] = mapped_column(String(50), nullable=True)
     traccion: Mapped[str | None] = mapped_column(String(20), nullable=True)
     descripcion: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -53,6 +54,14 @@ class ListingMixin:
     ultima_vez_visto: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+# --- Avisos scrapeados (congelados) ----------------------------------------
+# Las cinco tablas que llenaba el pipeline de scraping, retirado en la 0022.
+# Nadie las escribe ni las lee: se conservan con sus datos como registro de esa
+# etapa, y sus modelos siguen declarados acá porque Alembic compara este
+# metadata contra la base — borrarlos haría que el próximo --autogenerate
+# propusiera un DROP de tablas que sí queremos mantener.
+
+
 class AutocosmosListing(ListingMixin, Base):
     __tablename__ = "autocosmos_listings"
 
@@ -63,6 +72,17 @@ class MercadoLibreListing(ListingMixin, Base):
 
 class YapoListing(ListingMixin, Base):
     __tablename__ = "yapo_listings"
+
+
+class AutosusadosListing(ListingMixin, Base):
+    __tablename__ = "autosusados_listings"
+
+
+class CheckeadosListing(ListingMixin, Base):
+    __tablename__ = "checkeados_listings"
+
+
+# --- Deals y mercado --------------------------------------------------------
 
 
 class Deal(Base):
@@ -114,74 +134,18 @@ class Deal(Base):
     actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class AutosusadosListing(ListingMixin, Base):
-    __tablename__ = "autosusados_listings"
-
-
-class CheckeadosListing(ListingMixin, Base):
-    __tablename__ = "checkeados_listings"
-
-
-class ScrapedRun(Base):
-    """Bitácora de corridas de scraping, persistida por ScraperBase.ejecutar().
-
-    Una fila por corrida por fuente. La clave natural es (source, started_at):
-    el upsert de metricas.py es idempotente sobre esa clave.
-    """
-
-    __tablename__ = "scrape_runs"
-    __table_args__ = (
-        UniqueConstraint("source", "started_at", name="uq_scrape_runs_source_started_at"),
-    )
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    source: Mapped[str] = mapped_column(String(50), nullable=False)
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    items_found: Mapped[int] = mapped_column(default=0)
-    errors: Mapped[int] = mapped_column(default=0)
-
-    # Métricas del run_report.json (pipeline Cloud)
-    duracion_segundos: Mapped[float | None] = mapped_column(Float, nullable=True)
-    paginas_procesadas: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    avisos_encontrados: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    avisos_unicos: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    avisos_validos: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    avisos_rechazados: Mapped[int | None] = mapped_column(Integer, nullable=True)
-
-
-class RunFailLog(Base):
-    """FAIL LOG individual de una corrida: un aviso rechazado o una operación fallida.
-
-    Espeja las entradas fail_logs del run_report.json. Se reemplazan completas
-    al recargar una corrida (delete por run_id + insert).
-    """
-
-    __tablename__ = "run_fail_logs"
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    run_id: Mapped[int] = mapped_column(
-        BigInteger,
-        ForeignKey("scrape_runs.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    fuente: Mapped[str] = mapped_column(String(50), nullable=False)
-    etapa: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    motivo: Mapped[str] = mapped_column(Text, nullable=False)
-    id_externo: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    timestamp: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-
-
 class MarketSnapshot(Base):
     """Agregado diario del mercado: una fila por día para las tendencias de /mercado.
 
-    La escribe `snapshot_market()` tras cada scrape, con upsert idempotente sobre
-    `fecha`: re-correr el workflow el mismo día actualiza la fila, no la duplica.
+    La escribe `snapshot_market()`, con upsert idempotente sobre `fecha`:
+    re-correr el workflow el mismo día actualiza la fila, no la duplica.
     Recupera la serie temporal que se perdió al eliminar price_history en 0002,
     pero a nivel de mercado, no por aviso. `payload` guarda el detalle del día
     (histograma, top marcas, mix de combustible) como JSONB para poder graficar
     histórico más rico a futuro sin cambiar el esquema.
+
+    Las filas anteriores a la 0022 agregan también los avisos scrapeados: son el
+    registro de lo que hubo, así que no se recalculan.
     """
 
     __tablename__ = "market_snapshots"

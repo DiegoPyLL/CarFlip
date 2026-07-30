@@ -2,8 +2,7 @@
 --
 -- Parámetros vinculados (SQLAlchemy text()):
 --   :umbral_pct       — % bajo la mediana del grupo para ser outlier (ej. 15)
---   :min_comparables  — mínimo de avisos por grupo marca/modelo/año (ej. 5)
---   :min_comparables_particular — mínimo más alto para los avisos de particulares (ej. 12)
+--   :min_comparables  — mínimo de avisos por grupo marca/modelo/año (ej. 12)
 --   :max_candidatos   — LIMIT de la corrida (ej. 200)
 --
 -- Decisiones de diseño:
@@ -15,34 +14,17 @@
 --     el precio bajo lo explica el kilometraje y no es outlier.
 --   * delta_pct como vía alternativa de entrada: un aviso que bajó fuerte de
 --     precio es candidato aunque no sea outlier absoluto (umbral_pct / 3).
---   * disponible IS NOT FALSE: los scrapers que no llenan el campo (NULL)
---     no quedan excluidos.
+--   * disponible IS NOT FALSE: el campo puede venir NULL, y eso no excluye.
+--   * min_comparables es exigente (12) porque ningún aviso pasó por el filtro de
+--     un portal: cualquiera puede publicar un precio irreal y saldría como
+--     oportunidad si el grupo comparable fuera chico.
 
 WITH avisos AS (
-    SELECT 'autocosmos' AS fuente, id_externo, url, titulo, marca, modelo, anio, km,
-           precio, moneda, ubicacion, transmision, traccion, descripcion, url_imagen, delta_pct, disponible
-    FROM autocosmos_listings
-    UNION ALL
-    SELECT 'yapo', id_externo, url, titulo, marca, modelo, anio, km,
-           precio, moneda, ubicacion, transmision, traccion, descripcion, url_imagen, delta_pct, disponible
-    FROM yapo_listings
-    UNION ALL
-    SELECT 'mercadolibre', id_externo, url, titulo, marca, modelo, anio, km,
-           precio, moneda, ubicacion, transmision, traccion, descripcion, url_imagen, delta_pct, disponible
-    FROM mercadolibre_listings
-    UNION ALL
-    SELECT 'autosusados', id_externo, url, titulo, marca, modelo, anio, km,
-           precio, moneda, ubicacion, transmision, traccion, descripcion, url_imagen, delta_pct, disponible
-    FROM autosusados_listings
-    UNION ALL
-    SELECT 'checkeados', id_externo, url, titulo, marca, modelo, anio, km,
-           precio, moneda, ubicacion, transmision, traccion, descripcion, url_imagen, delta_pct, disponible
-    FROM checkeados_listings
-    UNION ALL
-    -- Avisos de particulares: solo los publicados y que el dueño no sacó de
-    -- Deals (visible_en_deals). Los pausados, vendidos y opt-out no son ofertas
-    -- vigentes de Deals y tampoco deben pesar en la mediana del grupo.
-    SELECT 'particular', id_externo, url, titulo, marca, modelo, anio, km,
+    -- Solo los publicados y que el dueño no sacó de Deals (visible_en_deals).
+    -- Los pausados, vendidos y opt-out no son ofertas vigentes de Deals y
+    -- tampoco deben pesar en la mediana del grupo. La columna `fuente` se
+    -- mantiene porque `deals` la guarda en su clave natural.
+    SELECT 'particular' AS fuente, id_externo, url, titulo, marca, modelo, anio, km,
            precio, moneda, ubicacion, transmision, traccion, descripcion, url_imagen, delta_pct, disponible
     FROM particulares_listings
     WHERE estado = 'publicado' AND visible_en_deals
@@ -63,7 +45,6 @@ grupos AS (
            g.modelo_n,
            g.anio,
            percentile_cont(0.5)  WITHIN GROUP (ORDER BY c.precio) AS precio_mediana,
-           percentile_cont(0.25) WITHIN GROUP (ORDER BY c.precio) AS precio_p25,
            percentile_cont(0.5)  WITHIN GROUP (ORDER BY c.km)     AS km_mediana,
            count(*) AS comparables
     FROM (SELECT DISTINCT marca_n, modelo_n, anio FROM validos) g
@@ -99,17 +80,11 @@ JOIN grupos g
  AND v.modelo_n = g.modelo_n
  AND v.anio = g.anio
 WHERE
-    -- Un aviso de particular no pasó por el filtro de ningún portal: cualquiera
-    -- puede publicar un precio irreal y saldría como oportunidad. Se le exige un
-    -- grupo comparable más grande antes de dejarlo entrar.
-    (v.fuente <> 'particular' OR g.comparables >= :min_comparables_particular)
-    AND (
-        -- Outlier estadístico: bien por debajo de la mediana del grupo...
-        ( v.precio <= g.precio_mediana * (1 - :umbral_pct / 100.0)
-          -- ...sin que el kilometraje lo explique.
-          AND (v.km IS NULL OR g.km_mediana IS NULL OR v.km <= g.km_mediana * 1.5) )
-        -- O bajada de precio significativa registrada por el uploader.
-        OR v.delta_pct <= -(:umbral_pct / 3.0)
-    )
+    -- Outlier estadístico: bien por debajo de la mediana del grupo...
+    ( v.precio <= g.precio_mediana * (1 - :umbral_pct / 100.0)
+      -- ...sin que el kilometraje lo explique.
+      AND (v.km IS NULL OR g.km_mediana IS NULL OR v.km <= g.km_mediana * 1.5) )
+    -- O bajada de precio significativa registrada al editar el aviso.
+    OR v.delta_pct <= -(:umbral_pct / 3.0)
 ORDER BY pct_vs_mercado ASC NULLS LAST
 LIMIT :max_candidatos;

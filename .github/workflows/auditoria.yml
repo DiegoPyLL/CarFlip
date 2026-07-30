@@ -17,7 +17,7 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      # Misma cache que el workflow del scraper: la corrida semanal además
+      # Misma cache que el workflow de deals: la corrida semanal además
       # la mantiene viva (GitHub la borra tras 7 días sin uso).
       - name: Construir imagen
         uses: docker/build-push-action@v6

@@ -2,8 +2,6 @@
 CLI de CarFlip.
 
 Comandos:
-  carflip start    — inicia el scheduler automático (cada 12h)
-  carflip run      — ejecuta todos los scrapers una vez
   carflip market   — muestra precio promedio/min/max para marca/modelo/año
   carflip deals    — detecta y categoriza oportunidades de compra (SQL + Groq)
   carflip snapshot — persiste el agregado de mercado del día (tendencias de /mercado)
@@ -27,40 +25,8 @@ def _setup_logging() -> None:
 
 @click.group()
 def cli() -> None:
-    """CarFlip — scraper automático de portales de venta de autos."""
+    """CarFlip — análisis de precios del mercado chileno de autos usados."""
     _setup_logging()
-
-
-@cli.command()
-def start() -> None:
-    """Inicia el scheduler automático."""
-    from carflip.scheduler.runner import start_scheduler
-    start_scheduler(settings.scrape_interval_hours)
-
-
-@cli.command("run")
-@click.option("--scraper", default=None, help="Nombre del scraper a ejecutar (ej. autocosmosCloud)")
-def run_once(scraper: str | None) -> None:
-    """Ejecuta todos los scrapers o uno específico."""
-    from carflip.scheduler.runner import _SCRAPERS, run_scrapers
-    
-    if scraper is None:
-        click.echo("Scrapers disponibles:")
-        click.echo("0. Todos")
-        scraper_names = list(_SCRAPERS.keys())
-        for i, name in enumerate(scraper_names):
-            click.echo(f"{i + 1}. {name}")
-            
-        opcion = click.prompt("\nSeleccione qué ejecutar", type=int, default=0)
-        if opcion == 0:
-            scraper = "all"
-        elif 1 <= opcion <= len(scraper_names):
-            scraper = scraper_names[opcion - 1]
-        else:
-            click.echo("Opción inválida.")
-            return
-
-    asyncio.run(run_scrapers(scraper))
 
 
 @cli.command()
