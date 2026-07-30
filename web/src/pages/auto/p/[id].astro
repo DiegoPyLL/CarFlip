@@ -118,7 +118,7 @@ const jsonLd = {
 const botonCls =
   'inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-3 hover:bg-ink hover:text-canvas transition-colors duration-150 cursor-pointer';
 const campoCls =
-  'w-full bg-transparent border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
+  'w-full bg-field border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
 ---
 
 <Base
@@ -233,7 +233,7 @@ const campoCls =
              bloque, sin ella lleva a entrar. Un anónimo no llega a pensar que
              el botón le va a dar el número. -->
         <a href={usuario ? '#contacto' : urlEntrar(ruta)} rel={usuario ? undefined : 'nofollow'} class={botonCls}>
-          <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+          <span aria-hidden="true">→</span>
           {usuario ? 'Ver teléfono y WhatsApp' : 'Inicia sesión para ver el teléfono'}
         </a>
 
@@ -285,9 +285,8 @@ const campoCls =
               rel="noopener noreferrer"
               class={botonCls}
             >
-              <span class="w-1.5 h-1.5 bg-scarlet-signal" aria-hidden="true"></span>
-              Escribir por WhatsApp
               <span aria-hidden="true">→</span>
+              Escribir por WhatsApp
             </a>
             <a href={contacto.tel} class={botonCls}>Llamar</a>
           </div>
@@ -322,7 +321,7 @@ const campoCls =
           {revelacion?.estado === 'pendiente' && (
             <form method="POST" action={`/api/publicacion/${aviso.id}/contacto`} class="mt-block">
               <button type="submit" class={botonCls}>
-                <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+                <span aria-hidden="true">→</span>
                 Ver teléfono y WhatsApp
               </button>
               <p class="text-base leading-relaxed mt-element">

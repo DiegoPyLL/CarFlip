@@ -1,8 +1,8 @@
 # CarFlip — Referencia visual
 
-> Galería acromática compuesta por bloques: fondo plano, tipografía en peso whisper, cero radio, y el color reservado a la función. La jerarquía la construyen la composición y la tipografía; el color no decora.
+> Galería acromática compuesta por bloques: cuatro planos de gris, tipografía en peso whisper, cero radio, y el color reservado a la función. La jerarquía la construyen la composición, la tipografía y la profundidad tonal; el color no decora.
 
-**Temas:** claro (principal) y oscuro (`:root[data-theme="dark"]`).
+**Temas:** claro (principal) y oscuro (`:root[data-theme="dark"]`). El oscuro no es el claro invertido: es la misma escalera tonal en gris, y el único acento cromático del chrome —el azul de marca— desaparece en él (sección 4).
 
 Este documento es la especificación del sistema. Se lee de arriba a abajo: la marca justifica la composición, la composición justifica los tokens, y los tokens justifican cada componente. Ante una duda que el documento no resuelva, manda el **test de decisión** de la sección 1.
 
@@ -135,19 +135,48 @@ Es la única excepción. Cualquier animación above-the-fold con `delay`, despla
 
 Los nombres son **semánticos**, no cromáticos: el mismo token cambia de valor según el tema. Nunca escribir un hex en un componente; siempre la utilidad Tailwind del token.
 
+### La escalera tonal
+
+El sistema tiene **cuatro planos**, y su orden es la jerarquía. No es una paleta de grises a elección: cada plano tiene un rol único y ninguno se usa "porque quedaba bien".
+
+```
+                     claro       oscuro
+surface  tarjetas    #f4f4f4     #2e2e2e   ← un paso sobre la página
+canvas   página      #ffffff     #212121
+accent   bloque      #1873b3     #161616   ← un paso bajo la página
+field    campo       #ffffff     #000000   ← el plano más profundo
+```
+
+En tema claro la escalera es corta y el plano de acento se sale de ella para tomar el azul de marca. En tema oscuro es una escalera de gris completa: **página gris, tarjetas un paso más claras, footer y bloques de marca casi negros, y el campo de texto en negro puro.** El azul desaparece del chrome porque un plano azul del tamaño de un footer o de una barra de filtros desentona contra un canvas gris — el acento cromático es un recurso de tema claro, no del sistema.
+
+El campo de texto ocupa el extremo profundo a propósito: es el único plano donde se escribe, así que lleva el contraste más alto de todo el sitio (21:1 con su tinta en ambos temas).
+
 | Token             | Utilidad Tailwind | Claro     | Oscuro    | Rol                                                             |
 | ----------------- | ----------------- | --------- | --------- | --------------------------------------------------------------- |
-| `--c-canvas`      | `canvas`          | `#ffffff` | `#1c1c1e` | Fondo de página, header, footer, relleno de badges sobre imagen |
-| `--c-surface`     | `surface`         | `#f4f4f4` | `#2c2c2e` | Placeholder de imagen, hover de filas, elevación mínima         |
+| `--c-canvas`      | `canvas`          | `#ffffff` | `#212121` | Fondo de página y header, relleno de badges sobre imagen, hover de filas dentro de una tarjeta |
+| `--c-surface`     | `surface`         | `#f4f4f4` | `#2e2e2e` | **Fondo de toda tarjeta, panel o caja con borde**; placeholder de imagen |
+| `--c-field`       | `field`           | `#ffffff` | `#000000` | Fondo de todo input, select y textarea del sitio                |
+| `--c-accent`      | `accent`          | `#1873b3` | `#161616` | Plano de acento: fondo de bloques de marca (footer, hero de `/quienes-somos`), del módulo de búsqueda/consulta de cada página con uno (`BuscadorHome` en portada; `FiltrosBarra`/`FiltrosSidebar` de `/avisos`; filtro de `/deals`; `ConsultaMercado` de `/mercado`) y de los formularios de `/entrar` y `/registro`. Azul de marca en claro, casi negro en oscuro |
 | `--c-ink`         | `ink`             | `#000000` | `#ffffff` | **Todo el texto**, títulos, precios, bordes en hover y estado activo |
 | `--c-muted`       | `muted`           | `#5f5f5f` | `#a0a0a0` | **No es color de texto.** Rellenos de gráfico, `placeholder`, categoría "Otros" |
-| `--c-line`        | `line`            | `#dcdcdc` | `#525252` | Bordes de card, divisores, paginación deshabilitada             |
-| `--c-line-strong` | `line-strong`     | `#767676` | `#a0a0a0` | Bordes de inputs, selects y badges (necesitan 3:1 de contraste)  |
+| `--c-line`        | `line`            | `#dcdcdc` | `#5a5a5a` | Bordes de tarjeta, divisores, paginación deshabilitada          |
+| `--c-line-strong` | `line-strong`     | `#767676` | `#8a8a8a` | Bordes de inputs, selects y badges (necesitan 3:1 de contraste) |
 | `--c-scarlet`     | `scarlet-signal`  | `#e4002b` | `#e4002b` | **Solo borde y objeto gráfico**: foco, campo inválido, botón destructivo |
-| `--c-blue`        | `blue-signal`     | `#1873b3` | `#1477bd` | Acento editorial: fondo de bloques de marca (footer, hero de `/quienes-somos`) y del módulo de búsqueda/consulta de cada página con uno (`BuscadorHome` en portada; `FiltrosBarra`/`FiltrosSidebar` de `/avisos`; filtro de `/deals`; `ConsultaMercado` de `/mercado`) y de los formularios de `/entrar` y `/registro`; además, lavado rotativo del mosaico de principios de `/quienes-somos`. **Es el único token cuyo nombre es cromático y cambia de tono con el tema**: azul de marca en claro, un paso más profundo en oscuro |
-| `--c-green`       | `green-signal`    | `#71db4c` | `#71db4c` | Acento editorial secundario, mismo régimen que `blue-signal`; reservado, sin implementación asignada |
-| `--c-ink-on-tint` | `ink-on-tint`     | `#ffffff` | `#ffffff` | Blanco fijo para texto sobre `blue-signal`/`green-signal`; no invierte con el tema |
-| `--c-github`      | `github-signal`   | `#181717` | `#181717` | Negro de marca de GitHub, solo para el ícono del footer; no es un acento del sistema |
+| `--c-ink-on-accent` | `ink-on-accent` | `#ffffff` | `#ffffff` | Blanco fijo para el texto sobre `accent`; no invierte con el tema |
+
+Los grises del tema oscuro son **neutros** (`#212121`, `#2e2e2e`), no los grises azulados de iOS que había antes (`#1c1c1e`, `#2c2c2e`): con un plano de acento acromático, cualquier tinte en la página se leía como un residuo del azul que se retiró.
+
+### Colores de marca ajena
+
+No son tokens del sistema y no participan de la escalera: son el color de un objeto que existe fuera de CarFlip, y por eso van fijos en ambos temas. La regla es que **una marca ajena nunca define un plano del producto**; entra solo dentro de la ilustración que la representa.
+
+| Token               | Valor     | Dónde                                                                    |
+| ------------------- | --------- | ------------------------------------------------------------------------ |
+| `--c-volutus-blue`  | `#1873b3` | Logo animado, barra de progreso y botón de la confirmación de `/contacto` |
+| `--c-volutus-green` | `#71db4c` | Logo animado de la confirmación de `/contacto`                            |
+| —                   | `#fff` / `#000` | Placa patente chilena (`PatenteChilena`), que además es la única pieza con radio |
+
+`--c-volutus-blue` coincide en valor con el `accent` de tema claro, y esa coincidencia es deliberada: el acento salió del azul de marca. Son tokens distintos porque su régimen es distinto — el acento sigue al tema, el color de marca no.
 
 ### Sin texto gris
 
@@ -155,42 +184,60 @@ Los nombres son **semánticos**, no cromáticos: el mismo token cambia de valor 
 
 | Nivel | Utilidad | Dónde | Claro | Oscuro |
 | ----- | -------- | ----- | ----- | ------ |
-| Primario | `text-ink` | Títulos, precios, copy, valores, enlaces | 21:1 | 17.01:1 |
-| Secundario | `text-ink/70` | Metadatos, rótulos, notas al pie de cifra, ejes de gráfico | 8.52:1 sobre `canvas` · 8.16:1 sobre `surface` | 8.86:1 sobre `canvas` · 7.64:1 sobre `surface` |
+| Primario | `text-ink` | Títulos, precios, copy, valores, enlaces | 21:1 sobre `canvas` · 19.09:1 sobre `surface` · 21:1 sobre `field` | 16.10:1 sobre `canvas` · 13.58:1 sobre `surface` · 21:1 sobre `field` |
+| Secundario | `text-ink/70` | Metadatos, rótulos, notas al pie de cifra, ejes de gráfico | 8.45:1 sobre `canvas` · 8.19:1 sobre `surface` | 8.48:1 sobre `canvas` · 7.46:1 sobre `surface` |
+
+El peor caso del sistema es `ink/70` sobre `surface` en tema oscuro: 7.46:1, apenas sobre el piso de 7:1. **Es la restricción que fija el valor de `surface`**: aclarar la tarjeta un paso más para separarla mejor de la página tumbaría ese texto bajo AAA. La separación entre planos se resuelve con el hairline, no subiendo el gris.
 
 Reglas de la opacidad:
 
 - `/70` es el único escalón. No hay `/60` ni `/50`: cada paso adicional es un gris nuevo por la puerta de atrás.
-- **Solo sobre `canvas` o `surface`.** La opacidad compone contra el fondo real, así que sobre un badge `bg-canvas/75` (que a su vez deja pasar la foto) o sobre `blue-signal` los números de arriba no aplican: ahí el texto va en `ink` sólido o en `ink-on-tint`.
+- **Solo sobre `canvas` o `surface`.** La opacidad compone contra el fondo real, así que sobre un badge `bg-canvas/75` (que a su vez deja pasar la foto) o sobre `accent` los números de arriba no aplican: ahí el texto va en `ink` sólido o en `ink-on-accent`.
 - Si la distinción que se busca es de jerarquía y no de segundo plano, se resuelve antes con tamaño, versalitas o espacio que con opacidad.
 
 ### Piso de contraste
 
 **El sistema exige 7:1 (AAA) para todo texto, en ambos temas.** Lighthouse mide contra 4.5:1; el margen existe para que el 100 de Accessibility no dependa de un redondeo ni de un cambio menor de token. Los objetos gráficos (bordes de control, glifos, marcas de gráfico) mantienen el piso de 3:1 que exige AA.
 
-De ahí sale la restricción del escarlata: como texto rinde **4.85:1 en claro y 3.51:1 en oscuro** —el segundo ya está bajo AA—, así que **el escarlata no se usa como color de texto**. Vive en el borde: foco, campo inválido, botón destructivo. Un error de formulario se comunica con el borde escarlata más el texto del error en `ink`; un campo obligatorio, con la palabra `*Requerido`, no con su color.
+La única excepción documentada es el blanco sobre el `accent` de tema claro (5.07:1): pasa AA de texto normal pero no AAA, y es el precio del azul de marca. En tema oscuro esa misma combinación rinde 18.10:1.
 
-### Acentos de fondo (`blue-signal` / `green-signal`)
+De ahí sale también la restricción del escarlata: como texto rinde **4.85:1 en claro y 3.32:1 en oscuro** —el segundo ya está bajo AA—, así que **el escarlata no se usa como color de texto**. Vive en el borde: foco, campo inválido, botón destructivo. Un error de formulario se comunica con el borde escarlata más el texto del error en `ink`; un campo obligatorio, con la palabra `*Requerido`, no con su color.
 
-`blue-signal` y `green-signal` solo se usan como **fondo de bloque** (footer, hero de `/quienes-somos`), nunca como color de texto sobre `canvas`, y el texto que va encima siempre es blanco (`ink-on-tint`), no `ink`: `ink` es negro en tema claro y perdería contraste sobre estos fondos.
+### Separación entre planos
 
-| Fondo                              | Contraste con blanco | Contraste con su `canvas` |
-| ----------------------------------- | --------------------- | ------------------------- |
-| `blue-signal` claro (`#1873b3`)     | 5.07:1 — pasa AA      | 5.07:1 sobre `#ffffff`    |
-| `blue-signal` oscuro (`#1477bd`)    | 4.77:1 — pasa AA      | 3.57:1 sobre `#1c1c1e` — sobre el 3:1 de objeto gráfico |
-| `green-signal` (`#71db4c`, sin texto encima) | 1.76:1 — fallaría AA  | —                |
+Con una escalera tonal en el tramo oscuro, la diferencia de luminancia entre dos planos vecinos es corta por construcción, y eso es correcto: **lo que separa un plano de otro es el hairline de 1px, no el salto de gris.** El gris solo tiene que insinuar el orden.
 
-`blue-signal` se profundizó a propósito desde el azul pedido originalmente (`#43a8ee`): ese tono solo daba 2.6:1 con blanco, bajo el 4.5:1 que exige AA. `#1873b3` conserva la misma familia de azul pero con luminancia suficiente para que el texto blanco cumpla. Si `green-signal` llega a implementarse con texto encima, necesita el mismo ajuste antes de usarse — el `#71db4c` documentado es el tono pedido, no uno ya verificado para texto.
+| Par de planos                     | Claro  | Oscuro |
+| --------------------------------- | ------ | ------ |
+| `surface` sobre `canvas` (tarjeta)| 1.10:1 | 1.19:1 |
+| `accent` sobre `canvas` (footer)  | 5.07:1 | 1.12:1 |
+| `field` dentro de `accent`        | 5.07:1 | 1.16:1 |
+| `field` dentro de `surface`       | 1.10:1 | 1.55:1 |
 
-**Por qué el acento se profundiza en oscuro.** Era el último bloque grande que quedaba congelado al alternar de tema: footer y hero de `/quienes-somos` se veían casi idénticos en claro y en oscuro, y el reveal circular del toggle pasaba por encima sin cambiar nada. `#1477bd` es un paso más profundo del mismo azul de marca —no un matiz distinto— elegido tras probar variantes más oscuras (`#0d4166`, `#08273d`): esas ganaban contraste de texto pero perdían casi toda separación visual contra el `canvas` oscuro (hasta 1.11:1), y el bloque dejaba de leerse como bloque. `#1477bd` mantiene los dos pisos a la vez: 4.77:1 de texto blanco y 3.57:1 de separación contra la página, así que el acento sigue siendo tan llamativo en oscuro como en claro.
+Ninguno de estos pares necesita llegar a 3:1: ese piso rige para objetos gráficos que **codifican información** (el borde de un control, la marca de un gráfico), no para dos fondos contiguos cuyo contenido ya se lee sobre ambos. El borde sí cumple: `line-strong` rinde 4.66:1 sobre `canvas`, 3.93:1 sobre `surface` y 5.24:1 sobre `accent` en tema oscuro, así que **todo campo de texto queda delimitado por su borde incluso cuando su fondo casi coincide con el del bloque que lo contiene.**
+
+### El plano de acento
+
+`accent` solo se usa como **fondo de bloque**, nunca como color de texto sobre `canvas`, y el texto que va encima siempre es blanco (`ink-on-accent`), no `ink`: `ink` es negro en tema claro y perdería contraste sobre el azul.
+
+| Fondo                        | Texto blanco encima | Separación con su `canvas` |
+| ---------------------------- | ------------------- | -------------------------- |
+| `accent` claro (`#1873b3`)   | 5.07:1 — pasa AA    | 5.07:1 sobre `#ffffff`     |
+| `accent` oscuro (`#161616`)  | 18.10:1 — pasa AAA  | 1.12:1 sobre `#212121`     |
+
+El azul de tema claro se profundizó a propósito desde el pedido originalmente (`#43a8ee`): ese tono solo daba 2.6:1 con blanco, bajo el 4.5:1 que exige AA. `#1873b3` conserva la misma familia de azul pero con luminancia suficiente para que el texto blanco cumpla.
+
+**Por qué en oscuro el acento pierde el color.** El azul se intentó primero como un paso más profundo del mismo tono (`#1477bd`), para que el bloque no quedara congelado al alternar de tema. El problema no era el contraste —cumplía— sino que un plano azul saturado del tamaño de un footer, de una barra de filtros o de un formulario completo es lo único cromático en una página gris: desentona, y las tarjetas de al lado parecen de otro sistema. La solución no fue buscar un cuarto azul, sino aceptar que **el acento es un recurso de tema claro**: en oscuro, el bloque se identifica por profundidad (`accent`, un paso bajo la página) en vez de por color, y sigue cambiando al alternar de tema, que es lo que el reveal circular del toggle necesita mostrar.
+
+Lo que se gana además: el texto sobre el bloque sube de 4.77:1 a 18.10:1, y los campos que van dentro pueden usar el mismo par `field`/`ink` que el resto del sitio en vez de un blanco fijo inventado para sobrevivir al azul.
 
 ### Cambio de tema
 
 El tema se aplica con `data-theme="dark"` en `<html>` y se persiste en `localStorage` bajo la clave `tema` (`'claro' | 'oscuro'`). Un script inline y bloqueante en `<head>` lo aplica antes del primer pintado para evitar el flash. La variante `dark:` de Tailwind está redefinida con `@custom-variant` para seguir el atributo, no el media query del sistema: manda la preferencia guardada. El cross-fade al alternar es la quinta capa de movimiento (sección 3).
 
-`<meta name="theme-color">` va **sin** `media`: lo escriben los mismos dos scripts que aplican el tema. Con el media query seguía al SO y no al sitio, así que el caso más común —SO en oscuro, sitio en su tema claro por defecto— dejaba la barra del navegador negra sobre una página blanca.
+`<meta name="theme-color">` va **sin** `media`: lo escriben los mismos dos scripts que aplican el tema, con el valor de `canvas` (`#ffffff` / `#212121`) — es el único hex que se repite fuera de `global.css`, porque un `<meta>` no lee variables CSS. Con el media query seguía al SO y no al sitio, así que el caso más común —SO en oscuro, sitio en su tema claro por defecto— dejaba la barra del navegador negra sobre una página blanca.
 
-**Regla:** nada del chrome se queda quieto al alternar. La única excepción son las fotografías, que son las mismas en los dos temas; todo lo que las acompaña —velos, mezclas y acentos— sí cambia. Cuando un color no puede invertirse (marcas ajenas como el logo de Google en `/entrar`), va en su valor de marca y no cuenta como token del sistema.
+**Regla:** nada del chrome se queda quieto al alternar. La única excepción son las fotografías, que son las mismas en los dos temas; todo lo que las acompaña —velos, mezclas y planos— sí cambia. Cuando un color no puede invertirse (marcas ajenas como el logo de Google en `/entrar` o los colores de Volutus en `/contacto`), va en su valor de marca y no cuenta como token del sistema.
 
 ---
 
@@ -337,7 +384,7 @@ Botón de 40×40 (target táctil) con dos SVG inline —luna y sol— que se alt
 
 ### CardAviso
 
-`<article>` con `border border-line`, hover a `border-ink` en 200ms. Sin radio, sin sombra, sin transform. La imagen es `aspect-[4/3] object-cover` sobre `bg-surface`; su borde ES el borde de la card. Badges absolutos arriba a la izquierda sobre `bg-canvas/75`, con el texto en `ink` sólido —nunca `/70`, porque el fondo del badge deja pasar la foto—: fuente, variación de precio y, si aplica, "No disponible" tachado. Cuerpo con `p-element`: título en `text-base line-clamp-2`, precio en `text-2xl text-ink tabular-nums`, y metadatos (`año · km · ubicación`) unidos con ` · ` en `text-ink/70`, en una sola línea con `truncate`.
+`<article>` con `bg-surface border border-line`, hover a `border-ink` en 200ms. Sin radio, sin sombra, sin transform: la card se despega de la página por su plano —un paso sobre `canvas`— y por su hairline, no por elevación (sección 10). La imagen es `aspect-[4/3] object-cover` sobre el mismo `bg-surface`; su borde ES el borde de la card. Badges absolutos arriba a la izquierda sobre `bg-canvas/75`, con el texto en `ink` sólido —nunca `/70`, porque el fondo del badge deja pasar la foto—: fuente, variación de precio y, si aplica, "No disponible" tachado. Cuerpo con `p-element`: título en `text-base line-clamp-2`, precio en `text-2xl text-ink tabular-nums`, y metadatos (`año · km · ubicación`) unidos con ` · ` en `text-ink/70`, en una sola línea con `truncate`.
 
 ### CardDeal
 
@@ -351,7 +398,7 @@ Misma anatomía, imagen `aspect-[16/10]`. La diferencia es el badge de categorí
 | `descartar`         | `bg-canvas text-ink border-line`        |
 | `sin_evaluar`       | `bg-canvas text-ink border-line`        |
 
-La etiqueta de texto siempre acompaña, así que no se pierde información sin el color. Debajo del precio conviven el puntaje IA (`n/100`), el % vs mercado, la bajada propia del aviso, hasta 3 chips de riesgo con `+n` de overflow, y el resumen de la IA en `line-clamp-2`.
+El badge va sobre la foto, así que su relleno es `bg-canvas` opaco y no el `surface` de la card: encima de una imagen el plano de la card no existe. La etiqueta de texto siempre acompaña, así que no se pierde información sin el color. Debajo del precio conviven el puntaje IA (`n/100`), el % vs mercado, la bajada propia del aviso, hasta 3 chips de riesgo con `+n` de overflow, y el resumen de la IA en `line-clamp-2`.
 
 ### Badge "Particular"
 
@@ -363,7 +410,7 @@ Carrusel horizontal de `scroll-snap` (`snap-x snap-mandatory`) con las fotos a `
 
 ### PatenteChilena
 
-Réplica de la placa patente chilena vigente, bajo la galería del detalle de un particular (`/auto/p/[id]`), solo si el aviso tiene patente. Es una **ilustración de un objeto físico, no chrome del producto**, y por eso carga con dos excepciones deliberadas al sistema: colores fijos `#fff`/`#000` en ambos temas (misma lógica que `--c-github`) y esquinas redondeadas — la única pieza del sitio exenta de la regla de radio 0.
+Réplica de la placa patente chilena vigente, bajo la galería del detalle de un particular (`/auto/p/[id]`), solo si el aviso tiene patente. Es una **ilustración de un objeto físico, no chrome del producto**, y por eso carga con dos excepciones deliberadas al sistema: colores fijos `#fff`/`#000` en ambos temas (misma lógica que los colores de marca de Volutus, sección 4) y esquinas redondeadas — la única pieza del sitio exenta de la regla de radio 0.
 
 La fidelidad sale de cuatro detalles de la placa real: tipografía **FE-Schrift** (la anti-falsificación que Chile adoptó en 2014), subseteada a A–Z 0–9 en un woff2 de 3,8 KB (`public/fonts/fe-schrift.woff2`, `font-display: swap`, solo se descarga en páginas que pintan una placa); proporción **360:130** con «CHILE» al pie en autos y formato compacto con «CHILE» arriba en motos; grupos en pares con puntos separadores; y el **sello de seguridad** (roseta SVG inline) en el límite letras→dígitos. Cero JavaScript.
 
@@ -393,23 +440,23 @@ Los tres enlaces van `rel="nofollow"`: `/entrar` y `/registro` son `noindex` y n
 
 ### Formularios
 
-Inputs y selects: `bg-canvas border border-line-strong px-3 py-2`, foco con `focus:outline-hidden focus:border-scarlet-signal`. La validación es nativa (`:user-invalid`), sin JS: el campo inválido pinta su **borde** en `scarlet-signal` y muestra el mensaje de error debajo en `text-ink`. El marcador de campo obligatorio es la palabra `*Requerido` en `text-sm text-ink`, no un color. El botón destructivo (eliminar cuenta, despublicar) lleva borde `scarlet-signal` con texto `ink`, e invierte a `bg-scarlet-signal text-ink-on-tint` en hover.
+Inputs y selects: `bg-field border border-line-strong px-3 py-2`, foco con `focus:outline-hidden focus:border-scarlet-signal`. **Todo campo de texto del sitio lleva `bg-field`**, no el fondo del bloque que lo contiene: es el plano más profundo de la escalera y es lo que le da el contraste más alto de la página (21:1 con su tinta en ambos temas). Un campo con `bg-transparent` o `bg-canvas` es un bug, no una variante. La validación es nativa (`:user-invalid`), sin JS: el campo inválido pinta su **borde** en `scarlet-signal` y muestra el mensaje de error debajo en `text-ink`. El marcador de campo obligatorio es la palabra `*Requerido` en `text-sm text-ink`, no un color. El botón destructivo (eliminar cuenta, despublicar) lleva borde `scarlet-signal` con texto `ink`, e invierte a `bg-scarlet-signal text-ink-on-accent` en hover.
 
-**Bloque sobre `blue-signal`.** El módulo de búsqueda o consulta de una página, y los formularios de `/entrar` y `/registro`, llevan fondo `bg-blue-signal` (ver sección 12) en vez de `bg-canvas`. Sus labels, legend, selects, inputs, chips, mensajes de error y el botón de envío con caja se recolorean vía la clase compartida `.bloque-acento` (`global.css`) en lugar de repetir el override en cada componente — ver sección 4, *Acentos de fondo*. `.bloque-acento button.border-ink` (no `button[type='submit']`) es el gancho del botón con caja: distingue el CTA principal de un botón-enlace secundario que comparta el mismo `<form>` (caso `/entrar`, que tiene dos submits).
+**Bloque sobre `accent`.** El módulo de búsqueda o consulta de una página, y los formularios de `/entrar` y `/registro`, llevan fondo `bg-accent` (ver sección 12) en vez de `bg-canvas`. Sus labels, legend, chips, mensajes de error y el botón de envío con caja se recolorean vía la clase compartida `.bloque-acento` (`global.css`) en lugar de repetir el override en cada componente — ver sección 4, *El plano de acento*. Los inputs y selects **no** son un caso especial: el override los deja en el mismo par `field`/`ink` que usa el resto del sitio, así que una sola regla sirve en los dos temas (campo blanco con tinta negra sobre el azul, campo negro con tinta blanca sobre el acento oscuro). `.bloque-acento button.border-ink` (no `button[type='submit']`) es el gancho del botón con caja: distingue el CTA principal de un botón-enlace secundario que comparta el mismo `<form>` (caso `/entrar`, que tiene dos submits).
 
-**CampoContrasena.** Envuelve un input `type="password"` con un botón para mostrarlo en claro (ícono de ojo que se tacha, `aria-pressed` + `aria-label` rotulado por JS, mismo idioma que el toggle de tema). Vive siempre sobre `blue-signal`, así que sus colores van fijos en `ink-on-tint` en vez de depender de `.bloque-acento`. La prop `sinPegar` (usada en "Confirmar contraseña" de `/registro`) bloquea pegar y soltar para forzar a retipear la clave; el servidor (`registro.ts`) igual revalida que ambos campos coincidan, porque el bloqueo de pegado es UX y no la única barrera.
+**CampoContrasena.** Envuelve un input `type="password"` con un botón para mostrarlo en claro (ícono de ojo que se tacha, `aria-pressed` + `aria-label` rotulado por JS, mismo idioma que el toggle de tema). Vive siempre sobre `accent`, pero el botón del ojo va **dentro del campo**, no sobre el bloque: su color es `ink` —la tinta del texto que se escribe al lado— y no el `ink-on-accent` del resto del bloque, que sobre el campo blanco de tema claro quedaba invisible. La regla general: lo que se dibuja encima de un plano toma la tinta de **ese** plano, no la del bloque que lo contiene. La prop `sinPegar` (usada en "Confirmar contraseña" de `/registro`) bloquea pegar y soltar para forzar a retipear la clave; el servidor (`registro.ts`) igual revalida que ambos campos coincidan, porque el bloqueo de pegado es UX y no la única barrera.
 
 ### FiltrosBarra
 
-Bloque sobre el listado con fondo `bg-blue-signal` (mismo acento que `BuscadorHome` en portada: identifica el módulo de búsqueda, no el listado en sí). Fuente como `fieldset` de radios ocultos (`sr-only peer`) con etiquetas tipo chip; debajo, selects de marca y año, más las acciones a la derecha: "Filtrar" y "Limpiar" como enlace. El grid de resultados que sigue debajo no hereda el acento y permanece acromático. A anchos chicos se apila en dos bloques. El filtro de `/deals` (`fuente`/`categoría` + selects + tracción, en `deals.astro`) sigue la misma anatomía y el mismo fondo, sin componente propio.
+Bloque sobre el listado con fondo `bg-accent` (mismo acento que `BuscadorHome` en portada: identifica el módulo de búsqueda, no el listado en sí). Fuente como `fieldset` de radios ocultos (`sr-only peer`) con etiquetas tipo chip; debajo, selects de marca y año, más las acciones a la derecha: "Filtrar" y "Limpiar" como enlace. El grid de resultados que sigue debajo no hereda el acento y permanece acromático. A anchos chicos se apila en dos bloques. El filtro de `/deals` (`fuente`/`categoría` + selects + tracción, en `deals.astro`) sigue la misma anatomía y el mismo fondo, sin componente propio.
 
 ### FiltrosSidebar
 
-`aside` de `lg:w-48`, `lg:sticky lg:top-20`, con el mismo fondo `bg-blue-signal` y overrides `.bloque-acento` que `FiltrosBarra` — ambos son el mismo módulo de filtros partido en dos bloques por el layout, no dos acentos distintos. En mobile está oculto tras un botón toggle que, cuando hay filtros aplicados, lo dice con **texto y cantidad** —"Filtros avanzados (2)"—, no con una marca de color: el conteo informa más y sobrevive al daltonismo y al tema oscuro. Un único set de inputs para no duplicar campos al enviar el form.
+`aside` de `lg:w-48`, `lg:sticky lg:top-20`, con el mismo fondo `bg-accent` y overrides `.bloque-acento` que `FiltrosBarra` — ambos son el mismo módulo de filtros partido en dos bloques por el layout, no dos acentos distintos. En mobile está oculto tras un botón toggle que, cuando hay filtros aplicados, lo dice con **texto y cantidad** —"Filtros avanzados (2)"—, no con una marca de color: el conteo informa más y sobrevive al daltonismo y al tema oscuro. Un único set de inputs para no duplicar campos al enviar el form.
 
 ### ConsultaMercado
 
-Sección `border border-line` en `/mercado`: cabecera ("¿Está bien el precio?") y resultado quedan en `canvas`, pero el `<form>` de marca/modelo/año/precio —el consultor propiamente tal— lleva `bg-blue-signal bloque-acento`, igual que el resto de los módulos de búsqueda del sitio. El resultado (mediana, rango, medidor) no hereda el acento.
+Sección `bg-surface border border-line` en `/mercado`: cabecera ("¿Está bien el precio?") y resultado quedan en el plano de la caja, pero el `<form>` de marca/modelo/año/precio —el consultor propiamente tal— lleva `bg-accent bloque-acento`, igual que el resto de los módulos de búsqueda del sitio. El resultado (mediana, rango, medidor) no hereda el acento.
 
 ### Paginacion
 
@@ -417,7 +464,7 @@ Solo se renderiza con más de una página. Ventana de ±2 alrededor de la actual
 
 ### Lista "Explorar"
 
-Filas apiladas con `divide-y divide-line border-y border-line`, sin cajas. Cada fila: título en `text-2xl text-ink` con ancho fijo, detalle en `text-ink/70`, flecha `→` a la derecha, hover a `bg-surface`. Prueba de que el texto apilado estructura mejor que una grilla de tarjetas.
+Filas apiladas con `divide-y divide-line border-y border-line`, sin cajas. Cada fila: título en `text-2xl text-ink` con ancho fijo, detalle en `text-ink/70`, flecha `→` a la derecha, hover a `bg-surface` (las filas viven sobre `canvas`, no dentro de una caja). Prueba de que el texto apilado estructura mejor que una grilla de tarjetas.
 
 ### Bloque de cifras
 
@@ -429,7 +476,7 @@ Pares label/valor sin bordes ni cajas: label en `text-base text-ink/70`, valor j
 
 ### Panel (bento de estadística)
 
-`<section>` con `border border-line`, cabecera de `p-element` cerrada con `border-b border-line` —título en `text-base text-ink`, subtítulo opcional en `text-sm text-ink/70`— y el gráfico en un `flex-1 min-h-0` para que llene la altura cuando el módulo abarca varias filas. **El panel es el módulo de la grilla de la sección 2**: su `class` recibe el span (`lg:col-span-4`, `lg:row-span-2`) y esa asignación no es cosmética, es la que evita que la página quede plana.
+`<section>` con `bg-surface border border-line`, cabecera de `p-element` cerrada con `border-b border-line` —título en `text-base text-ink`, subtítulo opcional en `text-sm text-ink/70`— y el gráfico en un `flex-1 min-h-0` para que llene la altura cuando el módulo abarca varias filas. **El panel es el módulo de la grilla de la sección 2**: su `class` recibe el span (`lg:col-span-4`, `lg:row-span-2`) y esa asignación no es cosmética, es la que evita que la página quede plana.
 
 ### NavCuenta
 
@@ -441,17 +488,23 @@ Fila de un aviso propio, compartida por el resumen de `/cuenta` y el listado de 
 
 ### Bandeja de reportes
 
-Primera sección de `/dashboard`, anclada en `#reportes` y **fuera** del bloque de métricas: los reportes deben verse aunque no haya ninguna corrida de scraping registrada. Caja `border border-line` con cabecera, filas `divide-y divide-line` y las acciones en línea como enlaces subrayados, igual que en "Mis publicaciones" — despublicar es reversible (el autor puede republicar), así que no merece el peso visual de un botón. Los reportes ya revisados se pliegan en un `<details>` nativo, sin JS.
+Primera sección de `/dashboard`, anclada en `#reportes` y **fuera** del bloque de métricas: los reportes deben verse aunque no haya ninguna corrida de scraping registrada. Caja `bg-surface border border-line` con cabecera, filas `divide-y divide-line` y las acciones en línea como enlaces subrayados, igual que en "Mis publicaciones" — despublicar es reversible (el autor puede republicar), así que no merece el peso visual de un botón. Los reportes ya revisados se pliegan en un `<details>` nativo, sin JS.
 
 ### Footer
 
-`mt-section`, fondo `bg-blue-signal` (azul en claro, morado en oscuro — ver sección 12 para el resto de los bloques que comparten este acento). Todo el texto encima usa `ink-on-tint`, no `ink` ni `ink/70`. Tres zonas en `py-block`: wordmark + tagline + una línea de misión que enlaza a `/quienes-somos`; tres columnas de navegación (Producto: Avisos/Deals/Mercado; Compañía: Quiénes somos/Cómo funciona/Preguntas Frecuentes/Contáctanos/Github, con el ícono de Github inline en `github-signal` — el único color de marca ajeno al sistema, ver sección 4; Legal: Condiciones de Uso/Términos de privacidad/Legales); barra inferior con `border-t border-ink-on-tint/15` y el copyright. Sin CTAs.
+`mt-section`, fondo `bg-accent` (azul de marca en claro, casi negro en oscuro — ver sección 12 para el resto de los bloques que comparten este plano). Es el cierre visual de toda página: el plano más profundo que se ve sin abrir un campo. Todo el texto encima usa `ink-on-accent`, no `ink` ni `ink/70`. Tres zonas en `py-block`: wordmark + tagline + una línea de misión que enlaza a `/quienes-somos`; tres columnas de navegación (Producto: Avisos/Deals/Mercado; Compañía: Preguntas Frecuentes/Contáctanos/Github/Volutus; Legal: Condiciones de Uso/Términos de privacidad/Legales); barra inferior con `border-t border-ink-on-accent/15` y el copyright. Sin CTAs, sin íconos de marca — los enlaces externos son texto, igual que los internos.
 
 ---
 
 ## 10. Elevación
 
-No hay elevación. El sistema separa con vacío y con líneas de 1px, nunca con sombra, glow ni lift tonal. Las cards viven en el mismo plano que la página y se distinguen solo por su contenido, su borde y su tamaño en la grilla. `surface` existe para placeholders y hovers, no para simular altura.
+**No hay elevación: hay profundidad.** Son cosas distintas y el sistema usa una sola.
+
+Prohibido, sin excepciones: sombra, glow, blur, gradiente y cualquier `transform` que levante o escale un elemento al pasar el cursor. Nada simula altura, porque nada flota — el menú móvil cuelga de la barra como un plano más, no como una capa.
+
+Lo que sí ordena es la **escalera tonal de la sección 4**: cuatro planos fijos, cada uno con un rol, y el hairline de 1px como límite entre ellos. Una tarjeta se distingue de la página porque está un paso más arriba en la escalera (`surface`) y porque tiene borde; un campo, porque está en el extremo profundo (`field`). La diferencia de gris es deliberadamente corta: **el borde es el que separa, el plano solo indica el orden.**
+
+De ahí sale la regla del hover de fila: una fila dentro de una caja `surface` no se aclara todavía más —eso sería un quinto gris— sino que **vuelve a `canvas`**. El hover es un movimiento dentro de la escalera existente, no un tono nuevo. Igual el mosaico de principios de `/quienes-somos`, cuyas celdas viven sobre `canvas` y suben a `surface`.
 
 ---
 
@@ -470,15 +523,16 @@ Las fotos vienen de los portales de origen vía CDN, resueltas por `resolverUrlI
 
 ## 12. Racionamiento del color
 
-El sistema es mayormente acromático. Hay tres acentos cromáticos y cada uno tiene un rol fijo — no son intercambiables ni conviven en una misma pantalla:
+El sistema es mayormente acromático, y el tema oscuro lo es **por completo** salvo el escarlata de estado. Hay dos usos de color en el chrome y cada uno tiene un rol fijo — no son intercambiables ni conviven en una misma pantalla:
 
-| Acento           | Rol                                                                       | Dónde                                                      |
+| Uso              | Rol                                                                       | Dónde                                                      |
 | ---------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `scarlet-signal` | Funcional: marca el estado de un control, nunca decora ni etiqueta.        | Borde de foco, borde de campo inválido, borde del botón destructivo |
-| `blue-signal`    | Editorial/institucional: identifica el bloque de marca, el módulo de búsqueda/consulta de una página, o un formulario de autenticación — nunca el listado de resultados en sí. | Fondo del footer, hero de `/quienes-somos`, buscador de la portada (`BuscadorHome`), bloque de filtros de `/avisos` (`FiltrosBarra`/`FiltrosSidebar`) y de `/deals`, `ConsultaMercado` de `/mercado`, formularios de `/entrar` y `/registro`; y como lavado de baja opacidad que rota entre las celdas del mosaico de principios de `/quienes-somos` (16% en claro, 30% en oscuro: sobre canvas oscuro el lavado compone contra el fondo y a 16% desaparece) |
-| `green-signal`   | Editorial secundario, mismo régimen que `blue-signal`.                     | Reservado — sin implementación asignada todavía              |
+| `scarlet-signal` | Funcional: marca el estado de un control, nunca decora ni etiqueta. Igual en ambos temas. | Borde de foco, borde de campo inválido, borde del botón destructivo |
+| `accent`         | Identifica el bloque de marca, el módulo de búsqueda/consulta de una página, o un formulario de autenticación — nunca el listado de resultados en sí. **Solo es cromático en tema claro**; en oscuro el mismo bloque se identifica por profundidad. | Fondo del footer, hero de `/quienes-somos`, buscador de la portada (`BuscadorHome`), bloque de filtros de `/avisos` (`FiltrosBarra`/`FiltrosSidebar`) y de `/deals`, `ConsultaMercado` de `/mercado`, formularios de `/entrar` y `/registro` |
 
-Las páginas de producto son acromáticas por defecto: el escarlata solo asoma cuando el usuario enfoca un control o deja un campo inválido, es decir, en respuesta a una acción y nunca en reposo. `blue-signal`/`green-signal` no decoran el listado ni las cards de `/avisos`, `/deals`, `/mercado` o `/auto/[id]` — la excepción es el módulo de búsqueda o consulta de cada una (`FiltrosBarra`/`FiltrosSidebar` en `/avisos`, el filtro de `/deals`, `ConsultaMercado` en `/mercado`), que lleva el mismo acento que `BuscadorHome` en portada porque cumple la misma función; el grid o los gráficos que siguen debajo no lo heredan. Las páginas utilitarias sin listado (`/entrar`, `/registro`) llevan el acento en su único formulario, por la misma razón: son el bloque que define la página.
+Las páginas de producto son acromáticas por defecto: el escarlata solo asoma cuando el usuario enfoca un control o deja un campo inválido, es decir, en respuesta a una acción y nunca en reposo. `accent` no decora el listado ni las cards de `/avisos`, `/deals`, `/mercado` o `/auto/[id]` — la excepción es el módulo de búsqueda o consulta de cada una (`FiltrosBarra`/`FiltrosSidebar` en `/avisos`, el filtro de `/deals`, `ConsultaMercado` en `/mercado`), que lleva el mismo plano que `BuscadorHome` en portada porque cumple la misma función; el grid o los gráficos que siguen debajo no lo heredan. Las páginas utilitarias sin listado (`/entrar`, `/registro`) llevan el acento en su único formulario, por la misma razón: son el bloque que define la página.
+
+**No hay un acento secundario.** El `green-signal` que este documento reservaba nunca se implementó como acento: su único uso real era el logo de Volutus en la confirmación de `/contacto`, así que pasó a ser lo que siempre fue —un color de marca ajena (sección 4)— y el token reservado se eliminó. Antes de agregar un acento nuevo hay que responder qué pregunta del usuario contesta que la escalera tonal no contesta ya.
 
 ---
 
@@ -494,7 +548,7 @@ Los gráficos de `/mercado` (y futuras vistas de estadística) son la **única e
 | `--c-viz-4` | `viz-4`           | `#8a3fb0`  | Categórica 4 (violeta)     |
 | `--c-scarlet` | `scarlet-signal` | `#e4002b` | Realce de **un** dato focal |
 
-Mismo valor en ambos temas (como `scarlet`/`blue`): la paleta fue verificada con `scripts/validate_palette.js` de la skill *dataviz* y pasa las seis comprobaciones (banda de luminosidad, piso de croma, separación CVD, piso de visión normal y contraste) sobre superficie clara `#ffffff` **y** oscura `#0a0a0a`, así que no se redefine en `[data-theme="dark"]`.
+Mismo valor en ambos temas (como `scarlet`): la paleta fue verificada con `scripts/validate_palette.js` de la skill *dataviz* y pasa las seis comprobaciones (banda de luminosidad, piso de croma, separación CVD, piso de visión normal y contraste) sobre superficie clara `#ffffff` **y** oscura `#0a0a0a`, así que no se redefine en `[data-theme="dark"]`.
 
 **Reglas de uso:**
 
@@ -510,16 +564,18 @@ Mismo valor en ambos temas (como `scarlet`/`blue`): la paleta fue verificada con
 ## 14. Do's
 
 - Componer toda sección con al menos dos pesos de módulo; la única excepción es el grid de resultados.
-- Usar siempre los tokens semánticos (`canvas`, `ink`, `line`, `line-strong`, `surface`); nunca un hex ni un `gray-*` de Tailwind.
+- Usar siempre los tokens semánticos (`canvas`, `surface`, `field`, `accent`, `ink`, `line`, `line-strong`); nunca un hex ni un `gray-*` de Tailwind.
+- Dar a toda tarjeta, panel o caja con borde el fondo `bg-surface`, y a todo campo de texto el fondo `bg-field`: son planos del sistema, no decisiones por componente.
 - Usar `text-ink/70` —y solo sobre `canvas`/`surface`— cuando haga falta un segundo nivel de texto.
 - Verificar cada texto contra el piso de 7:1, en **ambos temas**: un color que funciona en claro puede quedar bajo AA en oscuro.
 - Mantener todos los radios en 0.
 - Usar `tabular-nums` en cualquier número que se repita entre filas.
 - Codificar el significado en texto o glifo primero; el color, cuando aparece, es redundante por diseño.
 - Usar `element` para densidad, `block`/`section` para respiro de producto, y `editorial` solo en páginas de marketing.
-- Bordes de inputs con `line-strong` (3:1); `line` es demasiado sutil para un control interactivo.
+- Bordes de inputs con `line-strong` (3:1); `line` es demasiado sutil para un control interactivo. En tema oscuro es además lo que delimita el campo, porque su fondo casi coincide con el del bloque.
 - Dar a los targets táctiles al menos 40px de alto.
-- Usar `ink-on-tint` para el texto sobre `blue-signal`/`green-signal`.
+- Usar `ink-on-accent` para el texto sobre `accent`, en ambos temas.
+- Resolver el hover de una fila moviéndose dentro de la escalera tonal (`surface` si está sobre `canvas`, `canvas` si está dentro de una caja `surface`), nunca con un gris nuevo.
 - Usar `parrafoCls` para todo párrafo de lectura corrida, en vez de escribir `text-lg leading-relaxed` a mano.
 - Envolver toda animación en `prefers-reduced-motion` y, si usa `animation-timeline`, también en `@supports`.
 
@@ -529,11 +585,13 @@ Mismo valor en ambos temas (como `scarlet`/`blue`): la paleta fue verificada con
 - No usar diagonales, rotaciones, solapes ni `clip-path` decorativo para escapar de esa planitud: la salida es la asimetría de la grilla.
 - No usar gris para texto — ni `muted`, ni `gray-*`, ni un hex propio. El segundo nivel es `text-ink/70` y no hay un tercero.
 - No usar el escarlata como color de texto: no llega a AA en tema oscuro. Vive en el borde.
-- No usar `blue-signal` ni `green-signal` como color de texto sobre `canvas`: están calibrados como fondo de bloque con `ink-on-tint` encima.
-- No usar `blue-signal`/`green-signal` fuera de bloques editoriales/de marca, un módulo de búsqueda/consulta o un formulario de autenticación (footer, `/quienes-somos`, `BuscadorHome`, `FiltrosBarra`/`FiltrosSidebar`, filtro de `/deals`, `ConsultaMercado`, `/entrar`, `/registro`). Nunca sobre el grid de resultados, las cards ni los gráficos.
-- No agregar un cuarto acento cromático sin actualizar este documento.
+- No usar `accent` como color de texto sobre `canvas`: está calibrado como fondo de bloque con `ink-on-accent` encima.
+- No usar `accent` fuera de bloques editoriales/de marca, un módulo de búsqueda/consulta o un formulario de autenticación (footer, `/quienes-somos`, `BuscadorHome`, `FiltrosBarra`/`FiltrosSidebar`, filtro de `/deals`, `ConsultaMercado`, `/entrar`, `/registro`). Nunca sobre el grid de resultados, las cards ni los gráficos.
+- No agregar un acento cromático nuevo sin actualizar este documento — y menos en tema oscuro, que es acromático salvo el escarlata de estado.
+- No inventar un quinto gris. Si hace falta distinguir dos superficies y los cuatro planos no alcanzan, el problema es de composición o de borde, no de tono.
+- No devolverle color al plano de acento en tema oscuro: el bloque se identifica por profundidad, y un plano saturado del tamaño de un footer desentona contra el canvas gris.
 - No usar la paleta de datos (`viz-1`…`viz-4`) fuera de un gráfico.
-- No usar sombras, glows ni gradientes en elementos de UI.
+- No usar sombras, glows ni gradientes en elementos de UI: la profundidad es tonal, no simulada (sección 10).
 - No usar pesos 600+.
 - No corregir el tamaño de un texto agregando una clase suelta en un componente: la escala se mueve en los tokens `--text-*` de `global.css`.
 - No agregar webfonts sin justificar el costo en Core Web Vitals.
@@ -550,12 +608,14 @@ Mismo valor en ambos temas (como `scarlet`/`blue`): la paleta fue verificada con
 ```
 texto primario      → text-ink
 texto secundario    → text-ink/70   (solo sobre canvas/surface)
-fondo               → bg-canvas
-superficie/hover    → bg-surface
+página              → bg-canvas
+tarjeta/panel/caja  → bg-surface
+campo de texto      → bg-field      (el plano más profundo: 21:1 con la tinta)
+bloque de acento    → bg-accent + .bloque-acento (footer, /quienes-somos, buscador/consulta de cada página, /entrar, /registro)
+hover de fila       → bg-surface sobre canvas · bg-canvas dentro de una caja
 borde/divisor       → border-line
 borde de control    → border-line-strong
 foco / campo inválido → focus:border-scarlet-signal
-acento editorial    → bg-blue-signal + .bloque-acento (footer, /quienes-somos, buscador/consulta de cada página, /entrar, /registro)
 radio               → 0
 peso                → 300 (400 solo para el wordmark)
 movimiento          → opacidad 0→1 · 200ms · ease-out
@@ -572,11 +632,11 @@ Los tokens se definen en [global.css](web/src/styles/global.css) y se consumen e
 
 ## Pendientes de alineación con el código
 
-Este documento describe el estado objetivo. Al 2026-07-23 el código todavía no lo cumple en estos puntos:
+Este documento describe el estado objetivo. Al 2026-07-29 el código todavía no lo cumple en estos puntos:
 
-1. **Cuadrado escarlata de 6px** (`<span class="w-1.5 h-1.5 bg-scarlet-signal">`) — sigue presente en `FiltrosBarra`, `FiltrosSidebar`, `CtaAvisos`, `ConsultaMercado`, `FormularioAviso`, `404`, `avisos`, `deals`, `quienes-somos`, `auto/[id]` y `auto/p/[id]`. Se retira sin reemplazo.
-2. **`text-muted`** — sobrevive en `web/src/components/mercado/` y `mercado.astro`. Pasa a `ink` o `ink/70`.
-3. **Restos del borrado anterior** — clases con espacios sobrantes (`class=" text-base"`, `bg-canvas/75 `) y `rubroCls` en [marketing.ts](web/src/lib/marketing.ts), que quedó sin color de texto tras quitarle `text-muted`.
-4. **Escarlata como texto** — mensajes de error y marcador `*Requerido` en `contacto`, `entrar`, `registro` y `FormularioAviso`. Pasan a `ink`; el escarlata queda en el borde. Corrige un fallo AA real en tema oscuro (4.33:1).
-5. **Capa de movimiento** — `global.css` ya define la utilidad `.entrada` (opacidad 0→1 · 200ms · ease-out), hoy en uso en el hero del home. Faltan las capas de entrada por scroll, datos en gráficos, `@view-transition` y el cross-fade del toggle de tema.
-6. **Bento de `/mercado`** — nueve paneles de peso casi idéntico; hay que recomponerlo según la sección 2.
+1. **`text-muted`** — sobrevive en `web/src/components/mercado/` y `mercado.astro`. Pasa a `ink` o `ink/70`.
+2. **Restos del borrado anterior** — clases con espacios sobrantes (`class=" text-base"`, `bg-canvas/75 `) y `rubroCls` en [marketing.ts](web/src/lib/marketing.ts), que quedó sin color de texto tras quitarle `text-muted`.
+3. **Escarlata como texto** — mensajes de error y marcador `*Requerido` en `contacto`, `entrar`, `registro` y `FormularioAviso`. Pasan a `ink`; el escarlata queda en el borde. Corrige un fallo AA real en tema oscuro (4.33:1).
+4. **Capa de movimiento** — `global.css` ya define la utilidad `.entrada` (opacidad 0→1 · 200ms · ease-out), hoy en uso en el hero del home. Faltan las capas de entrada por scroll, datos en gráficos, `@view-transition` y el cross-fade del toggle de tema.
+5. **Bento de `/mercado`** — nueve paneles de peso casi idéntico; hay que recomponerlo según la sección 2.
+6. **Paleta de datos sobre `surface`** — las seis comprobaciones de la sección 13 se corrieron contra `#ffffff` y `#0a0a0a`, pero los gráficos viven dentro de un `Panel`, que ahora es `surface`. Sobre el `surface` oscuro (`#2e2e2e`) el categórico más profundo (`viz-1`) queda en 2.25:1 — bajo el piso de 3:1 de objeto gráfico. Hay que revalidar la paleta contra los dos planos reales y, si hace falta, aclarar los tonos: es el mismo margen que tenía antes sobre el canvas oscuro, así que no es una regresión de este rediseño, pero sí un piso que el documento afirma y el código no cumple.

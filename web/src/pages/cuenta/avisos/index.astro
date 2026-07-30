@@ -63,7 +63,7 @@ const accionCls =
   )}
 
   {avisos.length === 0 ? (
-    <div class="border border-line p-block">
+    <div class="bg-surface border border-line p-block">
       <p class="text-2xl text-ink mb-element">Todavía no publicaste ningún auto.</p>
       <p class="text-base text-ink/70 leading-relaxed max-w-xl">
         Publica el tuyo y aparecerá en el listado junto a los avisos de los portales que CarFlip
@@ -72,7 +72,7 @@ const accionCls =
       </p>
     </div>
   ) : (
-    <ul class="border border-line divide-y divide-line">
+    <ul class="bg-surface border border-line divide-y divide-line">
       {avisos.map((aviso) => (
         <FilaAviso aviso={aviso} contactos={revelaciones.get(aviso.id) ?? 0}>
           {aviso.estado === 'publicado' ? (

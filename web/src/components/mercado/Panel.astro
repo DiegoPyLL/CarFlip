@@ -11,7 +11,7 @@ interface Props {
 }
 const { titulo, subtitulo, class: clase = '' } = Astro.props;
 ---
-<section class:list={['border border-line flex flex-col', clase]}>
+<section class:list={['bg-surface border border-line flex flex-col', clase]}>
   <div class="p-element border-b border-line">
     <h2 class="text-base text-ink">{titulo}</h2>
     {subtitulo && <p class="text-sm text-muted">{subtitulo}</p>}
