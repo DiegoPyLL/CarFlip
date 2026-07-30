@@ -7,7 +7,7 @@
  */
 
 const controlBase = [
-  'text-base bg-canvas border border-line-strong px-3 py-2',
+  'text-base bg-field border border-line-strong px-3 py-2',
   'text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors',
 ].join(' ');
 

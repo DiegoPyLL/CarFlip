@@ -83,7 +83,7 @@ function esRutaActiva(href: string): boolean {
       try {
         if (localStorage.getItem('tema') === 'oscuro') {
           document.documentElement.dataset.theme = 'dark';
-          document.querySelector('meta[name="theme-color"]').content = '#1C1C1E';
+          document.querySelector('meta[name="theme-color"]').content = '#212121';
         }
       } catch (_) {}
 
@@ -212,12 +212,12 @@ function esRutaActiva(href: string): boolean {
       <slot />
     </main>
 
-    <!-- Bloque de marca con el acento blue-signal (ver DESIGN.md §12 para el
+    <!-- Bloque de marca sobre el plano de acento (ver DESIGN.md §12 para el
          resto de los bloques que lo comparten: BuscadorHome, FiltrosBarra,
-         FiltrosSidebar). El acento sigue al tema (azul en claro, morado en
-         oscuro). Todo el texto usa ink-on-tint (blanco fijo), no ink, que en
-         tema claro sería negro y perdería contraste sobre él. -->
-    <footer class="mt-section bg-blue-signal">
+         FiltrosSidebar). El acento sigue al tema: azul de marca en claro, casi
+         negro en oscuro. Todo el texto usa ink-on-accent (blanco fijo), no ink,
+         que en tema claro sería negro y perdería contraste sobre él. -->
+    <footer class="mt-section bg-accent">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-block">
         <div class="flex flex-col gap-block lg:flex-row lg:justify-between">
           <div class="max-w-sm">
@@ -225,10 +225,14 @@ function esRutaActiva(href: string): boolean {
             <p class="text-sm text-ink-on-tint leading-relaxed mt-2">
               Comparador de autos usados en Chile. Publica tu auto o revisa el catálogo de las
               automotoras, y compara cada precio contra el valor de mercado en un solo lugar.
+            <span class="text-2xl font-semibold text-ink-on-accent">CarFlip</span>
+            <p class="text-sm text-ink-on-accent leading-relaxed mt-2">
+              Comparador de autos usados en Chile. Un proyecto sin fines de lucro que reúne
+              los avisos de los principales portales para que compares precios en un solo lugar.
             </p>
             <a
               href="/quienes-somos"
-              class="inline-flex text-base text-ink-on-tint underline underline-offset-4 mt-element"
+              class="inline-flex text-base text-ink-on-accent underline underline-offset-4 mt-element"
             >
               Quiénes somos →
             </a>
@@ -236,52 +240,47 @@ function esRutaActiva(href: string): boolean {
 
           <div class="flex flex-wrap gap-block">
             <nav aria-label="Producto">
-              <h2 class="text-sm font-semibold text-ink-on-tint uppercase tracking-widest mb-element">Producto</h2>
+              <h2 class="text-sm font-semibold text-ink-on-accent uppercase tracking-widest mb-element">Producto</h2>
               <ul class="space-y-2">
-                <li><a href="/avisos" class="text-base text-ink-on-tint hover:underline underline-offset-4">Avisos</a></li>
-                <li><a href="/deals" class="text-base text-ink-on-tint hover:underline underline-offset-4">Deals</a></li>
-                <li><a href="/mercado" class="text-base text-ink-on-tint hover:underline underline-offset-4">Mercado</a></li>
+                <li><a href="/avisos" class="text-base text-ink-on-accent hover:underline underline-offset-4">Avisos</a></li>
+                <li><a href="/deals" class="text-base text-ink-on-accent hover:underline underline-offset-4">Deals</a></li>
+                <li><a href="/mercado" class="text-base text-ink-on-accent hover:underline underline-offset-4">Mercado</a></li>
                 <li>
-                  <a href={enlaceSesion.href} rel="nofollow" class="text-base text-ink-on-tint hover:underline underline-offset-4">
+                  <a href={enlaceSesion.href} rel="nofollow" class="text-base text-ink-on-accent hover:underline underline-offset-4">
                     {enlaceSesion.texto}
                   </a>
                 </li>
               </ul>
             </nav>
 
-            <nav aria-label="Compañía">
-              <h2 class="text-sm font-semibold text-ink-on-tint uppercase tracking-widest mb-element">Compañía</h2>
+            <nav aria-label="Nosotros">
+              <h2 class="text-sm font-semibold text-ink-on-accent uppercase tracking-widest mb-element">Compañía</h2>
               <ul class="space-y-2">
-                <li><a href="/como-funciona#preguntas-frecuentes" class="text-base text-ink-on-tint hover:underline underline-offset-4">Preguntas Frecuentes</a></li>
-                <li><a href="/contacto" class="text-base text-ink-on-tint hover:underline underline-offset-4">Contáctanos</a></li>
+                <li><a href="/como-funciona#preguntas-frecuentes" class="text-base text-ink-on-accent hover:underline underline-offset-4">Preguntas Frecuentes</a></li>
+                <li><a href="/contacto" class="text-base text-ink-on-accent hover:underline underline-offset-4">Contáctanos</a></li>
                 <li>
                   <a
-                    href="https://github.com/VolutusDevelopment"
+                    href="https://github.com/DiegoPyLL/CarFlip"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="inline-flex items-center gap-2 text-base text-ink-on-tint hover:underline underline-offset-4">Github</a></li>
-                <li>
-                  <a
-                    href="https://volutus.cl"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="inline-flex items-center gap-2 text-base text-ink-on-tint hover:underline underline-offset-4">Volutus</a></li>
+                    class="inline-flex items-center gap-2 text-base text-ink-on-accent hover:underline underline-offset-4">Github</a></li>
+
               </ul>
             </nav>
 
             <nav aria-label="Legal">
-              <h2 class="text-sm font-semibold text-ink-on-tint uppercase tracking-widest mb-element">Legal</h2>
+              <h2 class="text-sm font-semibold text-ink-on-accent uppercase tracking-widest mb-element">Legal</h2>
               <ul class="space-y-2">
-                {DOCUMENTOS.map((d) => (
-                  <li><a href={d.href} class="text-base text-ink-on-accent hover:underline underline-offset-4">{d.texto}</a></li>
-                ))}
+                <li><a href="/condiciones-de-uso" class="text-base text-ink-on-accent hover:underline underline-offset-4">Condiciones de Uso</a></li>
+                <li><a href="/privacidad" class="text-base text-ink-on-accent hover:underline underline-offset-4">Términos de privacidad</a></li>
+                <li><a href="/legal" class="text-base text-ink-on-accent hover:underline underline-offset-4">Política de Privacidad</a></li>
               </ul>
             </nav>
           </div>
         </div>
 
-        <div class="mt-block pt-element border-t border-ink-on-tint/15 flex flex-wrap gap-2 items-center justify-between">
-          <span class="text-sm text-ink-on-tint">&copy; {new Date().getFullYear()} CarFlip. Todos los derechos reservados.</span>
+        <div class="mt-block pt-element border-t border-ink-on-accent/15 flex flex-wrap gap-2 items-center justify-between">
+          <span class="text-sm text-ink-on-accent">&copy; {new Date().getFullYear()} CarFlip. Todos los derechos reservados.</span>
         </div>
       </div>
     </footer>
@@ -387,7 +386,7 @@ function esRutaActiva(href: string): boolean {
           // La barra del navegador cambia con el resto: es el único trozo de
           // chrome que no vive dentro del documento y quedaría fuera del cambio.
           document.querySelector('meta[name="theme-color"]')?.setAttribute(
-            'content', oscuro ? '#ffffff' : '#1C1C1E',
+            'content', oscuro ? '#ffffff' : '#212121',
           );
           try { localStorage.setItem('tema', oscuro ? 'claro' : 'oscuro'); } catch (_) {}
           rotular();

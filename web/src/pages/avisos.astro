@@ -78,7 +78,7 @@ const ordenOptions = [
                 name="orden"
                 aria-label="Ordenar por"
                 data-submits="filtros-form"
-                class="text-base bg-canvas border border-line-strong px-3 py-2 text-ink appearance-none cursor-pointer focus:outline-hidden focus:border-scarlet-signal transition-colors"
+                class="text-base bg-field border border-line-strong px-3 py-2 text-ink appearance-none cursor-pointer focus:outline-hidden focus:border-scarlet-signal transition-colors"
               >
                 {ordenOptions.map(({ value, label }) => (
                   <option
@@ -111,7 +111,7 @@ const ordenOptions = [
               href="/avisos"
               class="mt-element inline-flex items-center gap-2 text-base text-ink hover:text-ink/70 transition-colors"
             >
-              <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+              <span aria-hidden="true">→</span>
               Ver todos los avisos
             </a>
           </div>

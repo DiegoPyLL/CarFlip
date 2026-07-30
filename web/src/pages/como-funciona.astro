@@ -163,7 +163,7 @@ const nonce = Astro.locals.nonce;
         {columnasFaq.map((columna) => (
           <div class="flex flex-col gap-element">
             {columna.map(({ pregunta, respuesta }) => (
-              <details class="faq-card group border border-line open:border-ink hover:border-ink transition-colors duration-200">
+              <details class="faq-card group bg-surface border border-line open:border-ink hover:border-ink transition-colors duration-200">
                 <summary class="flex items-start justify-between gap-element p-element cursor-pointer">
                   <h3 class="text-2xl text-ink leading-tight text-balance">{pregunta}</h3>
                   <svg

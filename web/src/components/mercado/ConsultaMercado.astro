@@ -33,13 +33,13 @@ const muestraDebil = resultado != null && resultado.comparables < 8;
 // grilla del formulario. Los controles sí son los mismos de los filtros.
 const labelCls = 'text-sm text-muted uppercase tracking-wider';
 ---
-<section id="consulta" class="border border-line scroll-mt-20">
+<section id="consulta" class="bg-surface border border-line scroll-mt-20">
   <div class="p-element border-b border-line">
     <h2 class="text-base text-ink">¿Está bien el precio?</h2>
     <p class="text-sm text-muted">Compara un modelo con el mercado y descubre si está bajo o sobre precio</p>
   </div>
 
-  <form method="GET" action="/mercado#consulta" class="bg-blue-signal bloque-acento p-element grid gap-element sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+  <form method="GET" action="/mercado#consulta" class="bg-accent bloque-acento p-element grid gap-element sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
     {fuente && <input type="hidden" name="fuente" value={fuente} />}
 
     <div class="flex flex-col gap-2">
@@ -98,7 +98,7 @@ const labelCls = 'text-sm text-muted uppercase tracking-wider';
       type="submit"
       class="inline-flex items-center justify-center gap-2 text-base text-ink border border-ink px-5 py-2 hover:bg-ink hover:text-canvas focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150"
     >
-      <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+      <span aria-hidden="true">→</span>
       Consultar
     </button>
   </form>

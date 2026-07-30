@@ -124,7 +124,7 @@ const kpi = (n: number | null) => (n != null ? formatearPrecio(Math.round(n)) : 
     <Panel titulo="Modelos más listados" subtitulo="Top 15 por cantidad" class="lg:col-span-2">
       <div class="divide-y divide-line">
         {datos.modelos.map((m, i) => (
-          <div class="flex items-center gap-element p-element hover:bg-surface transition-colors">
+          <div class="flex items-center gap-element p-element hover:bg-canvas transition-colors">
             <span class="text-base w-6 shrink-0 tabular-nums text-right text-muted">{i + 1}</span>
             <a
               href={`/avisos?marca=${encodeURIComponent(m.marca)}&modelo=${encodeURIComponent(m.modelo)}`}

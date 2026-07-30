@@ -28,7 +28,7 @@ const MENSAJES: Record<string, string> = {
 const mensajeError = error ? (MENSAJES[error] ?? 'No pudimos iniciar sesión. Inténtalo de nuevo.') : null;
 
 const inputCls =
-  'w-full bg-transparent border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
+  'w-full bg-field border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
 ---
 
 <Base titulo="Entrar" descripcion="Inicia sesión en CarFlip." noindex>
@@ -60,7 +60,7 @@ const inputCls =
       envía vacía al primer destino, el servidor responde con el mismo error de
       credenciales. Sin JavaScript.
     -->
-    <div class="bg-blue-signal bloque-acento p-element space-y-block">
+    <div class="bg-accent bloque-acento p-element space-y-block">
     <form method="POST" action="/api/auth/entrar" class="space-y-element">
       <input type="hidden" name="volver" value={volver} />
 
@@ -103,7 +103,7 @@ const inputCls =
         <button
           type="submit"
           formaction="/api/auth/magic-link"
-          class="text-base text-ink-on-tint underline underline-offset-4 hover:opacity-70 transition-opacity duration-150 cursor-pointer"
+          class="text-base text-ink-on-accent underline underline-offset-4 hover:opacity-70 transition-opacity duration-150 cursor-pointer"
         >
           Enviarme un enlace por correo
         </button>
@@ -111,9 +111,9 @@ const inputCls =
     </form>
 
     <div class="flex items-center gap-4" aria-hidden="true">
-      <span class="flex-1 border-t border-ink-on-tint/15"></span>
-      <span class="text-sm text-ink-on-tint">o</span>
-      <span class="flex-1 border-t border-ink-on-tint/15"></span>
+      <span class="flex-1 border-t border-ink-on-accent/15"></span>
+      <span class="text-sm text-ink-on-accent">o</span>
+      <span class="flex-1 border-t border-ink-on-accent/15"></span>
     </div>
 
     <a

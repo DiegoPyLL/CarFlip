@@ -420,7 +420,7 @@ export const ETIQUETA_ESTADO: Record<EstadoAviso, string> = {
 };
 
 export const MOTIVOS_REPORTE = [
-  'No es un auto',
+  'No es un vehiculo',
   'Precio o datos falsos',
   'Estafa o fraude',
   'Contenido ofensivo',

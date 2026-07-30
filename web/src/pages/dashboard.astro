@@ -141,7 +141,7 @@ function avisosPorMinuto(r: CorridaScrape): string {
 
   <!-- Moderación. Fuera del bloque de métricas a propósito: los reportes deben
        verse aunque todavía no haya ninguna corrida de scraping registrada. -->
-  <section id="reportes" class="border border-line mb-element">
+  <section id="reportes" class="bg-surface border border-line mb-element">
     <div class="p-element border-b border-line flex flex-wrap items-baseline justify-between gap-3">
       <div>
         <h2 class="text-base text-ink">Reportes de avisos</h2>
@@ -222,7 +222,7 @@ function avisosPorMinuto(r: CorridaScrape): string {
   </section>
 
   {ultimas.length === 0 ? (
-    <section class="border border-line p-element">
+    <section class="bg-surface border border-line p-element">
       <p class="text-base text-ink mb-1">Sin corridas registradas</p>
       <p class="text-base ">
         Ejecuta <code class="">cargar_reports_s3.py</code> para poblar scrape_runs desde los run_reports de S3.
@@ -288,7 +288,7 @@ function avisosPorMinuto(r: CorridaScrape): string {
         <div class="space-y-element">
 
           <!-- Última corrida por fuente -->
-          <section class="border border-line">
+          <section class="bg-surface border border-line">
             <div class="p-element border-b border-line">
               <h2 class="text-base text-ink">Última corrida por fuente</h2>
               <p class="text-base  mt-0.5">Avisos válidos, duración y ritmo de cada scraper</p>
@@ -330,7 +330,7 @@ function avisosPorMinuto(r: CorridaScrape): string {
           </section>
 
           <!-- Historial de corridas -->
-          <section class="border border-line">
+          <section class="bg-surface border border-line">
             <div class="p-element border-b border-line">
               <h2 class="text-base text-ink">Historial de corridas</h2>
               <p class="text-base  mt-0.5">Todas las corridas registradas, la más reciente primero</p>
@@ -354,7 +354,7 @@ function avisosPorMinuto(r: CorridaScrape): string {
                     const tasa = tasaExito(r);
                     const estado: Estado = tasa === null ? 'warning' : tasa >= 95 ? 'good' : tasa >= 90 ? 'warning' : 'critical';
                     return (
-                      <tr class="hover:bg-surface transition-colors">
+                      <tr class="hover:bg-canvas transition-colors">
                         <td class="px-5 py-2.5  tabular-nums whitespace-nowrap">{formatearFechaHora(r.started_at)}</td>
                         <td class="px-3 py-2.5">
                           <span class="inline-flex items-center gap-1.5">
@@ -386,7 +386,7 @@ function avisosPorMinuto(r: CorridaScrape): string {
         <div class="space-y-element">
 
           <!-- Mercado / vehículos -->
-          <section class="border border-line">
+          <section class="bg-surface border border-line">
             <div class="p-element border-b border-line">
               <h2 class="text-base text-ink">Vehículos</h2>
               <p class="text-base  mt-0.5">Avisos activos en las 4 fuentes</p>
@@ -430,7 +430,7 @@ function avisosPorMinuto(r: CorridaScrape): string {
           </section>
 
           <!-- Deals activos -->
-          <section class="border border-line">
+          <section class="bg-surface border border-line">
             <div class="p-element border-b border-line flex items-baseline justify-between">
               <div>
                 <h2 class="text-base text-ink">Deals activos</h2>
@@ -461,7 +461,7 @@ function avisosPorMinuto(r: CorridaScrape): string {
           </section>
 
           <!-- Fallas por etapa -->
-          <section class="border border-line">
+          <section class="bg-surface border border-line">
             <div class="p-element border-b border-line">
               <h2 class="text-base text-ink">Fallas por etapa</h2>
               <p class="text-base  mt-0.5">FAIL LOGs de las corridas recientes</p>
@@ -489,7 +489,7 @@ function avisosPorMinuto(r: CorridaScrape): string {
           </section>
 
           <!-- KPIs pendientes de instrumentación -->
-          <section class="border border-line">
+          <section class="bg-surface border border-line">
             <div class="p-element border-b border-line">
               <h2 class="text-base text-ink">KPIs pendientes</h2>
               <p class="text-base  mt-0.5">Definidos en Monitoreo, aún sin telemetría</p>

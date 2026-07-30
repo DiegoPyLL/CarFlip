@@ -4,14 +4,14 @@ import { PATRON } from '@lib/regex';
 
 // Página utilitaria, no editorial: sin ritmo `editorial` (reservado a
 // /quienes-somos y /como-funciona, ver DESIGN.md). La confirmación de envío
-// usa blue-signal (check y barra) a pedido explícito del usuario — excepción
-// puntual a que el acento quede solo en footer/hero. El check es un glifo
-// ink-on-tint sobre un cuadrado blue-signal, el régimen correcto del token.
+// lleva los colores de la marca Volutus (logo animado, barra y botón) a
+// pedido explícito del usuario: son colores de marca fijos en ambos temas, no
+// el plano de acento del sistema, que en oscuro es casi negro.
 const enviado = Astro.url.searchParams.has('enviado');
 const conError = Astro.url.searchParams.has('error');
 
 const inputCls =
-  'w-full bg-transparent border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
+  'w-full bg-field border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
 ---
 
 <Base
@@ -37,7 +37,7 @@ const inputCls =
       </p>
 
       <div class="h-1.5 w-full max-w-2xl border border-line bg-canvas overflow-hidden mb-element">
-        <div id="barra-confirmacion" class="h-full w-full origin-left bg-blue-signal"></div>
+        <div id="barra-confirmacion" class="h-full w-full origin-left bg-volutus-blue"></div>
       </div>
 
       <p class="text-base  mb-element">
@@ -46,7 +46,7 @@ const inputCls =
 
       <a
         href="/"
-        class="inline-flex items-center gap-2 text-base bg-blue-signal text-ink-on-tint px-6 py-3 hover:bg-ink hover:text-canvas transition-colors duration-150"
+        class="inline-flex items-center gap-2 text-base bg-volutus-blue text-ink-on-accent px-6 py-3 hover:bg-ink hover:text-canvas transition-colors duration-150"
       >
         <span aria-hidden="true">←</span> Volver ahora
       </a>
@@ -160,10 +160,10 @@ const inputCls =
         .logo-anim { isolation: isolate; }
         .logo-anim circle { fill: none; }
         .arco circle { stroke-width: 6; stroke-linecap: round; }
-        .arco-azul circle { stroke: var(--color-blue-signal); }
-        .arco-verde circle { stroke: var(--color-green-signal); }
-        .nucleo-azul circle { fill: var(--color-blue-signal); }
-        .nucleo-verde circle { fill: var(--color-green-signal); }
+        .arco-azul circle { stroke: var(--color-volutus-blue); }
+        .arco-verde circle { stroke: var(--color-volutus-green); }
+        .nucleo-azul circle { fill: var(--color-volutus-blue); }
+        .nucleo-verde circle { fill: var(--color-volutus-green); }
         .arco, .nucleo { mix-blend-mode: multiply; }
 
         /* En oscuro el multiply hunde los cruces hasta el negro del canvas y la

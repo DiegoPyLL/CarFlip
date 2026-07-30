@@ -41,7 +41,7 @@ const guardado = Astro.url.searchParams.has('guardado');
 const mensajeError = mensajeDeError(Astro.url.searchParams.get('error'));
 
 const inputCls =
-  'w-full bg-transparent border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
+  'w-full bg-field border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
 const botonCls =
   'inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150';
 const enlaceCls =
@@ -91,7 +91,7 @@ const enlaceCls =
   )}
 
   <!-- Resumen de actividad -->
-  <div class="grid sm:grid-cols-3 border border-line divide-y sm:divide-y-0 sm:divide-x divide-line mb-block">
+  <div class="grid sm:grid-cols-3 bg-surface border border-line divide-y sm:divide-y-0 sm:divide-x divide-line mb-block">
     {metricas.map(({ etiqueta, valor, nota }) => (
       <div class="p-element">
         <p class="text-sm text-ink/70 uppercase tracking-wider">{etiqueta}</p>
@@ -111,7 +111,7 @@ const enlaceCls =
     </div>
 
     {avisos.length === 0 ? (
-      <div class="border border-line p-block">
+      <div class="bg-surface border border-line p-block">
         <p class="text-2xl text-ink mb-element">Todavía no publicaste ningún auto.</p>
         <p class="text-base text-ink/70 leading-relaxed max-w-xl mb-element">
           Publica el tuyo y aparecerá en el listado junto al resto de los avisos del sitio.
@@ -123,7 +123,7 @@ const enlaceCls =
       </div>
     ) : (
       <>
-        <ul class="border border-line divide-y divide-line">
+        <ul class="bg-surface border border-line divide-y divide-line">
           {recientes.map((aviso) => (
             <FilaAviso aviso={aviso} contactos={revelaciones.get(aviso.id) ?? 0}>
               {aviso.estado === 'publicado' && (
@@ -221,7 +221,7 @@ const enlaceCls =
       </button>
     </form>
 
-    <details class="border border-line">
+    <details class="bg-surface border border-line">
       <summary class="p-element cursor-pointer text-base text-ink">Eliminar tu cuenta</summary>
       <div class="p-element border-t border-line">
         <p class="text-base text-ink/70 leading-relaxed mb-element">
@@ -251,7 +251,7 @@ const enlaceCls =
           </div>
           <button
             type="submit"
-            class="text-base text-ink border border-scarlet-signal px-6 py-2.5 hover:bg-scarlet-signal hover:text-ink-on-tint transition-colors duration-150 cursor-pointer"
+            class="text-base text-ink border border-scarlet-signal px-6 py-2.5 hover:bg-scarlet-signal hover:text-ink-on-accent transition-colors duration-150 cursor-pointer"
           >
             Eliminar mi cuenta
           </button>
