@@ -2,203 +2,138 @@
   <img src="carflip_logo.png" alt="CarFlip" width="100%">
 </p>
 
-# CarFlip
-
-**Buscar auto usado en Chile significa abrir cinco pestañas y comparar a ojo.** CarFlip junta todos esos avisos en un solo lugar, los ordena y avisa cuáles están baratos de verdad.
-
-👉 **[carflip.cl](https://carflip.cl)**
+<p align="center">
+  <strong>Un comparador de precios de autos usados en Chile.</strong><br>
+  <a href="https://carflip.cl">carflip.cl</a>
+</p>
 
 ---
+
+## El problema
+
+Comprar un auto usado en Chile es a ciegas. Ves un Yaris 2018 a $8.900.000 y no tienes cómo saber si eso está bien, mal o es una estafa. Habría que revisar decenas de avisos parecidos, anotarlos y sacar cuentas — nadie lo hace.
+
+CarFlip hace esa cuenta por ti.
 
 ## Qué hace
 
-**Reúne los avisos.** Todos los días, de madrugada, CarFlip revisa cuatro portales chilenos (Autosusados, Checkeados, Autocosmos y Yapo) y guarda los autos nuevos que aparecieron. También cualquier persona puede publicar su auto directamente en el sitio: esos avisos conviven con el resto, sin distinción.
+**Reúne los autos en venta.** Cualquier persona puede publicar el suyo, gratis, creando una cuenta. Las automotoras aportan su catálogo. Todo queda en un mismo listado, con los mismos campos y los mismos filtros.
 
-**Ordena la información.** Cada aviso queda con los mismos campos —marca, modelo, año, kilometraje, precio, fotos— aunque el portal de origen los mostrara de otra forma. Eso es lo que permite compararlos entre sí.
+**Calcula cuánto vale cada auto.** Para un aviso cualquiera, CarFlip toma todos los avisos comparables —misma marca, mismo modelo, año similar, kilometraje parecido— y saca el precio típico del grupo. Usa la mediana y no el promedio, porque un par de precios disparatados no la mueven. Si hay muy pocos comparables, no calcula nada: mejor no mostrar una referencia poco confiable.
 
-**Detecta oportunidades.** CarFlip calcula cuánto vale realmente cada auto: toma todos los avisos parecidos (misma marca, modelo y año, con kilometraje similar) y saca el precio típico. Si uno está bastante por debajo, entra a la página **/deals**.
+**Marca las oportunidades.** Los avisos bastante por debajo de su mercado llegan a la página [/deals](https://carflip.cl/deals).
 
-**Pero un precio bajo no siempre es una ganga.** Puede ser un auto chocado, sin papeles o con el motor malo. Por eso, antes de mostrarlo, una IA lee la descripción del aviso y lo clasifica: *oportunidad clara*, *buen precio*, *revisar* o *descartar*, con un puntaje y los riesgos que detectó.
+**Y las revisa antes de mostrarlas.** Un precio bajo no siempre es una ganga: puede ser un auto chocado, sin papeles o con el motor malo. Antes de publicar cada oportunidad, una IA lee la descripción del aviso y la clasifica en *oportunidad clara*, *buen precio*, *revisar* o *descartar*, con un puntaje y los riesgos que detectó.
 
----
+## Cómo está armado
 
-## Cómo está hecho
-
-Son dos piezas que casi no se hablan entre sí. Comparten la base de datos y nada más.
+Dos piezas que casi no se hablan entre sí. Comparten la base de datos, y nada más.
 
 ```
-1. El recolector (Python)          2. El sitio web (Astro)
-   Corre una vez al día en           Vive en Vercel, lee la
-   GitHub Actions, sin servidor      base de datos y muestra
-   propio ni costo fijo.             los avisos.
-              ↓                                ↑
-        ┌─────────────────────────────────────────┐
-        │   Base de datos PostgreSQL (Supabase)   │
-        │   + fotos en Cloudflare R2              │
-        └─────────────────────────────────────────┘
+   El sitio (Astro)                    El analizador (Python)
+   Vercel · atiende a las              GitHub Actions · corre una
+   visitas y recibe los                vez al día, calcula precios
+   avisos que se publican              de mercado y oportunidades
+            │                                     │
+            └──────────────┬──────────────────────┘
+                           ▼
+              Supabase — PostgreSQL + fotos
 ```
 
-| Pieza | Qué usa |
+El sitio se arma en el servidor y llega al navegador como HTML listo, sin JavaScript propio. De ahí vienen la velocidad de carga y el posicionamiento en buscadores, que son la prioridad del proyecto.
+
+| Pieza | Tecnología |
 | --- | --- |
-| Recolector | Python 3.12 · httpx + BeautifulSoup (tres portales) · Playwright (Yapo, que exige navegador real) |
-| Base de datos | PostgreSQL en Supabase |
-| Fotos | Convertidas a AVIF y guardadas en Cloudflare R2 |
-| IA | Groq (Llama 3.3), solo para clasificar oportunidades |
-| Web | Astro 7 + Tailwind 4, desplegada en Vercel |
+| Sitio | Astro 7 (SSR) + Tailwind 4, desplegado en Vercel |
+| Base de datos, cuentas y fotos | Supabase (PostgreSQL, Auth y Storage) |
+| Analizador | Python 3.12, corriendo en GitHub Actions |
+| Evaluación de oportunidades | Groq (Llama 3.3) |
 
-La web casi no lleva JavaScript: se arma en el servidor y llega al navegador como HTML listo. Es la razón de que cargue rápido y de que salga bien posicionada en Google.
+### Dónde está cada cosa
 
+```
+web/                  El sitio: páginas, componentes y consultas
+src/carflip/          El analizador: detección de deals y precios de mercado
+alembic/              Historial de cambios de la base de datos
+supabase/             Permisos del bucket de fotos
+tests/                Tests del analizador (los del sitio están en web/tests/)
+.github/workflows/    Tareas programadas
+docker/               Imagen con que corren esas tareas
+```
 
+## Publicar un auto
 
-## Avisos de particulares
+Se crea una cuenta y el aviso aparece al instante, sin cola de revisión. Para que eso no se preste para abusos hay límites: correo confirmado y perfil completo antes de publicar, hasta 15 avisos por día, 10 fotos de 2 MB cada una, y patente obligatoria, validada contra los formatos legales chilenos. Un aviso que pasa 60 días sin tocarse se pausa solo. Cualquier visitante puede reportar un aviso, y el administrador lo baja desde el panel interno.
 
-Cualquiera puede crear una cuenta y publicar su auto. Se publica al instante, sin cola de revisión, pero con límites para evitar abusos: correo confirmado, perfil completo, 15 publicaciones por día como máximo, hasta 10 fotos de 2 MB cada una, y patente obligatoria (validada contra los formatos legales chilenos).
+**El teléfono del vendedor nunca aparece en el HTML público.** Sin sesión iniciada se ve `+56 9 •••• ••••`; hay que entrar para verlo, cada visualización queda registrada y hay un tope diario. Así el número no termina recolectado por un bot.
 
-Si un aviso es problemático, cualquier visitante puede reportarlo y el administrador lo baja desde el panel interno. Un aviso que pasa 60 días sin tocarse se pausa solo, para que el listado no se llene de autos vendidos hace meses.
+**Los permisos viven en la base de datos, no en el código del sitio.** Aunque alguien evite la interfaz y hable directo con la base, no puede editar avisos ajenos, poner precios negativos ni saltarse los límites: las reglas están escritas abajo, donde no hay forma de rodearlas.
 
-**Sobre el teléfono del vendedor:** nunca aparece en el HTML público. Un visitante sin cuenta ve `+56 9 •••• ••••`; hay que iniciar sesión para verlo, y cada vez que alguien lo mira queda registrado. Así el número no termina en manos de un bot recolector de datos.
+## Levantarlo
 
-**Los permisos viven en la base de datos, no en el código.** Aunque alguien salte la interfaz y hable directo con la base, no puede editar avisos ajenos, poner precios negativos ni saltarse los límites: las reglas están escritas ahí abajo, donde no hay forma de rodearlas.
+El `.env` va en la **raíz del repositorio**, no dentro de `web/`: el sitio y el analizador comparten el mismo archivo.
 
----
+### El sitio
 
-## Cuándo corre cada cosa
-
-Dos tareas programadas en GitHub Actions, que nunca se pisan entre sí:
-
-- **06:00 UTC** (~02:00 en Chile) — recolecta los avisos de los portales.
-- **10:00 UTC** — cuatro horas después, calcula las oportunidades sobre una base ya completa.
-
-Se pueden lanzar a mano desde **Actions → Scrape** (o **Deals**) **→ Run workflow**. Los resultados de cada corrida —páginas revisadas, avisos válidos, errores— quedan guardados y se ven en el panel interno del sitio.
-
-> Dos detalles del cron de GitHub: puede atrasarse unos minutos en horas peak, y se desactiva solo si el repositorio pasa 60 días sin commits (se reactiva con un clic).
-
----
-
-## Levantarlo en tu máquina
-
-### Solo la web
-
-Es lo más simple y lo más habitual: no necesitas Python ni base de datos local, todo conecta a Supabase por internet.
-
-**Necesitas:** Node.js 22.12 o superior.
+Es lo habitual y lo más simple: no necesitas Python ni una base de datos local, todo conecta a Supabase por internet. Requiere **Node 22.12+**.
 
 ```bash
 git clone https://github.com/DiegoPyLL/CarFlip
 cd CarFlip/web
 npm install
-npm run dev
+npm run dev     # → http://localhost:4321
 ```
 
-Abre http://localhost:4321
+Variables que necesita:
 
-El archivo `.env` va en la **raíz** del repositorio, no dentro de `web/`:
+| Variable | Para qué | Si falta |
+| --- | --- | --- |
+| `SUPABASE_URL` | Proyecto de Supabase | El sitio no parte |
+| `SUPABASE_SERVICE_KEY` | Lecturas públicas del catálogo | El sitio no parte |
+| `PUBLIC_SUPABASE_URL` | Cuentas y sesiones | El sitio funciona, sin login |
+| `PUBLIC_SUPABASE_ANON_KEY` | Ídem | El sitio funciona, sin login |
+| `RESEND_API_KEY` | Envío del formulario de contacto | `/contacto` da error |
+| `CONTACT_EMAIL` | Dónde llegan esos mensajes | `/contacto` da error |
+| `CDN_BASE_URL` | Dominio de las imágenes | Las fotos no cargan |
 
-```env
-SUPABASE_URL=https://<tu-proyecto>.supabase.co
-SUPABASE_SERVICE_KEY=<service_role key — Supabase → Settings → API>
-CDN_BASE_URL=https://<tu-dominio-de-fotos>
-RESEND_API_KEY=<para el formulario de contacto>
-CONTACT_EMAIL=<correo donde llegan esos mensajes>
+> El prefijo `PUBLIC_` es a propósito: esa clave está hecha para llegar al navegador, y quien limita lo que puede hacer es la base de datos. **`SUPABASE_SERVICE_KEY` nunca debe llevarlo** — esa sí es secreta y da acceso total.
 
-# Cuentas y avisos de particulares.
-# Sin estas dos el sitio funciona igual, solo se desactiva el login.
-PUBLIC_SUPABASE_URL=https://<tu-proyecto>.supabase.co
-PUBLIC_SUPABASE_ANON_KEY=<anon key — Supabase → Settings → API>
-```
+Detalle del stack, estructura y despliegue en **[web/README.md](web/README.md)**.
 
-> El prefijo `PUBLIC_` es a propósito: esa clave está diseñada para llegar al navegador y sus permisos los limita la base de datos. **`SUPABASE_SERVICE_KEY` no debe llevarlo nunca** — esa sí es secreta.
+### El analizador
 
-### El recolector
-
-**Necesitas:** Python 3.12, [uv](https://docs.astral.sh/uv/), una base PostgreSQL y un bucket de Cloudflare R2.
+Requiere **Python 3.12** y [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync
-uv run playwright install chromium
-uv run alembic upgrade head   # crear/actualizar las tablas
-uv run carflip run            # una corrida completa
+uv run alembic upgrade head   # poner la base al día
+uv run carflip deals          # buscar y clasificar oportunidades
 ```
 
-Al `.env` hay que agregarle:
-
-```env
-DATABASE_URL=postgresql+asyncpg://usuario:password@host:5432/carflip
-USE_SSL=true
-
-R2_ACCOUNT_ID=tu_account_id
-R2_BUCKET=carflip-fotos
-R2_ACCESS_KEY_ID=tu_access_key
-R2_SECRET_ACCESS_KEY=tu_secret_key
-CDN_BASE_URL=https://img.carflip.cl
-
-GROQ_API_KEY=tu_key            # https://console.groq.com/keys
-GROQ_MODEL=llama-3.3-70b-versatile
-
-MIN_DELAY_SECONDS=2.0          # pausa entre peticiones, para no saturar los portales
-MAX_DELAY_SECONDS=6.0
-DEAL_THRESHOLD_PCT=15.0        # cuánto bajo el mercado para considerarse oportunidad
-LOG_LEVEL=INFO
-```
-
-El resto de la configuración usa valores por defecto razonables (`src/carflip/config.py`).
-
-También corre en Docker, igual que en CI:
-
-```bash
-docker compose -f docker/docker-compose.yml up --build
-```
-
-### Comandos
+Además de `DATABASE_URL` (con `USE_SSL=true` para Supabase), necesita `GROQ_API_KEY` — se saca gratis en [console.groq.com](https://console.groq.com/keys). El resto de la configuración tiene valores por defecto razonables en [src/carflip/config.py](src/carflip/config.py).
 
 | Comando | Qué hace |
 | --- | --- |
-| `carflip run` | Recolecta de todos los portales, una vez |
-| `carflip run --scraper autocosmos` | Solo uno |
-| `carflip start` | Deja el recolector corriendo en bucle |
-| `carflip market <marca> <modelo> <año>` | Precios de mercado de un modelo |
-| `carflip deals` | Busca y clasifica oportunidades |
+| `carflip deals` | Busca oportunidades y las clasifica con IA |
+| `carflip snapshot` | Guarda la foto del mercado de hoy |
+| `carflip market <marca> <modelo> <año>` | Consulta precios de un modelo |
 
-Los portales se recorren de a uno, nunca en paralelo, con pausas entre medio.
+## Lo que corre solo
 
----
+| Cuándo | Qué |
+| --- | --- |
+| Todos los días, 10:00 UTC | [`deals.yml`](.github/workflows/deals.yml) — recalcula las oportunidades |
+| Martes, 19:00 UTC | [`auditoria.yml`](.github/workflows/auditoria.yml) — audita vulnerabilidades de las dependencias y abre un aviso de seguridad si encuentra algo |
 
-## Desplegar
+Ambas se pueden lanzar a mano desde la pestaña **Actions → Run workflow**.
 
-La web va a Vercel con las mismas variables del `.env` (como variables de servidor, en Production y Preview). El recolector necesita sus claves en **Settings → Secrets and variables → Actions** del repositorio: `DATABASE_URL`, las cuatro de R2, `CDN_BASE_URL` y `GROQ_API_KEY`.
+> GitHub desactiva las tareas programadas si el repositorio pasa 60 días sin commits. Se reactivan con un clic en esa misma pestaña.
 
-Un paso que se olvida fácil: en **Supabase → Authentication → URL Configuration** hay que agregar `https://carflip.cl/api/auth/callback` y `http://localhost:4321/api/auth/callback` a *Redirect URLs*. Sin eso, el login por Google y por enlace mágico vuelve con error.
+## Documentación
 
----
-
-## Para desarrollar
-
-```bash
-uv sync                                           # dependencias del recolector
-alembic upgrade head                              # aplicar cambios de base de datos
-alembic revision --autogenerate -m "descripcion"  # crear uno nuevo
-pytest                                            # tests
-```
-
-### Agregar un portal nuevo
-
-1. Crear el scraper en `src/carflip/scrapers/NombreSitio/`, heredando de `ScraperBase`
-2. Agregar su tabla en `src/carflip/database/models.py` (usando `ListingMixin`)
-3. Generar y aplicar la migración de base de datos
-4. Declarar `model_class` y `fuente` en el scraper
-5. Registrarlo en `src/carflip/scheduler/runner.py`
-6. Sumarlo en la web: `tipos.ts`, `filtros.ts`, `FiltrosBarra.astro`, `lib/db/` e `index.astro`
-
-### Si algo falla
-
-**Yapo da timeouts.** Sube las pausas en el `.env`: `MIN_DELAY_SECONDS=3.0` y `MAX_DELAY_SECONDS=8.0`.
-
-**La tarea programada dejó de correr.** GitHub la desactiva tras 60 días sin commits. Se reactiva en **Actions → Scrape → Enable workflow**.
-
----
-
-## Más documentación
-
-- [CLAUDE.md](.claude\CLAUDE.md) — los principios con que se toman las decisiones técnicas aquí
-- [web/README.md](web/README.md) — detalle de la web
-- [CHANGELOG.md](CHANGELOG.md) — qué cambió en cada versión
+| Archivo | Qué contiene |
+| --- | --- |
+| [web/README.md](web/README.md) | Stack, estructura y despliegue del sitio |
+| [web/DESIGN.md](web/DESIGN.md) | Sistema visual: colores, tipografía y reglas por componente |
+| [CHANGELOG.md](CHANGELOG.md) | Qué cambió en cada versión |
+| [CLAUDE.md](CLAUDE.md) | Los principios con que se toman las decisiones técnicas aquí |

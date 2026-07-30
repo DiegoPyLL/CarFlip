@@ -1,103 +1,36 @@
 import { supabase } from './client';
-import { FUENTES_SCRAPEADAS, TABLA_POR_FUENTE } from './fuentes';
-import type {
-  CategoriaDeal,
-  CorridaScrape,
-  MetricasOperacion,
-  MetricasVehiculos,
-} from '../tipos';
+import { TABLA_POR_FUENTE } from './fuentes';
+import type { CategoriaDeal, ConteoEstados, MetricasCatalogo } from '../tipos';
 
-// Este dashboard mide el pipeline de scraping: corridas, fallas y fotos. Un
-// aviso de particular no pasa por ahí, así que se queda fuera de sus KPIs.
-const FUENTES = FUENTES_SCRAPEADAS;
+const TABLA = TABLA_POR_FUENTE.particular;
 
-const MAX_CORRIDAS = 60;
-const MAX_FALLAS = 10000;
+const ESTADOS = ['publicado', 'pausado', 'vendido'] as const;
 
-function parsearCorrida(r: any): CorridaScrape {
-  return {
-    id: r.id,
-    source: r.source,
-    started_at: new Date(r.started_at),
-    finished_at: r.finished_at ? new Date(r.finished_at) : null,
-    duracion_segundos: r.duracion_segundos,
-    paginas_procesadas: r.paginas_procesadas,
-    avisos_encontrados: r.avisos_encontrados,
-    avisos_unicos: r.avisos_unicos,
-    avisos_validos: r.avisos_validos,
-    avisos_rechazados: r.avisos_rechazados,
-    errors: r.errors ?? 0,
-  };
+/** Tope de deals leídos para el desglose por categoría. */
+const MAX_DEALS = 5000;
+
+/** Cuenta filas sin traerlas: `head: true` pide solo el Content-Range. */
+function contar(construir: (q: any) => any = (q) => q) {
+  return construir(supabase.from(TABLA).select('*', { count: 'exact', head: true }));
 }
 
-export async function obtenerMetricasOperacion(): Promise<MetricasOperacion> {
-  const [runsRes, failsRes] = await Promise.all([
-    supabase
-      .from('scrape_runs')
-      .select('*')
-      .order('started_at', { ascending: false })
-      .limit(MAX_CORRIDAS),
-    supabase.from('run_fail_logs').select('run_id, etapa').limit(MAX_FALLAS),
-  ]);
-
-  const historial = (runsRes.data ?? []).map(parsearCorrida);
-  const fallas = (failsRes.data ?? []) as { run_id: number; etapa: string }[];
-
-  // Última corrida por fuente (historial viene ordenado desc)
-  const ultimaPorFuente = new Map<string, CorridaScrape>();
-  for (const corrida of historial) {
-    if (!ultimaPorFuente.has(corrida.source)) ultimaPorFuente.set(corrida.source, corrida);
-  }
-  const ultimas = [...ultimaPorFuente.values()];
-
-  const porEtapa = new Map<string, number>();
-  for (const f of fallas) porEtapa.set(f.etapa, (porEtapa.get(f.etapa) ?? 0) + 1);
-  const fallasPorEtapa = [...porEtapa.entries()]
-    .map(([etapa, total]) => ({ etapa, total }))
-    .sort((a, b) => b.total - a.total);
-
-  const idsUltimas = new Set(ultimas.map((r) => r.id));
-  const fotosFallidasUltimoCiclo = fallas.filter(
-    (f) => idsUltimas.has(f.run_id) && f.etapa === 'descarga_foto'
-  ).length;
-
-  return { ultimas, historial, fallasPorEtapa, fotosFallidasUltimoCiclo };
-}
-
-export async function obtenerMetricasVehiculos(): Promise<MetricasVehiculos> {
+export async function obtenerMetricasCatalogo(): Promise<MetricasCatalogo> {
   const hace24h = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const hace7d = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
 
-  const [totales, nuevos, bajadas, dealsRes] = await Promise.all([
-    Promise.all(
-      FUENTES.map((f) =>
-        supabase.from(TABLA_POR_FUENTE[f]).select('*', { count: 'exact', head: true })
-      )
-    ),
-    Promise.all(
-      FUENTES.map((f) =>
-        supabase
-          .from(TABLA_POR_FUENTE[f])
-          .select('*', { count: 'exact', head: true })
-          .gte('primera_vez_visto', hace24h)
-      )
-    ),
-    Promise.all(
-      FUENTES.map((f) =>
-        supabase
-          .from(TABLA_POR_FUENTE[f])
-          .select('*', { count: 'exact', head: true })
-          .lt('delta_pct', 0)
-          .gte('ultima_vez_visto', hace7d)
-      )
-    ),
-    supabase.from('deals').select('categoria').eq('activo', true).limit(5000),
-  ]);
+  const [porEstadoRes, nuevos24hRes, nuevos7dRes, bajadas7dRes, sinFotoRes, dealsRes] =
+    await Promise.all([
+      Promise.all(ESTADOS.map((estado) => contar((q) => q.eq('estado', estado)))),
+      contar((q) => q.gte('publicado_en', hace24h)),
+      contar((q) => q.gte('publicado_en', hace7d)),
+      contar((q) => q.lt('delta_pct', 0).gte('actualizado_en', hace7d)),
+      contar((q) => q.eq('estado', 'publicado').is('url_imagen', null)),
+      supabase.from('deals').select('categoria').eq('activo', true).limit(MAX_DEALS),
+    ]);
 
-  const porFuente = FUENTES.map((fuente, i) => ({ fuente, total: totales[i].count ?? 0 }));
-  const totalAvisos = porFuente.reduce((acc, f) => acc + f.total, 0);
-  const nuevos24h = nuevos.reduce((acc, r) => acc + (r.count ?? 0), 0);
-  const bajadas7d = bajadas.reduce((acc, r) => acc + (r.count ?? 0), 0);
+  const porEstado = Object.fromEntries(
+    ESTADOS.map((estado, i) => [estado, porEstadoRes[i].count ?? 0]),
+  ) as unknown as ConteoEstados;
 
   const porCategoria = new Map<CategoriaDeal, number>();
   for (const d of (dealsRes.data ?? []) as { categoria: CategoriaDeal | null }[]) {
@@ -107,7 +40,15 @@ export async function obtenerMetricasVehiculos(): Promise<MetricasVehiculos> {
   const dealsPorCategoria = [...porCategoria.entries()]
     .map(([categoria, total]) => ({ categoria, total }))
     .sort((a, b) => b.total - a.total);
-  const dealsActivos = dealsPorCategoria.reduce((acc, d) => acc + d.total, 0);
 
-  return { totalAvisos, porFuente, nuevos24h, bajadas7d, dealsActivos, dealsPorCategoria };
+  return {
+    totalAvisos: ESTADOS.reduce((acc, e) => acc + porEstado[e], 0),
+    porEstado,
+    nuevos24h: nuevos24hRes.count ?? 0,
+    nuevos7d: nuevos7dRes.count ?? 0,
+    bajadas7d: bajadas7dRes.count ?? 0,
+    sinFoto: sinFotoRes.count ?? 0,
+    dealsActivos: dealsPorCategoria.reduce((acc, d) => acc + d.total, 0),
+    dealsPorCategoria,
+  };
 }

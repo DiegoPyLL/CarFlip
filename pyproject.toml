@@ -1,6 +1,6 @@
 [project]
 name = "carflip"
-version = "0.7.0"
+version = "0.8.0"
 description = "Análisis de precios del mercado chileno de autos usados"
 requires-python = ">=3.12"
 dependencies = [

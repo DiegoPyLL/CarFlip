@@ -14,8 +14,8 @@ if (Astro.url.search) {
   return Astro.redirect('/avisos' + Astro.url.search, 301);
 }
 
-// Las tres en paralelo: `obtenerEstadisticas` pagina todas las filas de las cinco
-// tablas y domina el tiempo, así que las opciones del buscador no cuestan TTFB.
+// Las tres en paralelo: `obtenerEstadisticas` pagina todas las filas del catálogo
+// y domina el tiempo, así que las opciones del buscador no cuestan TTFB.
 const [estadisticas, destacados, disponibles] = await Promise.all([
   obtenerEstadisticas(),
   obtenerDeals({}, 10),

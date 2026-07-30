@@ -15,11 +15,10 @@ interface Props {
   marcas: string[];
   modelos: string[];
   anios: number[];
-  fuente?: string;
   consulta: { marca: string; modelo: string; anio: number | null; precio: number | null };
   resultado: ConsultaMercado | null;
 }
-const { marcas, modelos, anios, fuente, consulta, resultado } = Astro.props;
+const { marcas, modelos, anios, consulta, resultado } = Astro.props;
 
 const intento = Boolean(consulta.marca && consulta.modelo && consulta.anio);
 const posicion =
@@ -40,8 +39,6 @@ const labelCls = 'text-sm text-muted uppercase tracking-wider';
   </div>
 
   <form method="GET" action="/mercado#consulta" class="bg-accent bloque-acento p-element grid gap-element sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
-    {fuente && <input type="hidden" name="fuente" value={fuente} />}
-
     <div class="flex flex-col gap-2">
       <label for="q_marca" class={labelCls}>Marca</label>
       <select id="q_marca" name="q_marca" class={`${selectCls} campo`} required aria-describedby="err-q-marca">

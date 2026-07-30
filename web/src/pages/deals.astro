@@ -12,9 +12,7 @@ import Normalizacion from '@components/Normalizacion.astro';
 import { chipCls, labelCls, selectCls } from '@components/filtros/estilos';
 import { obtenerDeals, obtenerFiltrosDeals } from '@lib/db';
 import { POR_PAGINA } from '@lib/db/client';
-import { FUENTES } from '@lib/db/fuentes';
 import { parsearFiltrosDeals } from '@lib/filtros';
-import type { Aviso } from '@lib/tipos';
 
 // El tope es parte de la promesa de la página, no un detalle de implementación:
 // Deals es una selección curada, no el catálogo completo.
@@ -43,25 +41,9 @@ const totalPaginas = Math.ceil(totalDeals / POR_PAGINA);
 const pagina = Math.min(filtros.pagina ?? 1, Math.max(totalPaginas, 1));
 const visibles = deals.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
 
-const ETIQUETA_FUENTE: Record<Aviso['fuente'], string> = {
-  autocosmos: 'Autocosmos',
-  yapo: 'Yapo',
-  autosusados: 'AutosUsados',
-  checkeados: 'Checkeados',
-  particular: 'Particulares',
-};
-
-// Fuente y categoría comparten markup de chips: se declaran como datos.
+// Declarado como datos aunque hoy sea un solo grupo: el markup de chips ya
+// estaba escrito para varios y así un filtro nuevo entra como una entrada más.
 const gruposChips = [
-  {
-    name: 'fuente',
-    label: 'Fuente',
-    activo: filtros.fuente ?? '',
-    opciones: [
-      { value: '', label: 'Todas' },
-      ...FUENTES.map((f) => ({ value: f as string, label: ETIQUETA_FUENTE[f] })),
-    ],
-  },
   {
     name: 'categoria',
     label: 'Categoría',

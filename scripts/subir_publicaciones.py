@@ -52,34 +52,124 @@ PREFER = {"Prefer": "return=representation"}
 # (GRANT por columna de la migración 0018). Cada uno se lleva un tramo de fotos.
 AUTOS = [
     {
-        "marca": "Toyota", "modelo": "Yaris", "version": "XLS", "anio": 2021,
+        "marca": "Toyota", "modelo": "Yaris", "version": "XLS", "anio": 2021, "patente": "GSBB20",
         "km": 32000, "precio": 10500000, "combustible": "Bencina", "transmision": "Automática",
         "traccion": "Delantera", "ubicacion": "Ñuñoa, Metropolitana",
         "descripcion": "Yaris XLS único dueño, mantenciones al día, sin choques.",
     },
     {
-        "marca": "Chevrolet", "modelo": "Sail", "version": "LT", "anio": 2019,
+        "marca": "Chevrolet", "modelo": "Sail", "version": "LT", "anio": 2019, "patente": "HJKL42",
         "km": 58000, "precio": 6900000, "combustible": "Bencina", "transmision": "Manual",
         "traccion": "Delantera", "ubicacion": "San Bernardo, Metropolitana",
         "descripcion": "Sail LT económico, ideal primer auto, papeles al día.",
     },
     {
-        "marca": "Nissan", "modelo": "Versa", "version": "Advance", "anio": 2020,
+        "marca": "Nissan", "modelo": "Versa", "version": "Advance", "anio": 2020, "patente": "PRST77",
         "km": 41000, "precio": 8900000, "combustible": "Bencina", "transmision": "Automática",
         "traccion": "Delantera", "ubicacion": "Viña del Mar, Valparaíso",
         "descripcion": "Versa Advance full equipo, aire acondicionado, cámara de retroceso.",
     },
     {
-        "marca": "Hyundai", "modelo": "Accent", "version": "GL", "anio": 2018,
+        "marca": "Hyundai", "modelo": "Accent", "version": "GL", "anio": 2018, "patente": "BCDF18",
         "km": 67000, "precio": 6200000, "combustible": "Bencina", "transmision": "Manual",
         "traccion": "Delantera", "ubicacion": "Concepción, Biobío",
         "descripcion": "Accent GL, mantención en agencia, cinturones y frenos nuevos.",
     },
     {
-        "marca": "Suzuki", "modelo": "Swift", "version": "GLX", "anio": 2022,
+        "marca": "Suzuki", "modelo": "Swift", "version": "GLX", "anio": 2022, "patente": "SVWX05",
         "km": 15000, "precio": 11800000, "combustible": "Bencina", "transmision": "Automática",
         "traccion": "Delantera", "ubicacion": "La Serena, Coquimbo",
         "descripcion": "Swift GLX seminuevo, bajo kilometraje, aún en garantía de fábrica.",
+    },
+    {
+        "marca": "Kia", "modelo": "Rio", "version": "EX", "anio": 2020, "patente": "JLTV31",
+        "km": 47000, "precio": 8300000, "combustible": "Bencina", "transmision": "Manual",
+        "traccion": "Delantera", "ubicacion": "Maipú, Metropolitana",
+        "descripcion": "Rio EX con llantas nuevas y revisión técnica vigente hasta marzo.",
+    },
+    {
+        "marca": "Mazda", "modelo": "3", "version": "V Sport", "anio": 2019, "patente": "RSGH64",
+        "km": 62000, "precio": 12400000, "combustible": "Bencina", "transmision": "Automática",
+        "traccion": "Delantera", "ubicacion": "Providencia, Metropolitana",
+        "descripcion": "Mazda 3 V Sport, cuero, sensores de estacionamiento y pantalla táctil.",
+    },
+    {
+        "marca": "Toyota", "modelo": "Hilux", "version": "SR", "anio": 2017, "patente": "KDWB90",
+        "km": 128000, "precio": 15900000, "combustible": "Diésel", "transmision": "Manual",
+        "traccion": "4x4", "ubicacion": "Puerto Montt, Los Lagos",
+        "descripcion": "Hilux SR de trabajo, motor impecable, cubre pisadera y barra antivuelco.",
+    },
+    {
+        "marca": "Ford", "modelo": "Ranger", "version": "XLT", "anio": 2021, "patente": "FTZR26",
+        "km": 74000, "precio": 21500000, "combustible": "Diésel", "transmision": "Automática",
+        "traccion": "4x4", "ubicacion": "Temuco, La Araucanía",
+        "descripcion": "Ranger XLT full, mantenciones en concesionario, tapa de pick up rígida.",
+    },
+    {
+        "marca": "Volkswagen", "modelo": "Gol", "version": "Trend", "anio": 2016, "patente": "CB4471",
+        "km": 96000, "precio": 5400000, "combustible": "Bencina", "transmision": "Manual",
+        "traccion": "Delantera", "ubicacion": "Rancagua, O'Higgins",
+        "descripcion": "Gol Trend confiable y barato de mantener, neumáticos con 80% de vida.",
+    },
+    {
+        "marca": "Peugeot", "modelo": "208", "version": "Active", "anio": 2021, "patente": "LVHK58",
+        "km": 28000, "precio": 11200000, "combustible": "Bencina", "transmision": "Automática",
+        "traccion": "Delantera", "ubicacion": "Valparaíso, Valparaíso",
+        "descripcion": "208 Active con pantalla i-Cockpit, siempre en estacionamiento techado.",
+    },
+    {
+        "marca": "Renault", "modelo": "Duster", "version": "Zen", "anio": 2019, "patente": "TGPB13",
+        "km": 83000, "precio": 9800000, "combustible": "Bencina", "transmision": "Manual",
+        "traccion": "4x4", "ubicacion": "Antofagasta, Antofagasta",
+        "descripcion": "Duster Zen 4x4, ideal para terreno, suspensión recién revisada.",
+    },
+    {
+        "marca": "Honda", "modelo": "Fit", "version": "LX", "anio": 2015, "patente": "ZP7382",
+        "km": 112000, "precio": 6700000, "combustible": "Bencina", "transmision": "Automática",
+        "traccion": "Delantera", "ubicacion": "La Florida, Metropolitana",
+        "descripcion": "Fit LX espacioso y económico, distribución cambiada a los 100.000 km.",
+    },
+    {
+        "marca": "Subaru", "modelo": "XV", "version": "Dynamic", "anio": 2020, "patente": "WXJD49",
+        "km": 54000, "precio": 16800000, "combustible": "Bencina", "transmision": "Automática",
+        "traccion": "4x4", "ubicacion": "Puerto Varas, Los Lagos",
+        "descripcion": "XV Dynamic AWD, EyeSight activo, perfecto para carretera del sur.",
+    },
+    {
+        "marca": "Mitsubishi", "modelo": "L200", "version": "Katana", "anio": 2018, "patente": "HKRV72",
+        "km": 141000, "precio": 13900000, "combustible": "Diésel", "transmision": "Manual",
+        "traccion": "4x4", "ubicacion": "Calama, Antofagasta",
+        "descripcion": "L200 Katana de faena minera, mantención cada 5.000 km documentada.",
+    },
+    {
+        "marca": "Chevrolet", "modelo": "Groove", "version": "LT", "anio": 2022, "patente": "BLSF37",
+        "km": 24000, "precio": 12900000, "combustible": "Bencina", "transmision": "Automática",
+        "traccion": "Delantera", "ubicacion": "Talca, Maule",
+        "descripcion": "Groove LT seminuevo, cámara 360, aún con garantía de fábrica vigente.",
+    },
+    {
+        "marca": "Toyota", "modelo": "Corolla", "version": "SEG Hybrid", "anio": 2023, "patente": "DFKZ81",
+        "km": 19000, "precio": 22900000, "combustible": "Híbrido", "transmision": "Automática",
+        "traccion": "Delantera", "ubicacion": "Las Condes, Metropolitana",
+        "descripcion": "Corolla híbrido, rinde sobre 20 km/l en ciudad, batería con garantía.",
+    },
+    {
+        "marca": "Hyundai", "modelo": "Tucson", "version": "Value", "anio": 2021, "patente": "PVGC24",
+        "km": 61000, "precio": 18500000, "combustible": "Diésel", "transmision": "Automática",
+        "traccion": "4x4", "ubicacion": "Chillán, Ñuble",
+        "descripcion": "Tucson Value diésel, techo panorámico y enganche de arrastre instalado.",
+    },
+    {
+        "marca": "MG", "modelo": "ZS", "version": "Comfort", "anio": 2022, "patente": "RCTX60",
+        "km": 33000, "precio": 11600000, "combustible": "Bencina", "transmision": "Automática",
+        "traccion": "Delantera", "ubicacion": "Iquique, Tarapacá",
+        "descripcion": "ZS Comfort con Apple CarPlay, polarizado de fábrica y aire potente.",
+    },
+    {
+        "marca": "BYD", "modelo": "Dolphin", "version": "Mini", "anio": 2024, "patente": "SJWB93",
+        "km": 9000, "precio": 15200000, "combustible": "Eléctrico", "transmision": "Automática",
+        "traccion": "Delantera", "ubicacion": "Valdivia, Los Ríos",
+        "descripcion": "Dolphin Mini eléctrico, 300 km de autonomía real, cargador incluido.",
     },
 ]
 
@@ -149,6 +239,9 @@ async def main() -> None:
     fotos = sorted(CARPETA_IMAGENES.glob("*.jpg"))
     if not fotos:
         sys.exit(f"No hay imágenes en {CARPETA_IMAGENES}")
+    # Hay menos fotos que avisos: se repiten en ciclo para que ninguno quede sin portada.
+    if len(fotos) < len(AUTOS):
+        fotos = [fotos[i % len(fotos)] for i in range(len(AUTOS))]
     tramos = repartir(fotos, len(AUTOS))
 
     print(f"Se van a publicar {len(AUTOS)} avisos con {len(fotos)} fotos en total,")

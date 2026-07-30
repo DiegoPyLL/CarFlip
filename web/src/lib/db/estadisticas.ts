@@ -5,7 +5,7 @@ import type { Aviso, Estadisticas } from '../tipos';
 const TAMANO_LOTE = 1000;
 
 // Supabase/PostgREST limita cada select a TAMANO_LOTE filas por defecto,
-// así que hay que paginar con .range() para traer tablas más grandes.
+// así que hay que paginar con .range() para traer la tabla completa.
 async function obtenerTodasLasFilas(fuente: Aviso['fuente'], columnas: string): Promise<any[]> {
   const todas: any[] = [];
   let desde = 0;
@@ -27,31 +27,22 @@ export async function obtenerEstadisticas(): Promise<Estadisticas> {
     FUENTES.map((fuente) => obtenerTodasLasFilas(fuente, 'precio, ultima_vez_visto'))
   );
 
-  const totalesPorFuente: Record<string, number> = {};
+  const filas = resultados.flat();
   const todosPrecios: number[] = [];
   const todasFechas: Date[] = [];
 
-  FUENTES.forEach((fuente, i) => {
-    const stats = resultados[i];
-    totalesPorFuente[fuente] = stats.length;
-    for (const r of stats as any[]) {
-      if (r.precio) todosPrecios.push(parseFloat(r.precio));
-      if (r.ultima_vez_visto) todasFechas.push(new Date(r.ultima_vez_visto));
-    }
-  });
+  for (const r of filas as any[]) {
+    if (r.precio) todosPrecios.push(parseFloat(r.precio));
+    if (r.ultima_vez_visto) todasFechas.push(new Date(r.ultima_vez_visto));
+  }
 
-  const total = FUENTES.reduce((acc, fuente) => acc + totalesPorFuente[fuente], 0);
   const precio_promedio = todosPrecios.length > 0 ? todosPrecios.reduce((a, b) => a + b, 0) / todosPrecios.length : null;
   const precio_minimo = todosPrecios.length > 0 ? Math.min(...todosPrecios) : null;
   const precio_maximo = todosPrecios.length > 0 ? Math.max(...todosPrecios) : null;
   const ultima_actualizacion = todasFechas.length > 0 ? new Date(Math.max(...todasFechas.map((d) => d.getTime()))) : null;
 
   return {
-    total_avisos: total,
-    total_autocosmos: totalesPorFuente.autocosmos,
-    total_yapo: totalesPorFuente.yapo,
-    total_autosusados: totalesPorFuente.autosusados,
-    total_checkeados: totalesPorFuente.checkeados,
+    total_avisos: filas.length,
     precio_promedio,
     precio_minimo,
     precio_maximo,

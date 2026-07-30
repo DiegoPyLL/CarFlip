@@ -56,8 +56,7 @@ export interface DatosMercado {
   nuevos_24h: number;
   con_baja: number;
   // Opciones para el consultor de precios, derivadas de las filas ya traídas
-  // (evita consultas extra en el hot path). Cuando hay filtro de fuente activo
-  // quedan acotadas a esa fuente; la consulta en sí igual busca en todas.
+  // (evita consultas extra en el hot path).
   marcasTodas: string[];
   modelosTodos: string[];
   aniosTodos: number[];
@@ -137,7 +136,7 @@ const MIN_POR_ANIO = 5; // años con menos avisos no dan una banda de percentile
 
 const claveDia = (t: number) => new Date(t).toISOString().slice(0, 10);
 
-export async function obtenerDatosMercado(fuente?: Aviso['fuente']): Promise<DatosMercado> {
+export async function obtenerDatosMercado(): Promise<DatosMercado> {
   type Fila = {
     marca: string | null;
     modelo: string | null;
@@ -161,13 +160,8 @@ export async function obtenerDatosMercado(fuente?: Aviso['fuente']): Promise<Dat
     return (data ?? []) as Fila[];
   }
 
-  let rows: Fila[];
-  if (fuente) {
-    rows = await fetchFuente(fuente);
-  } else {
-    const resultados = await Promise.all(FUENTES.map((f) => fetchFuente(f)));
-    rows = resultados.flat();
-  }
+  const resultados = await Promise.all(FUENTES.map((f) => fetchFuente(f)));
+  const rows = resultados.flat();
 
   // ── Estructuras acumuladas en una sola pasada ───────────────────────
   const marcaMap = new Map<string, { total: number; precios: number[] }>();
@@ -334,8 +328,11 @@ export interface PuntoHistoria {
 
 /**
  * Serie histórica de precios desde `market_snapshots` (una fila por día que
- * escribe el pipeline Python tras cada scrape). Devuelve más antiguo → más
- * nuevo, o `[]` si la tabla aún no acumula filas — la UI degrada con gracia.
+ * escribe `carflip snapshot`). Devuelve más antiguo → más nuevo, o `[]` si la
+ * tabla aún no acumula filas — la UI degrada con gracia.
+ *
+ * Las filas previas al retiro de los scrapers agregan también esos avisos, así
+ * que la serie tiene un escalón a la baja en esa fecha.
  */
 export async function obtenerHistoriaMercado(dias = 30): Promise<PuntoHistoria[]> {
   const { data, error } = await supabase
@@ -379,8 +376,8 @@ const MIN_COMPARABLES = 8;
 const BANDA_MAX = 3;
 
 /**
- * Agrupa avisos de las cinco fuentes con la misma marca/modelo y un año cercano,
- * y devuelve los percentiles de su precio. `null` si no hay ninguno con precio.
+ * Agrupa los avisos con la misma marca/modelo y un año cercano, y devuelve los
+ * percentiles de su precio. `null` si no hay ninguno con precio.
  *
  * La banda de años es adaptativa: parte en ±1 (como candidatos.sql) y solo se
  * abre —±2, ±3— si no reúne `MIN_COMPARABLES`. Con un catálogo de pocos miles de
@@ -388,8 +385,6 @@ const BANDA_MAX = 3;
  * sobre eso no dice nada. La banda usada se devuelve para poder declararla en la
  * UI en vez de esconder el ensanche. Se trae ±BANDA_MAX en una sola consulta y
  * el recorte se hace en memoria.
- *
- * Es independiente del filtro de fuente del tablero: siempre busca en todas.
  */
 export async function consultarMercado(
   marca: string,

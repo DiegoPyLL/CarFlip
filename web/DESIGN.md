@@ -12,9 +12,9 @@ Este documento es la especificación del sistema. Se lee de arriba a abajo: la m
 
 ### Qué es CarFlip
 
-Un recopilador independiente de avisos de autos usados en Chile. Reúne publicaciones de varios portales y automotoras, las normaliza y las ordena bajo un mismo criterio —precio, año, kilometraje, estado— para que comparar deje de tomar una tarde. Nadie paga por aparecer más arriba.
+Un portal independiente de avisos de autos usados en Chile. Aloja las publicaciones de los particulares y los catálogos de las automotoras con acuerdo vigente, las normaliza y las ordena bajo un mismo criterio —precio, año, kilometraje, estado— para que comparar deje de tomar una tarde. Nadie paga por aparecer más arriba.
 
-Los principios de la marca están redactados en `/quienes-somos` (constante `principios` de [quienes-somos.astro](web/src/pages/quienes-somos.astro)) y son la fuente de verdad del discurso: las oportunidades se muestran, no se venden; sin fines de lucro; se devuelve el tráfico a la fuente original; código abierto; rápido antes que llamativo.
+Los principios de la marca están redactados en `/quienes-somos` (constante `principios` de [quienes-somos.astro](web/src/pages/quienes-somos.astro)) y son la fuente de verdad del discurso: las oportunidades se muestran, no se venden; nadie paga por aparecer primero; publicar es gratis; código abierto; rápido antes que llamativo.
 
 ### Los cuatro principios de diseño
 
@@ -40,7 +40,7 @@ El texto es la mitad de la jerarquía en un sistema sin color: lo que en otros p
 
 - Español de Chile, segunda persona, sin lenguaje de marketing. *"Compara precios"*, no *"Descubre la mejor experiencia"*.
 - Los títulos afirman un hecho, no venden un beneficio: *"Autos bajo precio de mercado"*.
-- Los estados vacíos dicen qué pasó y qué hacer: *"Sin datos de marcas para esta fuente. Prueba con otra."*
+- Los estados vacíos dicen qué pasó y qué hacer: *"Ningún auto calza con estos filtros. Prueba con menos."*
 - Los errores nombran el campo y la corrección esperada, sin culpar: *"Ingresa el kilometraje en números."*
 - Los CTAs son verbo + objeto: *"Ver el teléfono del vendedor"*, no *"Continuar"*.
 - Las cifras van con su unidad y su marco temporal: *"1.240 avisos · últimas 24 h"*.
@@ -340,7 +340,7 @@ A 320px no caben seis enlaces de nav más el wordmark y el toggle, así que bajo
 | `/cuenta`          | Resumen `noindex` del área privada: métricas de actividad, últimas publicaciones, datos de contacto y baja de cuenta plegada |
 | `/cuenta/avisos`   | "Mis publicaciones": listado completo de `FilaAviso` con estado y acciones en línea |
 | `/cuenta/avisos/nuevo`, `/cuenta/avisos/[id]/editar` | Formulario de publicación (`FormularioAviso` + `SubidorFotos`) |
-| `/dashboard`       | Métricas operacionales internas y bandeja de moderación de reportes       |
+| `/dashboard`       | Estado del catálogo, deals activos y bandeja de moderación de reportes    |
 
 ---
 
@@ -384,7 +384,7 @@ Botón de 40×40 (target táctil) con dos SVG inline —luna y sol— que se alt
 
 ### CardAviso
 
-`<article>` con `bg-surface border border-line`, hover a `border-ink` en 200ms. Sin radio, sin sombra, sin transform: la card se despega de la página por su plano —un paso sobre `canvas`— y por su hairline, no por elevación (sección 10). La imagen es `aspect-[4/3] object-cover` sobre el mismo `bg-surface`; su borde ES el borde de la card. Badges absolutos arriba a la izquierda sobre `bg-canvas/75`, con el texto en `ink` sólido —nunca `/70`, porque el fondo del badge deja pasar la foto—: fuente, variación de precio y, si aplica, "No disponible" tachado. Cuerpo con `p-element`: título en `text-base line-clamp-2`, precio en `text-2xl text-ink tabular-nums`, y metadatos (`año · km · ubicación`) unidos con ` · ` en `text-ink/70`, en una sola línea con `truncate`.
+`<article>` con `bg-surface border border-line`, hover a `border-ink` en 200ms. Sin radio, sin sombra, sin transform: la card se despega de la página por su plano —un paso sobre `canvas`— y por su hairline, no por elevación (sección 10). La imagen es `aspect-[4/3] object-cover` sobre el mismo `bg-surface`; su borde ES el borde de la card. Badges absolutos arriba a la izquierda sobre `bg-canvas/75`, con el texto en `ink` sólido —nunca `/70`, porque el fondo del badge deja pasar la foto—: variación de precio y, si aplica, "No disponible" tachado. Cuerpo con `p-element`: título en `text-base line-clamp-2`, precio en `text-2xl text-ink tabular-nums`, y metadatos (`año · km · ubicación`) unidos con ` · ` en `text-ink/70`, en una sola línea con `truncate`.
 
 ### CardDeal
 
@@ -400,9 +400,9 @@ Misma anatomía, imagen `aspect-[16/10]`. La diferencia es el badge de categorí
 
 El badge va sobre la foto, así que su relleno es `bg-canvas` opaco y no el `surface` de la card: encima de una imagen el plano de la card no existe. La etiqueta de texto siempre acompaña, así que no se pierde información sin el color. Debajo del precio conviven el puntaje IA (`n/100`), el % vs mercado, la bajada propia del aviso, hasta 3 chips de riesgo con `+n` de overflow, y el resumen de la IA en `line-clamp-2`.
 
-### Badge "Particular"
+### Procedencia del aviso
 
-Los avisos publicados en el sitio llevan el mismo badge de fuente que los recopilados, con la etiqueta `Particular`, y comparten card, grid, filtros y señales de precio. La decisión de diseño es que **no se distinguen visualmente**: son una fuente más del listado, y darles un tratamiento propio sugeriría una jerarquía que el producto no tiene. Lo único distinto es el destino del enlace, que resuelve `enlaceAviso()`: `/auto/p/<id>` en vez de `/auto/<id>`.
+No se muestra. Mientras el catálogo tuvo varias fuentes, cada card llevaba un badge con la suya; hoy todos los avisos son publicaciones alojadas en el sitio y un badge que dice siempre lo mismo es ruido. Si entra el catálogo de una automotora, la regla de diseño que se mantiene es que **no se distingue visualmente del de un particular**: son una fuente más del listado, y un tratamiento propio sugeriría una jerarquía que el producto no tiene. Lo único que varía es el destino del enlace, que resuelve `enlaceAviso()`.
 
 ### Galería del aviso de particular
 
@@ -448,7 +448,7 @@ Inputs y selects: `bg-field border border-line-strong px-3 py-2`, foco con `focu
 
 ### FiltrosBarra
 
-Bloque sobre el listado con fondo `bg-accent` (mismo acento que `BuscadorHome` en portada: identifica el módulo de búsqueda, no el listado en sí). Fuente como `fieldset` de radios ocultos (`sr-only peer`) con etiquetas tipo chip; debajo, selects de marca y año, más las acciones a la derecha: "Filtrar" y "Limpiar" como enlace. El grid de resultados que sigue debajo no hereda el acento y permanece acromático. A anchos chicos se apila en dos bloques. El filtro de `/deals` (`fuente`/`categoría` + selects + tracción, en `deals.astro`) sigue la misma anatomía y el mismo fondo, sin componente propio.
+Bloque sobre el listado con fondo `bg-accent` (mismo acento que `BuscadorHome` en portada: identifica el módulo de búsqueda, no el listado en sí). Selects de marca y año, región, transmisión y tracción, más las acciones a la derecha: "Filtrar" y "Limpiar" como enlace. El grid de resultados que sigue debajo no hereda el acento y permanece acromático. A anchos chicos se apila en dos bloques. El filtro de `/deals` (categoría como `fieldset` de radios ocultos con etiquetas tipo chip, + selects + tracción, en `deals.astro`) sigue la misma anatomía y el mismo fondo, sin componente propio.
 
 ### FiltrosSidebar
 
@@ -488,7 +488,7 @@ Fila de un aviso propio, compartida por el resumen de `/cuenta` y el listado de 
 
 ### Bandeja de reportes
 
-Primera sección de `/dashboard`, anclada en `#reportes` y **fuera** del bloque de métricas: los reportes deben verse aunque no haya ninguna corrida de scraping registrada. Caja `bg-surface border border-line` con cabecera, filas `divide-y divide-line` y las acciones en línea como enlaces subrayados, igual que en "Mis publicaciones" — despublicar es reversible (el autor puede republicar), así que no merece el peso visual de un botón. Los reportes ya revisados se pliegan en un `<details>` nativo, sin JS.
+Primera sección de `/dashboard`, anclada en `#reportes` y **fuera** del bloque de métricas: los reportes deben verse aunque el catálogo todavía no tenga métricas que mostrar. Caja `bg-surface border border-line` con cabecera, filas `divide-y divide-line` y las acciones en línea como enlaces subrayados, igual que en "Mis publicaciones" — despublicar es reversible (el autor puede republicar), así que no merece el peso visual de un botón. Los reportes ya revisados se pliegan en un `<details>` nativo, sin JS.
 
 ### Footer
 
@@ -552,7 +552,7 @@ Mismo valor en ambos temas (como `scarlet`): la paleta fue verificada con `scrip
 
 **Reglas de uso:**
 
-- **Categórica** (identidad: mix de combustible, fuentes) → `viz-1…viz-4` en **orden fijo**, nunca cíclico. Una 5.ª categoría **no** genera un quinto tono: se pliega en "Otros" con `muted` (que aquí es relleno, no texto).
+- **Categórica** (identidad: mix de combustible, estados de un aviso) → `viz-1…viz-4` en **orden fijo**, nunca cíclico. Una 5.ª categoría **no** genera un quinto tono: se pliega en "Otros" con `muted` (que aquí es relleno, no texto).
 - **Magnitud / secuencial** (histogramas, treemap, rankings) → un **solo** tono (`viz-1`, variando opacidad claro→oscuro) o directamente `ink`. Nunca arcoíris.
 - **Realce focal** → `scarlet-signal` marca como máximo **un** dato por panel (la marca #1, el bucket destacado). Es la única aparición del escarlata que no responde a una interacción, y por eso está acotada al `<svg>`.
 - **Dirección** (subió/bajó de precio) → jamás verde/rojo. Se comunica con glifo `▲▼` + peso, igual que en el resto del sitio (ver `signosDelta()`).

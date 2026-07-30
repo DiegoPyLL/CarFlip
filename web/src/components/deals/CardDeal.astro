@@ -11,18 +11,6 @@ interface Props {
 const { deal } = Astro.props;
 const urlImagen = resolverUrlImagen(deal.url_imagen);
 
-// El aviso de un particular ya vive en CarFlip: su `url` es la canónica propia,
-// así que no se abre en pestaña nueva ni se anuncia como enlace a otro portal.
-const esInterno = deal.fuente === 'particular';
-
-const fuenteLabels: Record<Deal['fuente'], string> = {
-  autocosmos: 'Autocosmos',
-  yapo: 'Yapo',
-  autosusados: 'AutosUsados',
-  checkeados: 'Checkeados',
-  particular: 'Particular',
-};
-
 // Jerarquía por relleno y borde, no por color: la escala es acromática y la
 // etiqueta de texto siempre acompaña, así que no se pierde información.
 const categoriaEstilos: Record<CategoriaDeal | 'sin_evaluar', { label: string; clases: string }> = {
@@ -47,13 +35,9 @@ const metaItems = [
 ---
 
 <article class="group bg-surface border border-line hover:border-ink transition-colors duration-200">
-  <a
-    href={deal.url}
-    target={esInterno ? undefined : '_blank'}
-    rel={esInterno ? undefined : 'noopener noreferrer'}
-    aria-label={esInterno ? `Ver ${deal.titulo}` : `Ver ${deal.titulo} en ${fuenteLabels[deal.fuente]}`}
-    class="block"
-  >
+  <!-- `deal.url` es la canónica del aviso dentro de CarFlip, así que navega en
+       la misma pestaña como cualquier enlace interno. -->
+  <a href={deal.url} aria-label={`Ver ${deal.titulo}`} class="block">
     <!-- Imagen con badge de categoría IA -->
     <div class="aspect-[16/10] bg-surface relative">
       {urlImagen ? (
@@ -76,12 +60,6 @@ const metaItems = [
         </span>
       </div>
 
-      <!-- Fuente -->
-      <div class="absolute top-element left-element">
-        <span class="text-sm px-2 py-0.5 bg-canvas/75 ">
-          {fuenteLabels[deal.fuente]}
-        </span>
-      </div>
     </div>
 
     <!-- Contenido -->

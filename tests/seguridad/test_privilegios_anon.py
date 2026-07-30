@@ -30,14 +30,15 @@ _ESCRITURA = ["INSERT", "UPDATE", "DELETE", "TRUNCATE"]
 # Astro en el servidor con la service key. `anon` no tiene nada que hacer aquí.
 _TABLAS_INTERNAS = [
     "alembic_version",
-    "scrape_runs",
-    "run_fail_logs",
     "ia_runs",
     "deals",
+    # Las cinco tablas del pipeline de scraping retirado: siguen existiendo con
+    # sus datos, así que `anon` tampoco debe poder alcanzarlas.
     "autocosmos_listings",
     "yapo_listings",
     "autosusados_listings",
     "checkeados_listings",
+    "mercadolibre_listings",
 ]
 
 skip_sin_db = pytest.mark.skipif(
@@ -110,9 +111,8 @@ async def test_anon_no_escribe_en_ninguna_tabla(conexion):
 async def test_anon_no_lee_las_tablas_internas(conexion, tabla):
     """El catálogo se sirve por SSR con la service key, no exponiendo las tablas.
 
-    Dárselas a `anon` convierte a PostgREST en un export masivo del scraping
-    ajeno a la web, y en el caso de scrape_runs/alembic_version filtra detalle
-    operativo del pipeline.
+    Dárselas a `anon` convierte a PostgREST en un export masivo del catálogo
+    ajeno a la web, y en el caso de alembic_version filtra detalle operativo.
     """
     tiene = await conexion.scalar(
         text("SELECT has_table_privilege('anon', :t, 'SELECT')"),
@@ -154,7 +154,7 @@ async def test_los_privilegios_por_defecto_estan_cerrados(conexion):
 
 
 @skip_sin_anon
-@pytest.mark.parametrize("tabla", ["autocosmos_listings", "yapo_listings", "deals"])
+@pytest.mark.parametrize("tabla", ["particulares_listings", "yapo_listings", "deals"])
 async def test_la_api_publica_rechaza_borrar(cliente_anon, tabla):
     """El test que importa: intentar borrar de verdad, como lo haría un atacante.
 
@@ -171,9 +171,9 @@ async def test_la_api_publica_rechaza_borrar(cliente_anon, tabla):
 
 
 @skip_sin_anon
-@pytest.mark.parametrize("tabla", ["scrape_runs", "alembic_version"])
+@pytest.mark.parametrize("tabla", ["ia_runs", "alembic_version"])
 async def test_la_api_publica_no_expone_tablas_internas(cliente_anon, tabla):
-    """Ni las métricas del pipeline ni la versión del esquema son públicas."""
+    """Ni la telemetría interna ni la versión del esquema son públicas."""
     async with cliente_anon as cliente:
         respuesta = await cliente.get(f"/{tabla}", params={"limit": 1})
 

@@ -5,6 +5,33 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [0.8.0] - 2026-07-30
+
+### Removed
+
+- **Los cuatro scrapers y toda su infraestructura**. El scraping era el andamio para probar el producto con catálogo real; el rumbo definitivo es un portal donde publican los particulares y las automotoras con acuerdo vigente, así que se retira:
+  - `src/carflip/scrapers/` completo (Autocosmos, Yapo, Autosusados, Checkeados, `base.py`, `image_utils.py`, `logging_utils.py`), `storage/r2.py`, `scheduler/`, `database/uploader.py` y `database/metricas.py`
+  - Los comandos `carflip run` y `carflip start`; el CLI queda con `deals`, `snapshot` y `market`
+  - El workflow `scrape.yml` y la bitácora de corridas: migración `0022` elimina `scrape_runs` y `run_fail_logs`
+  - Dependencias exclusivas: `beautifulsoup4`, `lxml`, `playwright`, `playwright-stealth`, `fake-useragent`, `pillow`, `aioboto3` y `apscheduler`
+  - Ajustes de `config.py` que solo servían al scrapeo: los `yapo_*`, delays, reintentos de R2, `output_dir`/`processed_dir` y `mercadolibre_*`
+- El badge de procedencia de `CardAviso` y `CardDeal`, el filtro `?fuente=` de `/avisos`, `/deals` y `/mercado`, y la ruta `/auto/<fuente>-<id>`: con un solo origen no discriminaban nada. Las URLs viejas responden 404
+
+### Changed
+
+- **La imagen Docker baja de la oficial de Playwright a `python:3.12-slim-bookworm`**: sin Chromium ni sus dependencias de sistema, que existían solo para el scraper de Yapo. Su `CMD` por defecto pasa a `deals`
+- `candidatos.sql`, `snapshot.py` y `price_tracker.py` leen solo `particulares_listings`; se cae el `UNION` de seis ramas. `deal_min_comparables` sube a 12 —el umbral exigente que antes era exclusivo de los particulares— porque ahora ningún aviso pasó por el filtro de un portal, y desaparece `deal_min_comparables_particular`
+- `/dashboard` deja de medir un pipeline que no existe: en lugar de corridas, fallas por etapa y fotos fallidas, muestra el estado del catálogo (avisos por estado, nuevos, bajadas de precio, publicados sin foto) y los deals activos
+- `obtenerAvisos()` pagina y ordena en Postgres con `.range()` en vez de traer el catálogo completo y recortarlo en memoria, que era el precio de mezclar cinco fuentes
+- `web/src/lib/db/fuentes.ts` conserva la indirección `TABLA_POR_FUENTE` con una sola entrada: el catálogo de una automotora entra como una fuente más y colapsarla al literal obligaría a rehacer la capa de lectura para recuperarla
+
+### Notes
+
+- Las cinco tablas de avisos scrapeados (`autocosmos_listings`, `yapo_listings`, `autosusados_listings`, `checkeados_listings`, `mercadolibre_listings`) **se conservan con sus datos** como registro de esa etapa. Nadie las lee ni las escribe, y sus modelos siguen declarados en `models.py` para que Alembic no proponga eliminarlas
+- Los `deals` de fuentes scrapeadas quedan activos hasta la primera corrida de `carflip deals` posterior al despliegue, que los desactiva vía `_desactivar_obsoletos()`. **Hay que ejecutarla en la misma ventana del despliegue**
+- La serie de `market_snapshots` muestra un escalón a la baja en la fecha del cambio: las filas anteriores agregan los avisos scrapeados y no se recalculan
+- La resolución de lectura de R2 (`web/src/lib/cdn.ts` y el `img-src` de la CSP) se mantiene para que sigan cargando las fotos `.avif` ya subidas. Los secrets `R2_*` y `MERCADOLIBRE_*` quedan sin uso y conviene revocarlos
+
 ## [0.7.0] - 2026-07-27
 
 ### Added

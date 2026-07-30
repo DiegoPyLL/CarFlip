@@ -482,25 +482,22 @@ h3 {
 
   Dos marcas distintas y no una: `data-grid-listado` habilita la densidad, que
   es puro grid y funciona con cualquier tarjeta; `data-lista-ok` habilita además
-  la vista lista, que necesita las anclas internas de CardAviso. Sin esa segunda
-  marca, la grilla de /deals heredaría el `data-avisos-vista='lista'` guardado
-  desde /avisos y acostaría tarjetas que no saben acostarse.
+  la vista lista, que necesita el `data-card-link` interno de CardAviso. Sin esa
+  segunda marca, la grilla de /deals heredaría el `data-avisos-vista='lista'`
+  guardado desde /avisos y acostaría tarjetas que no saben acostarse.
 */
 
-/* Vista lista: la tarjeta se acuesta y el listado pasa a una sola columna.
-   La fila a ancho completo tiene sitio de sobra a la derecha, así que la
-   procedencia baja del overlay de la foto al costado, alineada al final. */
+/* Vista lista: la tarjeta se acuesta (foto | contenido) y el listado pasa a una
+   sola columna. */
 @media (min-width: 640px) {
   :root[data-avisos-vista='lista'] [data-grid-listado][data-lista-ok] {
     grid-template-columns: minmax(0, 1fr);
   }
   :root[data-avisos-vista='lista'] [data-grid-listado][data-lista-ok] [data-card-link] {
     display: grid;
-    grid-template-columns: 240px minmax(0, 1fr) auto;
+    grid-template-columns: 240px minmax(0, 1fr);
     align-items: center;
   }
-  :root[data-avisos-vista='lista'] [data-grid-listado][data-lista-ok] [data-fuente='badge'] { display: none; }
-  :root[data-avisos-vista='lista'] [data-grid-listado][data-lista-ok] [data-fuente='lado']  { display: block; }
 }
 
 /* Densidad: solo desde xl, donde una cuarta columna sigue dejando el precio
@@ -526,12 +523,4 @@ h3 {
   :root[data-avisos-vista='lista'][data-avisos-cols-lista='2'] [data-grid-listado][data-lista-ok] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  /* Dos por línea parte la fila a la mitad: ahí ya no hay ancho para la
-     procedencia al costado y vuelve a la foto. */
-  :root[data-avisos-vista='lista'][data-avisos-cols-lista='2'] [data-grid-listado][data-lista-ok] [data-card-link] {
-    grid-template-columns: 240px minmax(0, 1fr);
-  }
-  :root[data-avisos-vista='lista'][data-avisos-cols-lista='2'] [data-grid-listado][data-lista-ok] [data-fuente='badge'] { display: block; }
-  :root[data-avisos-vista='lista'][data-avisos-cols-lista='2'] [data-grid-listado][data-lista-ok] [data-fuente='lado']  { display: none; }
 }

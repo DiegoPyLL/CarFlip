@@ -38,8 +38,14 @@ class TestNecesitaIa:
         assert _necesita_ia(c, previos) is True
 
     def test_misma_id_en_otra_fuente_no_cuenta(self, hacer_candidato):
-        c = hacer_candidato(fuente="yapo")
-        previos = {("autocosmos", c.id_externo): _previo(c.precio, hace_dias=1)}
+        """La clave de un deal es el par (fuente, id_externo), no el id solo.
+
+        Hoy hay una sola fuente, así que el caso no se da en producción; el
+        invariante se sostiene igual porque es lo que vuelve seguro sumar el
+        catálogo de una automotora, cuyos ids son su propia secuencia.
+        """
+        c = hacer_candidato(fuente="particular")
+        previos = {("automotora", c.id_externo): _previo(c.precio, hace_dias=1)}
         assert _necesita_ia(c, previos) is True
 
 

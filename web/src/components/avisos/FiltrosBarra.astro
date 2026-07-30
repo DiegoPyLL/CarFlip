@@ -5,9 +5,8 @@ import BotonBuscar from '@components/filtros/BotonBuscar.astro';
 import CampoRegion from '@components/filtros/CampoRegion.astro';
 import CampoTraccion from '@components/filtros/CampoTraccion.astro';
 import CampoTransmision from '@components/filtros/CampoTransmision.astro';
-import { chipCls, labelCls, selectCls } from '@components/filtros/estilos';
-import { FUENTES } from '@lib/db/fuentes';
-import type { Aviso, FiltrosAviso, FiltrosDisponibles } from '@lib/tipos';
+import { labelCls, selectCls } from '@components/filtros/estilos';
+import type { FiltrosAviso, FiltrosDisponibles } from '@lib/tipos';
 
 interface Props {
   filtros: FiltrosAviso;
@@ -15,47 +14,13 @@ interface Props {
 }
 
 const { filtros, disponibles } = Astro.props;
-
-// Los nombres visibles de las fuentes; las claves salen de TABLA_POR_FUENTE, así
-// que una fuente nueva aparece sola en el filtro en vez de faltar en silencio.
-const ETIQUETA_FUENTE: Record<Aviso['fuente'], string> = {
-  autocosmos: 'Autocosmos',
-  yapo: 'Yapo',
-  autosusados: 'AutosUsados',
-  checkeados: 'Checkeados',
-  particular: 'Particulares',
-};
-
-const fuentes = [
-  { value: '', label: 'Todas' },
-  ...FUENTES.map((f) => ({ value: f, label: ETIQUETA_FUENTE[f] })),
-];
 ---
 
 <!--
-  A 16px las seis opciones de fuente más los selects no caben en una sola fila:
-  se apila en bloques, igual que los filtros de /deals.
+  A 16px los selects no caben en una sola fila: se apila en bloques, igual que
+  los filtros de /deals.
 -->
 <div class="bg-accent bloque-acento p-element mb-block space-y-element">
-
-  <!-- Fuente: toggle buttons -->
-  <fieldset>
-    <legend class={labelCls}>Fuente</legend>
-    <div class="flex flex-wrap gap-2">
-      {fuentes.map(({ value, label }) => (
-        <label class="cursor-pointer select-none">
-          <input
-            type="radio"
-            name="fuente"
-            value={value}
-            class="sr-only peer"
-            checked={filtros.fuente === value || (!filtros.fuente && value === '')}
-          />
-          <span class={chipCls}>{label}</span>
-        </label>
-      ))}
-    </div>
-  </fieldset>
 
   <div class="grid gap-element sm:grid-cols-2 lg:grid-cols-4">
     <!-- Marca -->

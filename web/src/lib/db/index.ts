@@ -1,7 +1,7 @@
 // Re-exporta todo desde los módulos de BD para que los imports existentes
 // usando '@lib/db' sigan funcionando sin cambios.
 
-export { obtenerAvisos, obtenerAviso, obtenerFiltrosDisponibles } from './avisos';
+export { obtenerAvisos, obtenerFiltrosDisponibles } from './avisos';
 export { obtenerDeals, obtenerFiltrosDeals } from './deals';
 export {
   obtenerDatosMercado,
@@ -21,4 +21,4 @@ export type {
   ConsultaMercado,
 } from './mercado';
 export { obtenerEstadisticas } from './estadisticas';
-export { obtenerMetricasOperacion, obtenerMetricasVehiculos } from './metricas';
+export { obtenerMetricasCatalogo } from './metricas';

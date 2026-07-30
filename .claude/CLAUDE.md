@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Desarrollar una página web para **CarFlip**, este es un recopilador de publiaciones web para varias automotoras chilenas. Debes priorizar: rendimiento, calidad técnica, diseño y posicionamiento en buscadores.
+Desarrollar una página web para **CarFlip**: un portal chileno de avisos de autos usados, donde publican los particulares y las automotoras que tienen un acuerdo vigente. El catálogo es propio —no se recopila de portales de terceros— y sobre él se calculan las estadísticas de mercado y la detección de oportunidades. Debes priorizar: rendimiento, calidad técnica, diseño y posicionamiento en buscadores.
 
 Toda decisión de desarrollo debe justificarse en función de estos principios.
 

@@ -4,7 +4,7 @@ import type { APIContext, AstroCookies } from 'astro';
 
 // Cliente con la anon key, sujeto a las políticas RLS y ligado a la sesión que
 // viaja en las cookies de la request. Convive con el de `db/client.ts`, que usa
-// la service key y bypassa RLS para las lecturas públicas de los scrapers.
+// la service key y bypassa RLS para las lecturas públicas del catálogo.
 const supabaseUrl =
   (import.meta.env.PUBLIC_SUPABASE_URL as string) || (process.env.PUBLIC_SUPABASE_URL as string);
 const supabaseAnonKey =

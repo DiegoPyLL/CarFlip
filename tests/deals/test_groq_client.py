@@ -40,7 +40,7 @@ async def test_respuesta_valida(hacer_candidato):
 
     assert len(evaluaciones) == 1
     ev = evaluaciones[0]
-    assert ev.fuente == "yapo"
+    assert ev.fuente == "particular"
     assert ev.id_externo == "abc123"
     assert ev.categoria == "oportunidad_clara"
     assert ev.puntaje == 92
@@ -112,7 +112,7 @@ async def test_puntaje_fuera_de_rango_se_clampa(hacer_candidato):
 async def test_id_desconocido_se_ignora(hacer_candidato):
     candidato = hacer_candidato()
     contenido = json.dumps(
-        {"resultados": [_resultado(candidato.id_ia), _resultado("yapo-fantasma")]}
+        {"resultados": [_resultado(candidato.id_ia), _resultado("particular-fantasma")]}
     )
     respx.post(_URL_GROQ).mock(return_value=httpx.Response(200, json=_respuesta_llm(contenido)))
 

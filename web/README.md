@@ -51,9 +51,9 @@ src/
 │   ├── deals.astro           # Oportunidades con evaluación IA
 │   ├── mercado.astro         # Estadísticas de mercado
 │   ├── marcas/[marca].astro  # Detalle por marca
-│   ├── auto/[id].astro       # Ficha de aviso (con JSON-LD)
+│   ├── auto/p/[id].astro     # Ficha de aviso (con JSON-LD)
 │   ├── como-funciona.astro
-│   └── dashboard.astro       # Métricas internas — noindex, fuera del nav y del sitemap
+│   └── dashboard.astro       # Catálogo y moderación — noindex, fuera del nav y del sitemap
 └── components/               # Cards, filtros y paginación (.astro puros)
 ```
 

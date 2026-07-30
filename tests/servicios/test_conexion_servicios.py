@@ -1,12 +1,11 @@
 """Tests de integración: cada servicio externo del .env existe, conecta y responde.
 
 Complementa a `tests/BD/test_conexion_db.py`, que cubre Postgres y la REST API
-de Supabase. Aquí se verifican Cloudflare R2, el CDN público y Groq.
+de Supabase. Aquí se verifican el CDN público y Groq.
 
 Ejecutar con: pytest -m integration -v tests/servicios/test_conexion_servicios.py
 """
 
-import asyncio
 import os
 
 import httpx
@@ -17,26 +16,17 @@ load_dotenv()
 
 pytestmark = pytest.mark.integration
 
-_PLACEHOLDERS = ("tu_account_id", "tu_access_key", "tu_secret_key")
-
 _TIMEOUT = 15
 
 
 def _configurado(*variables: str) -> bool:
-    """True si todas las variables existen, no están vacías y no son placeholders."""
-    valores = [os.getenv(v, "").strip() for v in variables]
-    return all(valores) and not any(v in _PLACEHOLDERS for v in valores)
+    """True si todas las variables existen y no están vacías."""
+    return all(os.getenv(v, "").strip() for v in variables)
 
 
-_tiene_r2 = _configurado(
-    "R2_ACCOUNT_ID", "R2_BUCKET", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"
-)
 _tiene_cdn = _configurado("CDN_BASE_URL")
 _tiene_groq = _configurado("GROQ_API_KEY")
 
-skip_sin_r2 = pytest.mark.skipif(
-    not _tiene_r2, reason="Credenciales R2 ausentes o con valores placeholder"
-)
 skip_sin_cdn = pytest.mark.skipif(not _tiene_cdn, reason="CDN_BASE_URL no configurada")
 skip_sin_groq = pytest.mark.skipif(not _tiene_groq, reason="GROQ_API_KEY no configurada")
 
@@ -46,7 +36,11 @@ skip_sin_groq = pytest.mark.skipif(not _tiene_groq, reason="GROQ_API_KEY no conf
 
 @skip_sin_cdn
 async def test_cdn_responde():
-    """El dominio del CDN resuelve y responde HTTP (404 incluido: el host está vivo)."""
+    """El dominio del CDN resuelve y responde HTTP (404 incluido: el host está vivo).
+
+    Ya nadie sube fotos ahí, pero la web sigue resolviendo contra este dominio las
+    claves `.avif` que dejó el pipeline de scraping (ver `web/src/lib/cdn.ts`).
+    """
     base = os.environ["CDN_BASE_URL"].strip().rstrip("/")
 
     async with httpx.AsyncClient(timeout=_TIMEOUT, follow_redirects=True) as client:
@@ -118,5 +112,3 @@ def test_settings_carga_valores_del_env():
 
     assert settings.database_url.startswith("postgresql+asyncpg://")
     assert settings.groq_api_key == os.getenv("GROQ_API_KEY", "").strip()
-    assert settings.r2_bucket == os.getenv("R2_BUCKET", "").strip()
-    assert settings.cdn_base_url == os.getenv("CDN_BASE_URL", "").strip()

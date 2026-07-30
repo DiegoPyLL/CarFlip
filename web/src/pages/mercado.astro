@@ -1,6 +1,5 @@
 ---
 import Base from '@layouts/Base.astro';
-import AutoSubmit from '@components/AutoSubmit.astro';
 import Normalizacion from '@components/Normalizacion.astro';
 import Panel from '@components/mercado/Panel.astro';
 import KpiSignal from '@components/mercado/KpiSignal.astro';
@@ -13,12 +12,9 @@ import TendenciaMercado from '@components/mercado/TendenciaMercado.astro';
 import ConsultaMercado from '@components/mercado/ConsultaMercado.astro';
 import { obtenerDatosMercado, obtenerHistoriaMercado, consultarMercado } from '@lib/db';
 import { aEntero } from '@lib/campos';
-import { parsearFiltrosUrl } from '@lib/filtros';
 import { formatearPrecio } from '@lib/formato';
 
-const params  = Astro.url.searchParams;
-const filtros = parsearFiltrosUrl(params);
-const fuente  = filtros.fuente;
+const params = Astro.url.searchParams;
 
 // Consultor de precios: parámetros propios (q_*) para no chocar con el filtro
 // del tablero. Se validan y acotan antes de llegar a la consulta.
@@ -31,22 +27,13 @@ const qPrecioN = aEntero(params.get('q_precio'));
 const qPrecio  = qPrecioN !== null && qPrecioN > 0 ? qPrecioN : null;
 const consulta = { marca: qMarca, modelo: qModelo, anio: qAnio, precio: qPrecio };
 
-// La tendencia histórica es de mercado total (una fila por día); no se filtra
-// por fuente. El resto del tablero sí responde al filtro.
+// `datos` se calcula sobre los avisos vigentes; `historia` es la serie diaria
+// que persiste `carflip snapshot`, una fila por día.
 const [datos, historia, resultadoConsulta] = await Promise.all([
-  obtenerDatosMercado(fuente),
+  obtenerDatosMercado(),
   obtenerHistoriaMercado(30),
   qMarca && qModelo && qAnio ? consultarMercado(qMarca, qModelo, qAnio) : Promise.resolve(null),
 ]);
-
-const fuentes = [
-  { value: '',            label: 'Todas' },
-  { value: 'autocosmos',  label: 'Autocosmos' },
-  { value: 'yapo',        label: 'Yapo' },
-  { value: 'autosusados', label: 'Autos Usados' },
-  { value: 'checkeados',  label: 'Checkeados' },
-  { value: 'particular',  label: 'Particulares' },
-];
 
 const serieNuevos = datos.nuevosPorDia.map((d) => d.total);
 const kpi = (n: number | null) => (n != null ? formatearPrecio(Math.round(n)) : '—');
@@ -73,35 +60,10 @@ const kpi = (n: number | null) => (n != null ? formatearPrecio(Math.round(n)) : 
       marcas={datos.marcasTodas}
       modelos={datos.modelosTodos}
       anios={datos.aniosTodos}
-      fuente={fuente}
       consulta={consulta}
       resultado={resultadoConsulta}
     />
   </div>
-
-  <!-- Filtro de fuente -->
-  <form method="GET" action="/mercado" class="mb-element" data-autosubmit>
-    <fieldset class="flex flex-wrap items-center gap-element">
-      <legend class="sr-only">Fuente</legend>
-      <span class="text-sm text-muted uppercase tracking-wider shrink-0" aria-hidden="true">Fuente</span>
-      <div class="flex flex-wrap gap-2">
-        {fuentes.map(({ value, label }) => (
-          <label class="cursor-pointer select-none shrink-0">
-            <input
-              type="radio"
-              name="fuente"
-              value={value}
-              class="sr-only peer"
-              checked={fuente === value || (!fuente && value === '')}
-            />
-            <span class="block px-3 py-2 text-base border border-line-strong text-muted peer-checked:bg-ink peer-checked:text-canvas peer-checked:border-ink peer-focus-visible:border-scarlet-signal hover:border-ink hover:text-ink transition-colors whitespace-nowrap">
-              {label}
-            </span>
-          </label>
-        ))}
-      </div>
-    </fieldset>
-  </form>
 
   <!-- Tira de KPIs -->
   <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-element mb-element">
@@ -118,7 +80,7 @@ const kpi = (n: number | null) => (n != null ? formatearPrecio(Math.round(n)) : 
     <Panel titulo="Marcas más listadas" subtitulo="Área proporcional a la cantidad de avisos" class="lg:col-span-4">
       {datos.marcas.length > 0
         ? <Treemap marcas={datos.marcas} titulo="Marcas más listadas" />
-        : <p class="p-element text-sm text-muted">Sin datos de marcas para esta fuente.</p>}
+        : <p class="p-element text-sm text-muted">Todavía no hay avisos con marca para graficar.</p>}
     </Panel>
 
     <Panel titulo="Modelos más listados" subtitulo="Top 15 por cantidad" class="lg:col-span-2">
@@ -151,7 +113,7 @@ const kpi = (n: number | null) => (n != null ? formatearPrecio(Math.round(n)) : 
     <Panel titulo="Combustible" subtitulo="Mix del mercado" class="lg:col-span-2">
       {datos.mixCombustible.length > 0
         ? <MixCombustible datos={datos.mixCombustible} />
-        : <p class="p-element text-sm text-muted">Sin datos de combustible para esta fuente.</p>}
+        : <p class="p-element text-sm text-muted">Todavía no hay avisos con combustible declarado.</p>}
     </Panel>
 
     <Panel titulo="Distribución de kilometraje" subtitulo="Avisos por tramo de km" class="lg:col-span-2">
@@ -168,6 +130,5 @@ const kpi = (n: number | null) => (n != null ? formatearPrecio(Math.round(n)) : 
 
   </div>
 
-  <AutoSubmit />
   <Normalizacion />
 </Base>

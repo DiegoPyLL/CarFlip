@@ -11,9 +11,9 @@ def hacer_candidato():
 
     def _hacer(**kwargs) -> CandidatoDeal:
         base = {
-            "fuente": "yapo",
+            "fuente": "particular",
             "id_externo": "abc123",
-            "url": "https://yapo.cl/aviso/abc123",
+            "url": "https://carflip.cl/auto/p/123",
             "titulo": "Toyota Yaris 2019",
             "precio": Decimal("6500000"),
             "marca": "Toyota",

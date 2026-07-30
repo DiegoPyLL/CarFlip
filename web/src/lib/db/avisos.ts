@@ -77,10 +77,9 @@ export function aplicarFiltros(query: any, filtros: FiltrosAviso) {
   if (filtros.precio_max) query = query.lte('precio', filtros.precio_max);
   if (filtros.km_max)     query = query.lte('km', filtros.km_max);
   if (filtros.combustible) query = query.ilike('combustible', `%${filtros.combustible}%`);
-  // `ubicacion` es texto libre y significa cosas distintas según la fuente
-  // (región en Autosusados, "Comuna, Región" en particulares, sucursal en
-  // Checkeados): buscar la región dentro del texto es lo único que sirve para
-  // todas. Transmisión y tracción sí se guardan canónicas, así que van por `eq`.
+  // `ubicacion` es texto libre ("Comuna, Región"), así que la región se busca
+  // dentro del texto en vez de por igualdad. Transmisión y tracción sí se
+  // guardan canónicas, así que van por `eq`.
   if (filtros.region)      query = query.ilike('ubicacion', `%${filtros.region}%`);
   if (filtros.transmision) query = query.eq('transmision', filtros.transmision);
   if (filtros.traccion)    query = query.eq('traccion', filtros.traccion);
@@ -96,68 +95,30 @@ function aplicarOrden(query: any, orden?: string) {
   }
 }
 
-function ordenarCombinado(items: Aviso[], orden?: string): Aviso[] {
-  return items.sort((a, b) => {
-    switch (orden) {
-      case 'precio_asc':  return (a.precio ?? Infinity) - (b.precio ?? Infinity);
-      case 'precio_desc': return (b.precio ?? -Infinity) - (a.precio ?? -Infinity);
-      case 'km_asc':      return (a.km ?? Infinity) - (b.km ?? Infinity);
-      default: {
-        const aT = a.ultima_vez_visto ? new Date(a.ultima_vez_visto).getTime() : 0;
-        const bT = b.ultima_vez_visto ? new Date(b.ultima_vez_visto).getTime() : 0;
-        return bT - aT;
-      }
-    }
-  });
-}
-
+/**
+ * Una página del listado.
+ *
+ * Con una sola fuente el orden y el recorte los hace Postgres (`.range()`), que
+ * trae solo las filas de la página en vez de todo el catálogo. Cuando entre una
+ * segunda fuente habrá que volver a mezclar en memoria, o mover el listado a una
+ * vista que una las tablas en la base y dejar esta función intacta.
+ */
 export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResultado<Aviso>> {
   const pagina = filtros.pagina ?? 1;
   const offset = (pagina - 1) * POR_PAGINA;
+  const [fuente] = FUENTES;
 
-  if (filtros.fuente) {
-    const fuente = filtros.fuente;
-    let q = desde(fuente, '*', { count: 'exact' });
-    q = aplicarFiltros(q, filtros);
-    q = aplicarOrden(q, filtros.orden);
-    q = q.range(offset, offset + POR_PAGINA - 1);
-    const { data, count, error } = await q;
-    if (error) throw error;
-    const items = (data ?? []).map((r: RawAviso) => mapearAviso(r, fuente));
-    const total = count ?? 0;
-    return { items, total, pagina, total_paginas: Math.ceil(total / POR_PAGINA), por_pagina: POR_PAGINA };
-  }
+  let q = desde(fuente, '*', { count: 'exact' });
+  q = aplicarFiltros(q, filtros);
+  q = aplicarOrden(q, filtros.orden);
+  q = q.range(offset, offset + POR_PAGINA - 1);
 
-  // Todas las fuentes: una query por tabla en paralelo, mezcladas y ordenadas en memoria
-  const resultados = await Promise.all(
-    FUENTES.map((fuente) => {
-      let q = desde(fuente, '*');
-      q = aplicarFiltros(q, filtros);
-      q = aplicarOrden(q, filtros.orden);
-      return q;
-    })
-  );
+  const { data, count, error } = await q;
+  if (error) throw error;
 
-  const combined: Aviso[] = [];
-  resultados.forEach(({ data, error }, i) => {
-    if (error) throw error;
-    combined.push(...(data ?? []).map((r: RawAviso) => mapearAviso(r, FUENTES[i])));
-  });
-
-  const ordenado = ordenarCombinado(combined, filtros.orden);
-  const total = ordenado.length;
-  const items = ordenado.slice(offset, offset + POR_PAGINA);
+  const items = (data ?? []).map((r: RawAviso) => mapearAviso(r, fuente));
+  const total = count ?? 0;
   return { items, total, pagina, total_paginas: Math.ceil(total / POR_PAGINA), por_pagina: POR_PAGINA };
-}
-
-/**
- * Un aviso por su par `(fuente, id)`. Hace falta la fuente: las secuencias son
- * independientes por tabla, así que el mismo id existe en varias y buscar solo
- * por id devolvía el auto de otro portal.
- */
-export async function obtenerAviso(fuente: Aviso['fuente'], id: number): Promise<Aviso | null> {
-  const { data } = await desde(fuente, '*').eq('id', id).maybeSingle();
-  return data ? mapearAviso(data as RawAviso, fuente) : null;
 }
 
 export async function obtenerFiltrosDisponibles(): Promise<FiltrosDisponibles> {

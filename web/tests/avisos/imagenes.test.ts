@@ -7,6 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  * hueco en vez de su placeholder. Pasa con las filas viejas cuya subida a R2
  * falló y con las que se hubieran insertado directo por PostgREST apuntando a un
  * pixel externo.
+ *
+ * Ya nadie sube fotos a R2, pero las claves `fotos/<fuente>/<id>.avif` que dejó
+ * el pipeline de scraping siguen en la base y hay que poder resolverlas: por eso
+ * las fixturas usan esas claves reales y no unas inventadas.
  */
 
 const CDN = 'https://img.carflip.cl';

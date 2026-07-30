@@ -13,15 +13,6 @@ const { aviso } = Astro.props;
 const urlImagen = resolverUrlImagen(aviso.url_imagen);
 const delta = signosDelta(aviso.delta_pct);
 
-const fuenteLabels: Record<string, string> = {
-  autocosmos: 'Autocosmos',
-  yapo: 'Yapo',
-  autosusados: 'Autosusados',
-  checkeados: 'Checkeados',
-  particular: 'Particular',
-};
-const fuenteLabel = fuenteLabels[aviso.fuente] || aviso.fuente.toUpperCase();
-
 const metaItems = [
   aviso.anio ? String(aviso.anio) : null,
   formatearKm(aviso.km) !== '—' ? formatearKm(aviso.km) : null,
@@ -58,9 +49,6 @@ const metaItems = [
 
       <!-- Badges sobre la imagen -->
       <div class="absolute top-element left-element flex flex-wrap gap-2">
-        <span data-fuente="badge" class="text-sm px-2 py-0.5 bg-canvas/75 ">
-          {fuenteLabel}
-        </span>
         {delta && (
           <span class={`text-sm px-2 py-0.5 tabular-nums ${delta.clases}`}>
             {delta.texto}
@@ -99,12 +87,5 @@ const metaItems = [
         </p>
       )}
     </div>
-
-    <!-- La misma procedencia, al costado: la fila de la vista lista tiene ancho
-         de sobra a la derecha y ahí se lee mejor que encima de la foto. Solo una
-         de las dos se muestra a la vez (ver el CSS de /avisos). -->
-    <p data-fuente="lado" class="hidden text-sm uppercase tracking-wider pr-element whitespace-nowrap">
-      {fuenteLabel}
-    </p>
   </a>
 </article>

@@ -1,20 +1,18 @@
 ---
 import Base from '@layouts/Base.astro';
-import { obtenerMetricasOperacion, obtenerMetricasVehiculos } from '@lib/db';
-import { formatearDuracion, formatearFechaHora } from '@lib/formato';
+import { obtenerMetricasCatalogo } from '@lib/db';
+import { formatearFechaHora } from '@lib/formato';
 import { mensajeDeError } from '@lib/publicaciones/limites';
 import { listarReportes } from '@lib/publicaciones/moderacion';
 import { ETIQUETA_ESTADO, ETIQUETA_REPORTE } from '@lib/publicaciones/opciones';
-import type { CorridaScrape } from '@lib/tipos';
 
 // El middleware ya exige rol de administrador, pero la autorización de una vista
 // de admin no debería depender de un solo predicado de string en otra capa: se
 // recomprueba acá igual que en `api/moderacion/[id].ts`.
 if (Astro.locals.usuario?.rol !== 'admin') return Astro.rewrite('/403');
 
-const [op, veh, reportes] = await Promise.all([
-  obtenerMetricasOperacion(),
-  obtenerMetricasVehiculos(),
+const [cat, reportes] = await Promise.all([
+  obtenerMetricasCatalogo(),
   Astro.locals.supabase ? listarReportes(Astro.locals.supabase) : [],
 ]);
 
@@ -34,31 +32,6 @@ const errorModeracion = mensajeDeError(Astro.url.searchParams.get('error'));
 const accionCls =
   'text-base underline underline-offset-4 hover:text-ink transition-colors duration-150 cursor-pointer';
 
-// Identidad fija por fuente — rampa acromática de blanco, diferenciada por opacidad.
-// La etiqueta de texto siempre acompaña, nunca se codifica solo por tono (CVD floor).
-const ORDEN_FUENTES = ['autocosmos', 'yapo', 'autosusados', 'checkeados'] as const;
-const COLOR_FUENTE: Record<string, string> = {
-  autocosmos: '#ffffff',
-  yapo: '#c0c0c0',
-  autosusados: '#a0a0a0',
-  checkeados: '#707070',
-};
-const NOMBRE_FUENTE: Record<string, string> = {
-  autocosmos: 'Autocosmos',
-  yapo: 'Yapo',
-  autosusados: 'Autosusados',
-  checkeados: 'Checkeados',
-};
-
-const NOMBRE_ETAPA: Record<string, string> = {
-  ingesta: 'Ingesta',
-  dedup_json: 'Deduplicación',
-  validacion_json: 'Validación',
-  conversion_avif: 'Conversión AVIF',
-  descarga_foto: 'Descarga de foto',
-  s3_upload: 'Subida a S3',
-};
-
 // Estados de KPI — acromáticos salvo `critical`, único gasto del acento escarlata
 // en esta pantalla. Color + texto siempre juntos (nunca color solo).
 type Estado = 'good' | 'warning' | 'critical';
@@ -73,29 +46,15 @@ const TEXTO_ESTADO: Record<Estado, string> = {
   critical: 'Fuera de meta',
 };
 
-const ultimas = ORDEN_FUENTES
-  .map((f) => op.ultimas.find((r) => r.source === f))
-  .filter((r): r is CorridaScrape => Boolean(r));
+// Rampa acromática descendente: la jerarquía la da el tono, no el matiz. La
+// etiqueta de texto siempre acompaña, nunca se codifica solo por tono (CVD floor).
+const ORDEN_ESTADOS = ['publicado', 'pausado', 'vendido'] as const;
+const COLOR_ESTADO_AVISO: Record<string, string> = {
+  publicado: '#ffffff',
+  pausado: '#a0a0a0',
+  vendido: '#707070',
+};
 
-const encontrados = ultimas.reduce((a, r) => a + (r.avisos_encontrados ?? 0), 0);
-const validos = ultimas.reduce((a, r) => a + (r.avisos_validos ?? 0), 0);
-const duracionCiclo = ultimas.reduce((a, r) => a + (r.duracion_segundos ?? 0), 0);
-
-const exito = encontrados > 0 ? (validos / encontrados) * 100 : null;
-const fotosPct = encontrados > 0 ? (op.fotosFallidasUltimoCiclo / encontrados) * 100 : null;
-
-const estadoExito: Estado = exito === null ? 'warning' : exito >= 95 ? 'good' : exito >= 90 ? 'warning' : 'critical';
-const estadoFotos: Estado = fotosPct === null ? 'warning' : fotosPct <= 2 ? 'good' : fotosPct <= 5 ? 'warning' : 'critical';
-
-const maxValidos = Math.max(...ultimas.map((r) => r.avisos_validos ?? 0), 1);
-const maxFallas = Math.max(...op.fallasPorEtapa.map((f) => f.total), 1);
-const maxPorFuente = Math.max(...veh.porFuente.map((f) => f.total), 1);
-
-const ultimaActualizacion = ultimas.length
-  ? new Date(Math.max(...ultimas.map((r) => r.started_at.getTime())))
-  : null;
-
-// Rampa acromática descendente: la jerarquía la da el tono, no el matiz.
 const CATEGORIA_DEAL: Record<string, { nombre: string; color: string }> = {
   oportunidad_clara: { nombre: 'Oportunidad clara', color: '#ffffff' },
   buen_precio: { nombre: 'Buen precio', color: '#c0c0c0' },
@@ -103,28 +62,19 @@ const CATEGORIA_DEAL: Record<string, { nombre: string; color: string }> = {
   descartar: { nombre: 'Descartar', color: '#707070' },
 };
 
-const KPIS_PENDIENTES = [
-  { nombre: 'Eficiencia compresión AVIF', meta: '≥ 60%' },
-  { nombre: 'Tiempo de respuesta IA (Groq)', meta: '< 3 s/aviso' },
-  { nombre: 'Error de formato IA', meta: '< 2%' },
-  { nombre: 'Latencia frontend', meta: '< 400 ms' },
-  { nombre: 'Disponibilidad cloud', meta: '≥ 99,5%' },
-];
+// Un aviso sin foto de portada rinde mucho peor: es el único KPI del catálogo
+// con una meta accionable, porque se arregla avisando al dueño.
+const publicados = cat.porEstado.publicado;
+const sinFotoPct = publicados > 0 ? (cat.sinFoto / publicados) * 100 : null;
+const estadoFotos: Estado =
+  sinFotoPct === null ? 'warning' : sinFotoPct <= 2 ? 'good' : sinFotoPct <= 10 ? 'warning' : 'critical';
 
-function tasaExito(r: CorridaScrape): number | null {
-  if (!r.avisos_encontrados || r.avisos_validos === null) return null;
-  return (r.avisos_validos / r.avisos_encontrados) * 100;
-}
-
-function avisosPorMinuto(r: CorridaScrape): string {
-  if (!r.duracion_segundos || r.avisos_validos === null) return '—';
-  return (r.avisos_validos / (r.duracion_segundos / 60)).toFixed(1);
-}
+const maxPorEstado = Math.max(...ORDEN_ESTADOS.map((e) => cat.porEstado[e]), 1);
 ---
 
 <Base
   titulo="Dashboard"
-  descripcion="KPIs operacionales del pipeline de scraping y métricas del mercado de autos usados en Chile."
+  descripcion="Estado del catálogo de avisos y de la selección de oportunidades de CarFlip."
   noindex
 >
   <!-- Header -->
@@ -132,15 +82,11 @@ function avisosPorMinuto(r: CorridaScrape): string {
     <p class="text-base  uppercase tracking-widest mb-2">Sala de máquinas</p>
     <h1 class="text-3xl text-ink mb-3">Dashboard</h1>
     <p class="text-base  max-w-xl">
-      Salud operativa del pipeline de ingesta y métricas del mercado.
-      {ultimaActualizacion && (
-        <span>Última corrida registrada: {formatearFechaHora(ultimaActualizacion)}</span>
-      )}
+      Estado del catálogo de avisos, calidad de las publicaciones y moderación.
     </p>
   </div>
 
-  <!-- Moderación. Fuera del bloque de métricas a propósito: los reportes deben
-       verse aunque todavía no haya ninguna corrida de scraping registrada. -->
+  <!-- Moderación primero: es lo único de esta pantalla que exige una acción. -->
   <section id="reportes" class="bg-surface border border-line mb-element">
     <div class="p-element border-b border-line flex flex-wrap items-baseline justify-between gap-3">
       <div>
@@ -221,290 +167,130 @@ function avisosPorMinuto(r: CorridaScrape): string {
     )}
   </section>
 
-  {ultimas.length === 0 ? (
-    <section class="bg-surface border border-line p-element">
-      <p class="text-base text-ink mb-1">Sin corridas registradas</p>
-      <p class="text-base ">
-        Ejecuta <code class="">cargar_reports_s3.py</code> para poblar scrape_runs desde los run_reports de S3.
+  <!-- KPI row — Catálogo -->
+  <div class="grid grid-cols-2 xl:grid-cols-4 gap-element mb-element">
+
+    <!-- Avisos publicados -->
+    <div class="border border-line p-element">
+      <p class="text-base  uppercase tracking-widest">Avisos publicados</p>
+      <p class="text-3xl text-ink mt-2">{publicados.toLocaleString('es-CL')}</p>
+      <p class="text-base  mt-2">
+        {cat.totalAvisos.toLocaleString('es-CL')} en total, contando pausados y vendidos
       </p>
-    </section>
-  ) : (
-    <>
-      <!-- KPI row — Operación -->
-      <div class="grid grid-cols-2 xl:grid-cols-4 gap-element mb-element">
+    </div>
 
-        <!-- Éxito de extracción -->
-        <div class="border border-line p-element">
-          <p class="text-base  uppercase tracking-widest">Éxito de extracción</p>
-          <p class="text-3xl text-ink mt-2">
-            {exito !== null ? `${exito.toFixed(1)}%` : '—'}
-          </p>
-          <div class="flex items-center gap-1.5 mt-2">
-            <span class="w-2 h-2 shrink-0" style={`background:${COLOR_ESTADO[estadoExito]}`}></span>
-            <span class="text-base ">{TEXTO_ESTADO[estadoExito]} · meta &gt; 95%</span>
-          </div>
-          <div class="relative h-1.5 bg-line mt-3" title={`${validos.toLocaleString('es-CL')} válidos de ${encontrados.toLocaleString('es-CL')} encontrados`}>
-            <div class="h-full" style={`width:${exito ?? 0}%;background:${COLOR_ESTADO[estadoExito]}`}></div>
-            <div class="absolute top-0 bottom-0 w-px bg-muted" style="left:95%"></div>
-          </div>
-        </div>
+    <!-- Nuevos -->
+    <div class="border border-line p-element">
+      <p class="text-base  uppercase tracking-widest">Nuevos · 7 d</p>
+      <p class="text-3xl text-ink mt-2">{cat.nuevos7d.toLocaleString('es-CL')}</p>
+      <p class="text-base  mt-2">{cat.nuevos24h.toLocaleString('es-CL')} en las últimas 24 h</p>
+    </div>
 
-        <!-- Fotos fallidas -->
-        <div class="border border-line p-element">
-          <p class="text-base  uppercase tracking-widest">Fotos fallidas</p>
-          <p class="text-3xl text-ink mt-2">
-            {fotosPct !== null ? `${fotosPct.toFixed(1)}%` : '—'}
-          </p>
-          <div class="flex items-center gap-1.5 mt-2">
-            <span class="w-2 h-2 shrink-0" style={`background:${COLOR_ESTADO[estadoFotos]}`}></span>
-            <span class="text-base ">{TEXTO_ESTADO[estadoFotos]} · meta &lt; 2%</span>
-          </div>
-          <div class="relative h-1.5 bg-line mt-3" title={`${op.fotosFallidasUltimoCiclo.toLocaleString('es-CL')} descargas de foto fallidas sobre ${encontrados.toLocaleString('es-CL')} avisos`}>
-            <div class="h-full" style={`width:${Math.min(100, (fotosPct ?? 0) * 10)}%;background:${COLOR_ESTADO[estadoFotos]}`}></div>
-            <div class="absolute top-0 bottom-0 w-px bg-muted" style="left:20%"></div>
-          </div>
-        </div>
+    <!-- Bajadas de precio -->
+    <div class="border border-line p-element">
+      <p class="text-base  uppercase tracking-widest">Bajaron de precio · 7 d</p>
+      <p class="text-3xl text-ink mt-2">{cat.bajadas7d.toLocaleString('es-CL')}</p>
+      <p class="text-base  mt-2">Son la vía de entrada alternativa a Deals</p>
+    </div>
 
-        <!-- Duración del ciclo -->
-        <div class="border border-line p-element" title={ultimas.map((r) => `${NOMBRE_FUENTE[r.source] ?? r.source}: ${formatearDuracion(r.duracion_segundos)}`).join(' · ')}>
-          <p class="text-base  uppercase tracking-widest">Duración del ciclo</p>
-          <p class="text-3xl text-ink mt-2">{formatearDuracion(duracionCiclo)}</p>
-          <p class="text-base  mt-2">Suma de la última corrida de {ultimas.length} fuentes</p>
-        </div>
-
-        <!-- Avisos válidos -->
-        <div class="border border-line p-element">
-          <p class="text-base  uppercase tracking-widest">Avisos válidos</p>
-          <p class="text-3xl text-ink mt-2">{validos.toLocaleString('es-CL')}</p>
-          <p class="text-base  mt-2">
-            {(encontrados - validos).toLocaleString('es-CL')} rechazados en el último ciclo
-          </p>
-        </div>
+    <!-- Avisos sin foto -->
+    <div class="border border-line p-element">
+      <p class="text-base  uppercase tracking-widest">Publicados sin foto</p>
+      <p class="text-3xl text-ink mt-2">
+        {sinFotoPct !== null ? `${sinFotoPct.toFixed(1)}%` : '—'}
+      </p>
+      <div class="flex items-center gap-1.5 mt-2">
+        <span class="w-2 h-2 shrink-0" style={`background:${COLOR_ESTADO[estadoFotos]}`}></span>
+        <span class="text-base ">{TEXTO_ESTADO[estadoFotos]} · meta &lt; 2%</span>
       </div>
+      <div
+        class="relative h-1.5 bg-line mt-3"
+        title={`${cat.sinFoto.toLocaleString('es-CL')} avisos publicados sin foto de portada, sobre ${publicados.toLocaleString('es-CL')}`}
+      >
+        <div
+          class="h-full"
+          style={`width:${Math.min(100, (sinFotoPct ?? 0) * 10)}%;background:${COLOR_ESTADO[estadoFotos]}`}
+        ></div>
+        <div class="absolute top-0 bottom-0 w-px bg-muted" style="left:20%"></div>
+      </div>
+    </div>
+  </div>
 
-      <div class="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-element">
+  <div class="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-element">
 
-        <!-- Columna principal -->
-        <div class="space-y-element">
-
-          <!-- Última corrida por fuente -->
-          <section class="bg-surface border border-line">
-            <div class="p-element border-b border-line">
-              <h2 class="text-base text-ink">Última corrida por fuente</h2>
-              <p class="text-base  mt-0.5">Avisos válidos, duración y ritmo de cada scraper</p>
-            </div>
-            <div class="p-element space-y-element">
-              {ultimas.map((r) => (
-                <div title={`${(r.avisos_encontrados ?? 0).toLocaleString('es-CL')} encontrados · ${(r.avisos_unicos ?? 0).toLocaleString('es-CL')} únicos · ${(r.avisos_validos ?? 0).toLocaleString('es-CL')} válidos · ${(r.avisos_rechazados ?? 0).toLocaleString('es-CL')} rechazados · ${r.errors} fallas registradas`}>
-                  <div class="flex items-center justify-between mb-1.5">
-                    <div class="flex items-center gap-2 min-w-0">
-                      <span class="w-2.5 h-2.5 shrink-0" style={`background:${COLOR_FUENTE[r.source] ?? '#484848'}`}></span>
-                      <span class="text-base text-ink">{NOMBRE_FUENTE[r.source] ?? r.source}</span>
-                      <span class="text-base  tabular-nums">{formatearFechaHora(r.started_at)}</span>
-                    </div>
-                    <span class="text-base  tabular-nums ml-3 shrink-0">
-                      {formatearDuracion(r.duracion_segundos)} · {avisosPorMinuto(r)} avisos/min
-                    </span>
-                  </div>
-                  <div class="flex items-center gap-3">
-                    <div class="flex-1 h-5">
-                      <div
-                        class="h-full"
-                        style={`width:${(((r.avisos_validos ?? 0) / maxValidos) * 100).toFixed(1)}%;background:${COLOR_FUENTE[r.source] ?? '#484848'}`}
-                      ></div>
-                    </div>
-                    <span class="text-base text-ink tabular-nums w-14 text-right shrink-0">
-                      {(r.avisos_validos ?? 0).toLocaleString('es-CL')}
-                    </span>
-                  </div>
-                  {(r.avisos_rechazados ?? 0) > 0 || r.errors > 0 ? (
-                    <p class="text-base  mt-1">
-                      {(r.avisos_rechazados ?? 0) > 0 && <span>{r.avisos_rechazados} rechazados por validación</span>}
-                      {(r.avisos_rechazados ?? 0) > 0 && r.errors > 0 && <span> · </span>}
-                      {r.errors > 0 && <span>{r.errors} fallas en el pipeline</span>}
-                    </p>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <!-- Historial de corridas -->
-          <section class="bg-surface border border-line">
-            <div class="p-element border-b border-line">
-              <h2 class="text-base text-ink">Historial de corridas</h2>
-              <p class="text-base  mt-0.5">Todas las corridas registradas, la más reciente primero</p>
-            </div>
-            <div class="overflow-x-auto">
-              <table class="w-full text-base">
-                <thead>
-                  <tr class="text-base uppercase tracking-wider  border-b border-line">
-                    <th class="text-left px-5 py-2.5">Fecha</th>
-                    <th class="text-left px-3 py-2.5">Fuente</th>
-                    <th class="text-right px-3 py-2.5">Duración</th>
-                    <th class="text-right px-3 py-2.5">Págs</th>
-                    <th class="text-right px-3 py-2.5">Encontrados</th>
-                    <th class="text-right px-3 py-2.5">Válidos</th>
-                    <th class="text-right px-3 py-2.5">Fallas</th>
-                    <th class="text-right px-5 py-2.5">Éxito</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-line">
-                  {op.historial.map((r) => {
-                    const tasa = tasaExito(r);
-                    const estado: Estado = tasa === null ? 'warning' : tasa >= 95 ? 'good' : tasa >= 90 ? 'warning' : 'critical';
-                    return (
-                      <tr class="hover:bg-canvas transition-colors">
-                        <td class="px-5 py-2.5  tabular-nums whitespace-nowrap">{formatearFechaHora(r.started_at)}</td>
-                        <td class="px-3 py-2.5">
-                          <span class="inline-flex items-center gap-1.5">
-                            <span class="w-2 h-2 shrink-0" style={`background:${COLOR_FUENTE[r.source] ?? '#484848'}`}></span>
-                            <span class="text-ink">{NOMBRE_FUENTE[r.source] ?? r.source}</span>
-                          </span>
-                        </td>
-                        <td class="px-3 py-2.5 text-right  tabular-nums whitespace-nowrap">{formatearDuracion(r.duracion_segundos)}</td>
-                        <td class="px-3 py-2.5 text-right  tabular-nums">{r.paginas_procesadas ?? '—'}</td>
-                        <td class="px-3 py-2.5 text-right  tabular-nums">{r.avisos_encontrados?.toLocaleString('es-CL') ?? '—'}</td>
-                        <td class="px-3 py-2.5 text-right text-ink tabular-nums">{r.avisos_validos?.toLocaleString('es-CL') ?? '—'}</td>
-                        <td class="px-3 py-2.5 text-right  tabular-nums">{r.errors}</td>
-                        <td class="px-5 py-2.5 text-right whitespace-nowrap">
-                          <span class="inline-flex items-center gap-1.5 justify-end">
-                            <span class="text-ink tabular-nums">{tasa !== null ? `${tasa.toFixed(1)}%` : '—'}</span>
-                            <span class="w-1.5 h-1.5 shrink-0" style={`background:${COLOR_ESTADO[estado]}`}></span>
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </div>
-
-        <!-- Columna lateral -->
-        <div class="space-y-element">
-
-          <!-- Mercado / vehículos -->
-          <section class="bg-surface border border-line">
-            <div class="p-element border-b border-line">
-              <h2 class="text-base text-ink">Vehículos</h2>
-              <p class="text-base  mt-0.5">Avisos activos en las 4 fuentes</p>
-            </div>
-            <div class="p-element">
-              <p class="text-4xl text-ink">{veh.totalAvisos.toLocaleString('es-CL')}</p>
-              <p class="text-base  mt-1 mb-4">avisos en seguimiento</p>
-
-              <div class="space-y-3 mb-5">
-                {ORDEN_FUENTES.map((f) => {
-                  const fila = veh.porFuente.find((x) => x.fuente === f);
-                  if (!fila) return null;
-                  return (
-                    <div>
-                      <div class="flex items-center justify-between mb-1">
-                        <span class="inline-flex items-center gap-1.5">
-                          <span class="w-2 h-2 shrink-0" style={`background:${COLOR_FUENTE[f]}`}></span>
-                          <span class="text-base ">{NOMBRE_FUENTE[f]}</span>
-                        </span>
-                        <span class="text-base  tabular-nums">{fila.total.toLocaleString('es-CL')}</span>
-                      </div>
-                      <div class="h-1 bg-line">
-                        <div class="h-full" style={`width:${((fila.total / maxPorFuente) * 100).toFixed(1)}%;background:${COLOR_FUENTE[f]}`}></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div class="grid grid-cols-2 gap-3 border-t border-line pt-4">
-                <div>
-                  <p class="text-2xl text-ink tabular-nums">{veh.nuevos24h.toLocaleString('es-CL')}</p>
-                  <p class="text-base  uppercase tracking-wider mt-0.5">Nuevos · 24 h</p>
-                </div>
-                <div>
-                  <p class="text-2xl text-ink tabular-nums">{veh.bajadas7d.toLocaleString('es-CL')}</p>
-                  <p class="text-base  uppercase tracking-wider mt-0.5">Bajaron de precio · 7 d</p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- Deals activos -->
-          <section class="bg-surface border border-line">
-            <div class="p-element border-b border-line flex items-baseline justify-between">
+    <!-- Catálogo por estado -->
+    <section class="bg-surface border border-line">
+      <div class="p-element border-b border-line">
+        <h2 class="text-base text-ink">Catálogo por estado</h2>
+        <p class="text-base  mt-0.5">Cómo se reparten los avisos que publicaron los usuarios</p>
+      </div>
+      <div class="p-element space-y-element">
+        {cat.totalAvisos === 0 ? (
+          <p class="text-base ">Todavía no hay avisos publicados.</p>
+        ) : (
+          ORDEN_ESTADOS.map((estado) => {
+            const total = cat.porEstado[estado];
+            const pct = (total / cat.totalAvisos) * 100;
+            return (
               <div>
-                <h2 class="text-base text-ink">Deals activos</h2>
-                <p class="text-base  mt-0.5">Categorizados por IA</p>
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="inline-flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 shrink-0" style={`background:${COLOR_ESTADO_AVISO[estado]}`}></span>
+                    <span class="text-base text-ink">{ETIQUETA_ESTADO[estado]}</span>
+                  </span>
+                  <span class="text-base  tabular-nums ml-3 shrink-0">
+                    {total.toLocaleString('es-CL')} · {pct.toFixed(1)}%
+                  </span>
+                </div>
+                <div class="h-5">
+                  <div
+                    class="h-full"
+                    style={`width:${((total / maxPorEstado) * 100).toFixed(1)}%;background:${COLOR_ESTADO_AVISO[estado]}`}
+                  ></div>
+                </div>
               </div>
-              <a href="/deals" class="text-base text-ink hover: transition-colors">Ver deals →</a>
-            </div>
-            <div class="p-element">
-              {veh.dealsPorCategoria.length === 0 ? (
-                <p class="text-base ">Sin deals activos por ahora.</p>
-              ) : (
-                <div class="space-y-2.5">
-                  {veh.dealsPorCategoria.map((d) => {
-                    const cat = CATEGORIA_DEAL[d.categoria] ?? { nombre: d.categoria, color: '#484848' };
-                    return (
-                      <div class="flex items-center justify-between">
-                        <span class="inline-flex items-center gap-1.5">
-                          <span class="w-2 h-2 shrink-0" style={`background:${cat.color}`}></span>
-                          <span class="text-base ">{cat.nombre}</span>
-                        </span>
-                        <span class="text-base text-ink tabular-nums">{d.total.toLocaleString('es-CL')}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </section>
-
-          <!-- Fallas por etapa -->
-          <section class="bg-surface border border-line">
-            <div class="p-element border-b border-line">
-              <h2 class="text-base text-ink">Fallas por etapa</h2>
-              <p class="text-base  mt-0.5">FAIL LOGs de las corridas recientes</p>
-            </div>
-            <div class="p-element space-y-element">
-              {op.fallasPorEtapa.length === 0 ? (
-                <p class="text-base ">Sin fallas registradas. Impecable.</p>
-              ) : (
-                op.fallasPorEtapa.map((f) => (
-                  <div>
-                    <div class="flex items-center justify-between mb-1.5">
-                      <span class="text-base ">{NOMBRE_ETAPA[f.etapa] ?? f.etapa}</span>
-                      <span class="text-base  tabular-nums">{f.total.toLocaleString('es-CL')}</span>
-                    </div>
-                    <div class="h-1.5 bg-line">
-                      <div
-                        class="h-full bg-muted"
-                        style={`width:${((f.total / maxFallas) * 100).toFixed(1)}%`}
-                      ></div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-
-          <!-- KPIs pendientes de instrumentación -->
-          <section class="bg-surface border border-line">
-            <div class="p-element border-b border-line">
-              <h2 class="text-base text-ink">KPIs pendientes</h2>
-              <p class="text-base  mt-0.5">Definidos en Monitoreo, aún sin telemetría</p>
-            </div>
-            <div class="p-element space-y-2">
-              {KPIS_PENDIENTES.map((k) => (
-                <div class="flex items-center justify-between border border-dashed border-line px-3 py-2">
-                  <span class="text-base ">{k.nombre}</span>
-                  <span class="text-base  tabular-nums shrink-0 ml-3">meta {k.meta}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
+            );
+          })
+        )}
       </div>
-    </>
-  )}
+    </section>
+
+    <!-- Deals activos -->
+    <section class="bg-surface border border-line">
+      <div class="p-element border-b border-line flex items-baseline justify-between">
+        <div>
+          <h2 class="text-base text-ink">Deals activos</h2>
+          <p class="text-base  mt-0.5">Categorizados por IA</p>
+        </div>
+        <a href="/deals" class="text-base text-ink hover: transition-colors">Ver deals →</a>
+      </div>
+      <div class="p-element">
+        {cat.dealsPorCategoria.length === 0 ? (
+          <p class="text-base ">
+            Sin deals activos por ahora. Un aviso entra a la selección cuando su grupo
+            marca/modelo/año reúne suficientes comparables.
+          </p>
+        ) : (
+          <>
+            <p class="text-4xl text-ink">{cat.dealsActivos.toLocaleString('es-CL')}</p>
+            <p class="text-base  mt-1 mb-4">oportunidades vigentes</p>
+            <div class="space-y-2.5">
+              {cat.dealsPorCategoria.map((d) => {
+                const categoria = CATEGORIA_DEAL[d.categoria] ?? { nombre: d.categoria, color: '#484848' };
+                return (
+                  <div class="flex items-center justify-between">
+                    <span class="inline-flex items-center gap-1.5">
+                      <span class="w-2 h-2 shrink-0" style={`background:${categoria.color}`}></span>
+                      <span class="text-base ">{categoria.nombre}</span>
+                    </span>
+                    <span class="text-base text-ink tabular-nums">{d.total.toLocaleString('es-CL')}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  </div>
 </Base>

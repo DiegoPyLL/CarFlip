@@ -1,29 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { FUENTES } from '../../src/lib/db/fuentes';
 import { parsearFiltrosDeals, parsearFiltrosUrl } from '../../src/lib/filtros';
 
 const filtrosDe = (query: string) => parsearFiltrosUrl(new URLSearchParams(query));
 const dealsDe = (query: string) => parsearFiltrosDeals(new URLSearchParams(query));
 
-describe('parsearFiltrosUrl — fuente', () => {
-  it('acepta las cinco fuentes, particulares incluidos', () => {
-    for (const fuente of FUENTES) {
-      expect(filtrosDe(`fuente=${fuente}`).fuente).toBe(fuente);
-    }
-  });
-
-  it('descarta una fuente inválida en vez de pasarla a la consulta', () => {
-    expect(filtrosDe('fuente=perfiles').fuente).toBeUndefined();
-    expect(filtrosDe('fuente=').fuente).toBeUndefined();
-    expect(filtrosDe('fuente=PARTICULAR').fuente).toBeUndefined();
-    expect(filtrosDe("fuente=particular';drop").fuente).toBeUndefined();
-  });
-
-  it('deja el resto de los filtros intacto', () => {
-    const filtros = filtrosDe('fuente=particular&marca=Toyota&anio=2018&orden=precio_asc');
+describe('parsearFiltrosUrl — parámetros desconocidos', () => {
+  it('ignora un ?fuente= sobrante sin romper el resto', () => {
+    // Quedó en URLs compartidas de cuando había cinco fuentes. Ya no discrimina
+    // nada, y lo que importa es que no se cuele a la consulta ni tumbe la página.
+    const filtros = filtrosDe('fuente=yapo&marca=Toyota&anio=2018&orden=precio_asc');
+    expect(filtros).not.toHaveProperty('fuente');
     expect(filtros).toMatchObject({
-      fuente: 'particular',
       marca: 'Toyota',
       anio: 2018,
       orden: 'precio_asc',

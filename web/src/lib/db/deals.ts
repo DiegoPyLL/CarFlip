@@ -61,7 +61,6 @@ export async function obtenerDeals(filtros: FiltrosDeal, limite = 100): Promise<
   // Los campos que un deal comparte con un aviso se filtran con el mismo código
   // que el listado; acá solo queda lo que existe únicamente en una selección IA.
   query = aplicarFiltros(query, filtros);
-  if (filtros.fuente) query = query.eq('fuente', filtros.fuente);
   if (filtros.categoria) query = query.eq('categoria', filtros.categoria);
   if (filtros.puntaje_min) query = query.gte('puntaje', filtros.puntaje_min);
 
@@ -78,9 +77,9 @@ export async function obtenerDeals(filtros: FiltrosDeal, limite = 100): Promise<
 /**
  * Marcas y años presentes en los deals activos, para poblar los selects.
  *
- * Se consulta la tabla `deals` y no las cinco de avisos: ofrecer una marca sin
- * ningún deal solo lleva a una página vacía. Sin filtrar por los filtros
- * activos, para que siempre se pueda ampliar la búsqueda y no solo estrecharla.
+ * Se consulta la tabla `deals` y no la de avisos: ofrecer una marca sin ningún
+ * deal solo lleva a una página vacía. Sin filtrar por los filtros activos, para
+ * que siempre se pueda ampliar la búsqueda y no solo estrecharla.
  * `combustibles` va vacío: no es columna de `deals`.
  */
 export async function obtenerFiltrosDeals(): Promise<FiltrosDisponibles> {
