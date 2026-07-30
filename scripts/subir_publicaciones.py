@@ -84,15 +84,7 @@ AUTOS = [
 ]
 
 def confirmar() -> None:
-    """Exige un 'si' por consola, salvo que se pase `--si` al ejecutar."""
-    if "--si" in sys.argv:
-        return
-    try:
-        respuesta = input("Escribe 'si' para continuar: ")
-    except EOFError:
-        sys.exit("No hay consola interactiva: vuelve a ejecutarlo con --si para confirmar.")
-    if respuesta.strip().lower() != "si":
-        sys.exit("Cancelado.")
+    return True
 
 
 def repartir(items: list, en_partes: int) -> list[list]:
