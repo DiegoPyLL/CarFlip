@@ -12,7 +12,7 @@ interface Props {
 const { etiqueta, valor, nota, serie } = Astro.props;
 const tieneSerie = Array.isArray(serie) && serie.length > 1;
 ---
-<div class="border border-line p-element flex flex-col justify-between gap-3 min-h-0">
+<div class="bg-surface border border-line p-element flex flex-col justify-between gap-3 min-h-0">
   <p class="text-sm text-muted uppercase tracking-wider truncate">{etiqueta}</p>
   <div>
     <p class="text-3xl text-ink tabular-nums leading-none">{valor}</p>

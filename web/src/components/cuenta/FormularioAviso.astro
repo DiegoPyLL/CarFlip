@@ -26,7 +26,7 @@ const errorKm = `Ingresa el kilometraje en números, hasta ${KM_MAXIMO.toLocaleS
 const errorPrecio = `Ingresa el precio en pesos, hasta $${PRECIO_MAXIMO.toLocaleString('es-CL')}.`;
 
 const inputCls =
-  'w-full bg-transparent border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
+  'w-full bg-field border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
 const labelCls = 'flex items-baseline justify-between text-base text-ink mb-2';
 const requerido = 'text-sm text-scarlet-signal';
 ---
@@ -153,8 +153,7 @@ const requerido = 'text-sm text-scarlet-signal';
     type="submit"
     class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150"
   >
-    <span class="w-1.5 h-1.5 bg-scarlet-signal" aria-hidden="true"></span>
-    {textoBoton}
     <span aria-hidden="true">→</span>
+    {textoBoton}
   </button>
 </form>

@@ -1,9 +1,10 @@
 ---
 /**
- * Campo de contraseña con botón para mostrarla en claro. Vive siempre sobre
- * el acento editorial (bg-blue-signal en /entrar y /registro, ver
- * `.bloque-acento` de global.css), así que sus colores van fijos en
- * ink-on-tint en vez de depender de esa clase.
+ * Campo de contraseña con botón para mostrarla en claro. Vive siempre sobre el
+ * plano de acento (bg-accent en /entrar y /registro), pero el botón del ojo va
+ * dentro del campo, no sobre el bloque: por eso su color es `ink` —la misma
+ * tinta que el texto que se escribe al lado— y no el blanco fijo del resto del
+ * bloque, que sobre el campo blanco de tema claro era invisible.
  *
  * `sinPegar` es para el campo "Confirmar contraseña": bloquea pegar y soltar
  * para obligar a retipear la clave a mano, que es lo que hace útil confirmar
@@ -39,7 +40,7 @@ const {
 const idError = `err-${id}`;
 
 const inputCls =
-  'w-full bg-transparent border border-line-strong pl-4 pr-12 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
+  'w-full bg-field border border-line-strong pl-4 pr-12 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
 ---
 
 <div>
@@ -66,7 +67,7 @@ const inputCls =
       aria-controls={id}
       aria-pressed="false"
       aria-label="Mostrar contraseña"
-      class="absolute inset-y-0 right-0 flex items-center px-3.5 text-ink-on-tint hover:opacity-70 transition-opacity duration-150 cursor-pointer"
+      class="absolute inset-y-0 right-0 flex items-center px-3.5 text-ink hover:opacity-70 transition-opacity duration-150 cursor-pointer"
     >
       <svg data-icono-mostrar width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" />

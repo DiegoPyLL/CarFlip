@@ -24,9 +24,9 @@ const maxAnio   = datos.anios[0]?.total ?? 1;
 const maxDist   = Math.max(...datos.distribucion.map(d => d.total), 1);
 
 // Mismas clases compartidas que /mercado: el borde hairline es toda la estructura.
-const panelCls    = 'border border-line';
+const panelCls    = 'bg-surface border border-line';
 const cabeceraCls = 'p-element border-b border-line';
-const filaCls     = 'flex items-center gap-element p-element hover:bg-surface transition-colors';
+const filaCls     = 'flex items-center gap-element p-element hover:bg-canvas transition-colors';
 // `w-full overflow-hidden` es necesario: sin ancho explícito, el % de la barra
 // interior queda indeterminado durante el sizing intrínseco y dispara el layout.
 const pistaCls    = 'h-px w-full bg-line overflow-hidden';

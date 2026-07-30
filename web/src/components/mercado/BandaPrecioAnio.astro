@@ -74,7 +74,7 @@ const compacto = (p: number) => `$${Math.round(p / 1e6)}M`;
     <div class="absolute inset-0 flex" aria-hidden="true">
       {datos.map((d) => (
         <div
-          class="flex-1 hover:bg-surface/60"
+          class="flex-1 hover:bg-canvas/60"
           title={`${d.anio}: mediana ${formatearPrecio(Math.round(d.mediana))} · p25 ${formatearPrecio(Math.round(d.p25))} – p75 ${formatearPrecio(Math.round(d.p75))}`}
         />
       ))}

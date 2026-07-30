@@ -42,7 +42,7 @@ const principios = [
     texto: 'El sitio es de código abierto y puedes ver cómo funciona en nuestro repositorio de ',
     enlace: {
       texto: 'GitHub',
-      href: 'https://github.com/VolutusDevelopment/CarFlip',
+      href: 'https://github.com/DiegoPyLL/CarFlip',
     },
   },
   {
@@ -95,8 +95,8 @@ const proximosPasos = [
 //   - En "Cómo empezó" la foto queda fija con `sticky` mientras el relato pasa
 //     por su costado con el scroll de la página: un párrafo por pantalla, sin
 //     caja de scroll propia.
-//   - "Nuestros principios" no fija el acento en una sola celda: se destaca la
-//     que está bajo el cursor (ver <style> al final).
+//   - "Nuestros principios" no destaca una celda fija: la que está bajo el
+//     cursor sube al plano `surface` (ver <style> al final).
 //
 // Orden narrativo: misión → origen → cómo operamos (principios) → hacia dónde
 // vamos (próximos pasos) → por qué sin fines de lucro → quién está detrás.
@@ -114,12 +114,12 @@ const proximosPasos = [
          portada). El texto respira arriba y abajo (rubro+h1 arriba, cierre
          abajo); la foto llena el resto del ancho a la misma altura. -->
     <div class={`${seccionCls} banda-completa grid grid-cols-1 lg:grid-cols-12`}>
-      <div class="hero-marca lg:col-span-5 bg-blue-signal pr-6 py-block sm:pr-10 sm:py-section flex flex-col justify-between lg:min-h-[28rem]">
+      <div class="hero-marca lg:col-span-5 bg-accent pr-6 py-block sm:pr-10 sm:py-section flex flex-col justify-between lg:min-h-[28rem]">
         <div>
-          <p class="text-base text-ink-on-tint/100 uppercase tracking-widest mb-element">Nuestra misión</p>
-          <h1 class="text-5xl sm:text-6xl text-ink-on-tint leading-none text-balance">Democratizar la reventa de autos en Chile.</h1>
+          <p class="text-base text-ink-on-accent/100 uppercase tracking-widest mb-element">Nuestra misión</p>
+          <h1 class="text-5xl sm:text-6xl text-ink-on-accent leading-none text-balance">Democratizar la reventa de autos en Chile.</h1>
         </div>
-        <p class="text-base text-ink-on-tint/100 leading-relaxed max-w-xs mt-block">
+        <p class="text-base text-ink-on-accent/100 leading-relaxed max-w-xs mt-block">
           Sin comisiones, sin autos propios y sin nadie pagando por aparecer primero.
         </p>
       </div>
@@ -216,8 +216,7 @@ const proximosPasos = [
          separador, no cards. El último principio, impar, cierra a lo ancho.
          El mosaico abre en md y no en lg: son textos cortos, y a una columna
          de 720px las líneas quedaban larguísimas para lo poco que dicen.
-         La celda bajo el cursor se destaca con un lavado de blue-signal (ver
-         <style> abajo). -->
+         La celda bajo el cursor sube al plano `surface` (ver <style> abajo). -->
     <div class={`${seccionCls} grid grid-cols-1 lg:grid-cols-[9rem_1fr] gap-x-block`}>
       <h2 class={`${rubroCls} lg:mb-0`}>Nuestros principios</h2>
       <div class="border-t md:border-l border-line grid grid-cols-1 md:grid-cols-2">
@@ -245,10 +244,9 @@ const proximosPasos = [
 
     <!-- Próximos pasos: hoja de ruta como lista de una columna separada por
          líneas de 1px, no mosaico ni numeración — así no repite la forma de los
-         principios (grid numerado) que la anteceden. El cuadrado escarlata de
-         6px es el único color de esta página fuera del hero y el cierre, ambos
-         en azul: lo reservamos para marcar aquí lo que está por venir (mismo uso
-         gráfico y racionado del acento que en el resto del sitio). La medida de
+         principios (grid numerado) que la anteceden. La flecha que encabeza cada
+         título es el mismo glifo que marca los enlaces de avance en el resto del
+         sitio: apunta a lo que está por venir sin sumar color. La medida de
          lectura la fija cada texto (64ch), no la columna. -->
     <div class={`${seccionCls} grid grid-cols-1 lg:grid-cols-[9rem_1fr] gap-x-block`}>
       <h2 class={`${rubroCls} lg:mb-0`}>Próximos pasos</h2>
@@ -262,7 +260,7 @@ const proximosPasos = [
           {proximosPasos.map(({ titulo, texto }) => (
             <div class="border-b border-line py-block">
               <div class="flex items-center gap-element mb-2">
-                <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+                <span class="text-2xl leading-none shrink-0" aria-hidden="true">→</span>
                 <h3 class="text-2xl text-ink leading-tight">{titulo}</h3>
               </div>
               <p class={`${parrafoCls} max-w-[64ch]`}>{texto}</p>
@@ -276,13 +274,13 @@ const proximosPasos = [
          por una línea en vez de por espacio. El velo (.cierre-velo) es lo que
          hace legible el texto sobre una foto de día: mezcla el acento de marca
          con negro al 88%, dejando la foto como textura y no como imagen. Ese
-         88% es el punto donde el blanco fijo (ink-on-tint) todavía rinde
+         88% es el punto donde el blanco fijo (ink-on-accent) todavía rinde
          4.59:1 sobre el píxel más claro de la foto — el mínimo AA. La foto es
          la misma en los dos temas; lo que cambia es el velo, que sigue al
-         acento (azul en claro, morado en oscuro). Los dos bloques
+         acento (azul de marca en claro, casi negro en oscuro). Los dos bloques
          se ponen lado a lado desde md: apilados a 720px de ancho las líneas
          pasaban de 75 caracteres. -->
-    <div class="cierre relative isolate text-ink-on-tint grid grid-cols-1 md:grid-cols-2 md:divide-x divide-white/25">
+    <div class="cierre relative isolate text-ink-on-accent grid grid-cols-1 md:grid-cols-2 md:divide-x divide-white/25">
       <img
         src="/quienes-somos1.webp"
         alt=""
@@ -297,7 +295,7 @@ const proximosPasos = [
       <div class="p-block lg:p-section">
         <h2 class={`${rubroCls} mb-block`}>Por qué sin fines de lucro</h2>
         <p class={parrafoCls}>
-          No cobramos comisión, no vendemos autos y no tenemos ningún interés comercial en qué auto
+          No cobramos comisión por venta, no vendemos autos y no tenemos ningún interés comercial en qué auto
           compras ni a quién. CarFlip se sostiene como un proyecto independiente, mantenido por el
           mismo grupo de desarrolladores que lo construyó. Creemos que la transparencia de precio en
           un mercado tan grande como el de los autos usados no debería depender de un modelo de negocio.
@@ -308,16 +306,14 @@ const proximosPasos = [
         <h2 class={`${rubroCls} mb-block`}>Quién está detrás</h2>
         <p class={`${parrafoCls} mb-block`}>
           CarFlip lo desarrolla y mantiene <a
-            href="https://volutus.cl"
+            href="https://github.com/DiegoPyLL"
             target="_blank"
             rel="noopener noreferrer"
-            class="underline">Volutus</a>, un grupo
-          chileno de desarrolladores de software. El equipo se encarga de la recopilación diaria, la
-          normalización de los datos y el sitio que estás viendo. Los detalles de responsabilidad y
-          propiedad están en <a href="/legal" class="underline">Legales</a>.
+            class="underline">Diego Peña y Lillo</a>, desarrollador chileno con estudios de Ingenieria
+             Informática con especialidad en Inteligencia Artificial.
         </p>
         <p class={parrafoCls}>
-          ¿Te quieres sumar, encontraste un error o tienes una idea? Escríbenos desde
+          ¿Quieres estar en CarFlip, encontraste un error o tienes una idea? Escríbenos desde
           <a href="/contacto" class="underline">Contacto</a>.
         </p>
       </div>
@@ -361,35 +357,27 @@ const proximosPasos = [
     padding-left: var(--sangria);
   }
 
-  /* La celda bajo el cursor se destaca con un lavado de blue-signal. Tono bajo
-     (16%) para que el texto ink siga siendo legible sin invertir a
-     ink-on-tint. Sólo con puntero real: en táctil el :hover se queda pegado
-     tras el toque. */
+  /* La celda bajo el cursor sube un plano en la escalera tonal, igual que
+     cualquier otra fila con hover del sitio: el mismo `surface` de las
+     tarjetas, sin lavado de color ni override por tema. Sólo con puntero real:
+     en táctil el :hover se queda pegado tras el toque. */
   @media (hover: hover) {
     .principio-celda {
       transition: background-color 150ms ease;
     }
 
     .principio-celda:hover {
-      background-color: color-mix(in oklab, var(--c-blue) 16%, transparent);
-    }
-
-    /* Sobre canvas oscuro un 16% se apaga hasta desaparecer (el lavado
-       compone contra el fondo, no contra blanco). El tono sube hasta que el
-       hover vuelve a leerse, sin acercarse al régimen de fondo de bloque
-       —el texto sigue en ink, no en ink-on-tint. */
-    :global(:root[data-theme="dark"]) .principio-celda:hover {
-      background-color: color-mix(in oklab, var(--c-blue) 30%, transparent);
+      background-color: var(--c-surface);
     }
   }
 
-  /* Velo del cierre: acento de marca virado a negro, casi opaco. Ver el
+  /* Velo del cierre: plano de acento virado a negro, casi opaco. Ver el
      comentario del bloque .cierre en el markup. Sigue al tema junto con
-     --c-blue: el azul oscuro al 60% sobre negro queda en la misma banda de
-     luminancia que el azul de tema claro (Y 0.058 vs 0.054), así que el
-     piso de contraste del texto blanco sobre la foto se mantiene de sobra. */
+     --c-accent: en claro es el azul de marca al 60% sobre negro; en oscuro el
+     acento ya es casi negro, así que el velo queda prácticamente negro y el
+     blanco encima gana contraste en vez de perderlo. */
   .cierre-velo {
-    background-color: color-mix(in oklab, var(--c-blue) 60%, #000000);
+    background-color: color-mix(in oklab, var(--c-accent) 60%, #000000);
     opacity: 0.88;
   }
 </style>

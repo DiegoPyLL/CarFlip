@@ -70,7 +70,7 @@ const fechaCorta = (f: string) => {
 
       <div class="absolute inset-0 flex" aria-hidden="true">
         {puntos.map((p) => (
-          <div class="flex-1 hover:bg-surface/60" title={`${fechaCorta(p.fecha)}: mediana ${formatearPrecio(Math.round(p.precio_mediano as number))} · ${p.total.toLocaleString('es-CL')} avisos`} />
+          <div class="flex-1 hover:bg-canvas/60" title={`${fechaCorta(p.fecha)}: mediana ${formatearPrecio(Math.round(p.precio_mediano as number))} · ${p.total.toLocaleString('es-CL')} avisos`} />
         ))}
       </div>
     </div>

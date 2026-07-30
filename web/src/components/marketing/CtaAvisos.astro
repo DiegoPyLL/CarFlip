@@ -1,7 +1,5 @@
 ---
-// CTA de cierre de las páginas de marketing. El punto escarlata es el único
-// color de la pantalla fuera del hero (ver global.css: scarlet solo como
-// elemento gráfico, nunca como texto sobre canvas).
+// CTA de cierre de las páginas de marketing.
 interface Props {
   texto?: string;
 }
@@ -15,10 +13,7 @@ const { texto = 'Ver todos los avisos disponibles ahora' } = Astro.props;
     href="/avisos"
     class="inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-3 hover:bg-ink hover:text-canvas transition-colors duration-150"
   >
-    <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+    <span aria-hidden="true">→</span>
     Ver avisos
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M5 12h14M12 5l7 7-7 7"/>
-    </svg>
   </a>
 </div>

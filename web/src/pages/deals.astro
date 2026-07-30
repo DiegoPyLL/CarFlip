@@ -120,7 +120,7 @@ const puntajes = [60, 70, 80, 90];
     Mismos campos y mismo botón que la portada y el listado. Sin `data-autosubmit`:
     con campos de texto y número dispararía un envío en cada pulsación de tecla.
   -->
-  <form method="GET" action="/deals" id="filtros-deals" data-limpiar-vacios class="bg-blue-signal bloque-acento p-element mb-block space-y-element">
+  <form method="GET" action="/deals" id="filtros-deals" data-limpiar-vacios class="bg-accent bloque-acento p-element mb-block space-y-element">
     {gruposChips.map(({ name, label, activo, opciones }) => (
       <fieldset>
         <legend class={labelCls}>{label}</legend>
@@ -178,7 +178,7 @@ const puntajes = [60, 70, 80, 90];
       <CampoTraccion valor={filtros.traccion} />
       <div class="flex items-end gap-element ml-auto">
         <BotonBuscar />
-        <a href="/deals" class="text-base text-ink-on-tint hover:underline underline-offset-4 py-2">Limpiar</a>
+        <a href="/deals" class="text-base text-ink-on-accent hover:underline underline-offset-4 py-2">Limpiar</a>
       </div>
     </div>
   </form>
@@ -216,11 +216,11 @@ const puntajes = [60, 70, 80, 90];
       </p>
       <div class="mt-block flex flex-wrap gap-element">
         <a href="/deals" class="inline-flex items-center gap-2 text-base text-ink hover:text-ink/70 transition-colors">
-          <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+          <span aria-hidden="true">→</span>
           Quitar filtros
         </a>
         <a href="/avisos" class="inline-flex items-center gap-2 text-base text-ink hover:text-ink/70 transition-colors">
-          <span class="w-1.5 h-1.5 bg-scarlet-signal shrink-0" aria-hidden="true"></span>
+          <span aria-hidden="true">→</span>
           Ver todos los avisos
         </a>
       </div>

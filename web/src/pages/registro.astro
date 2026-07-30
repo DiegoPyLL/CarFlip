@@ -25,7 +25,7 @@ const mensajeError = error
   : null;
 
 const inputCls =
-  'w-full bg-transparent border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
+  'w-full bg-field border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
 ---
 
 <Base titulo="Crear cuenta" descripcion="Crea tu cuenta en CarFlip." noindex>
@@ -50,7 +50,7 @@ const inputCls =
           </div>
         )}
 
-        <form method="POST" action="/api/auth/confirmar" class="bg-blue-signal bloque-acento p-element space-y-element">
+        <form method="POST" action="/api/auth/confirmar" class="bg-accent bloque-acento p-element space-y-element">
           <div>
             <label for="email" class="flex items-baseline justify-between text-base text-ink mb-2">
               Email <span class="text-sm text-scarlet-signal">*Requerido</span>
@@ -123,7 +123,7 @@ const inputCls =
       </>
     ) : (
       <>
-        <form method="POST" action="/api/auth/registro" class="bg-blue-signal bloque-acento p-element space-y-element">
+        <form method="POST" action="/api/auth/registro" class="bg-accent bloque-acento p-element space-y-element">
           <div>
             <label for="email" class="flex items-baseline justify-between text-base text-ink mb-2">
               Email <span class="text-sm text-scarlet-signal">*Requerido</span>
