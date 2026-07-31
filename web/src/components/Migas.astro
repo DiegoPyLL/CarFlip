@@ -1,0 +1,53 @@
+---
+import { scriptJsonLd } from '@lib/jsonLd';
+
+/**
+ * Ruta de navegación, visible y en `BreadcrumbList`.
+ *
+ * Las dos mitades salen del mismo arreglo a propósito: un breadcrumb dibujado y
+ * otro declarado que no coinciden es justo lo que invalida el dato estructurado.
+ */
+interface Miga {
+  nombre: string;
+  /** Ausente en la última: es la página actual y no se enlaza a sí misma. */
+  href?: string;
+}
+
+interface Props {
+  migas: Miga[];
+}
+
+const { migas } = Astro.props;
+
+// El origen sale de `site` y no del host de la request, igual que la canónica:
+// así los deploys de preview no declaran su propio dominio en el dato.
+const origen = Astro.site?.origin ?? Astro.url.origin;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: migas.map(({ nombre, href }, i) => ({
+    '@type': 'ListItem',
+    position: i + 1,
+    name: nombre,
+    ...(href ? { item: new URL(href, origen).href } : {}),
+  })),
+};
+---
+
+<nav aria-label="Ruta de navegación" class="text-base mb-block flex flex-wrap items-center gap-2">
+  {
+    migas.map(({ nombre, href }, i) => (
+      <>
+        {i > 0 && <span aria-hidden="true">/</span>}
+        {href ? (
+          <a href={href} class="hover:text-ink transition-colors">{nombre}</a>
+        ) : (
+          <span class="text-ink" aria-current="page">{nombre}</span>
+        )}
+      </>
+    ))
+  }
+</nav>
+
+<script is:inline nonce={Astro.locals.nonce} type="application/ld+json" set:html={scriptJsonLd(jsonLd)} />

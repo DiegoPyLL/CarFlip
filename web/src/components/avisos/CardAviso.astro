@@ -25,7 +25,7 @@ const metaItems = [
   <!-- `data-card-link` es el punto de anclaje de la vista lista de /avisos, que
        acuesta la tarjeta desde CSS (foto | contenido). -->
   <a
-    href={enlaceAviso(aviso, Astro.url.pathname + Astro.url.search)}
+    href={enlaceAviso(aviso)}
     aria-label={`Ver ${aviso.titulo}`}
     class="block"
     data-card-link

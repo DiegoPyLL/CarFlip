@@ -121,6 +121,31 @@ export async function obtenerAvisos(filtros: FiltrosAviso): Promise<PaginaResult
   return { items, total, pagina, total_paginas: Math.ceil(total / POR_PAGINA), por_pagina: POR_PAGINA };
 }
 
+/**
+ * Los últimos avisos de un modelo concreto, para su página.
+ *
+ * Va por coincidencia exacta —las grafías con que el catálogo escribe ese modelo,
+ * que resuelve `paginasModelo`— y no por el `or()` difuso de `aplicarFiltros`,
+ * que busca el término también en el título: un "Yaris" nombrado en el aviso de
+ * otro auto no pertenece a la página del Yaris.
+ */
+export async function obtenerAvisosModelo(
+  marca: string,
+  modelos: string[],
+  anio?: number,
+  limite = 12,
+): Promise<Aviso[]> {
+  const [fuente] = FUENTES;
+
+  let q = desde(fuente, '*').ilike('marca', marca).in('modelo', modelos);
+  if (anio !== undefined) q = q.eq('anio', anio);
+
+  const { data, error } = await aplicarOrden(q).limit(limite);
+  if (error) throw error;
+
+  return (data ?? []).map((r: RawAviso) => mapearAviso(r, fuente));
+}
+
 export async function obtenerFiltrosDisponibles(): Promise<FiltrosDisponibles> {
   const columnaDeCadaFuente = (columna: string) =>
     Promise.all(FUENTES.map((fuente) => desde(fuente, columna).not(columna, 'is', null)));

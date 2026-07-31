@@ -1,0 +1,176 @@
+---
+/**
+ * Marca, modelo y versión del formulario de aviso, contra el catálogo normalizado.
+ *
+ * Marca y modelo son listas cerradas: lo que viaja es el `id` del modelo, y el
+ * servidor escribe en el aviso la grafía canónica que le corresponde. Ese es el
+ * punto del issue #64 —antes eran tres campos de texto libre y "Serie 3",
+ * "Serie-3" y "serie 3" terminaban siendo tres modelos distintos al leer—.
+ *
+ * La versión sigue siendo texto libre, con las del catálogo como sugerencia: un
+ * importado o una edición especial no está en ninguna lista y no puede quedar
+ * sin poder publicarse. Cuando la versión elegida sí es del catálogo, el script
+ * rellena combustible, transmisión y tracción con su ficha.
+ *
+ * El HTML trae todos los modelos agrupados por marca, igual que `CamposUbicacion`
+ * con las comunas: el formulario funciona servido tal cual, sin JavaScript.
+ */
+import { obtenerCatalogo } from '@lib/db/catalogo';
+
+interface Props {
+  /** Marca del aviso que se edita, para dejar abierto su grupo de modelos. */
+  marca?: string | null;
+  /** Id del modelo en el catálogo, o `null` si el aviso es anterior a él. */
+  modeloId?: number | null;
+  version?: string | null;
+  inputCls: string;
+  labelCls: string;
+  requerido: string;
+}
+
+const { marca, modeloId, version, inputCls, labelCls, requerido } = Astro.props;
+
+const catalogo = await obtenerCatalogo();
+
+// La marca elegida se deriva del modelo cuando hay uno: así el grupo correcto
+// queda abierto aunque el aviso guarde la marca con otra grafía.
+const marcaDelModelo = modeloId
+  ? catalogo.find((m) => m.modelos.some((mo) => mo.id === modeloId))?.marca
+  : undefined;
+const marcaElegida = marcaDelModelo ?? marca ?? '';
+---
+
+<div>
+  <label for="marca" class={labelCls}>Marca <span class={requerido}>*Requerido</span></label>
+  <!-- Sin `name`: la marca solo filtra los modelos, y el modelo ya la implica.
+       Mandarla también sería darle al cliente una segunda opinión sobre algo
+       que el servidor resuelve por el id. -->
+  <select id="marca" required class={`${inputCls} campo`} aria-describedby="err-marca">
+    <option value="">Selecciona…</option>
+    {catalogo.map(({ marca: nombre }) => <option value={nombre} selected={marcaElegida === nombre}>{nombre}</option>)}
+  </select>
+  <p id="err-marca" class="campo-error text-sm text-scarlet-signal mt-1.5">Selecciona la marca del auto.</p>
+</div>
+
+<div>
+  <label for="modelo_id" class={labelCls}>Modelo <span class={requerido}>*Requerido</span></label>
+  <select
+    id="modelo_id"
+    name="modelo_id"
+    required
+    data-grupos-de="marca"
+    class={`${inputCls} campo disabled:opacity-50`}
+    aria-describedby="err-modelo"
+  >
+    <option value="">Selecciona…</option>
+    {
+      catalogo.map(({ marca: nombre, modelos }) => (
+        <optgroup label={nombre}>
+          {modelos.map(({ id, modelo }) => (
+            <option value={id} selected={modeloId === id}>
+              {modelo}
+            </option>
+          ))}
+        </optgroup>
+      ))
+    }
+  </select>
+  <p id="err-modelo" class="campo-error text-sm text-scarlet-signal mt-1.5">Selecciona el modelo del auto.</p>
+</div>
+
+<div class="sm:col-span-2">
+  <label for="version" class={labelCls}>Versión</label>
+  <input
+    type="text"
+    id="version"
+    name="version"
+    list="versiones"
+    data-normaliza="texto"
+    maxlength="100"
+    placeholder="XEI 1.8 Aut."
+    autocomplete="off"
+    value={version ?? ''}
+    class={inputCls}
+    aria-describedby="ayuda-version"
+  />
+  <datalist id="versiones"></datalist>
+  <p id="ayuda-version" class="text-sm mt-1.5">
+    Al elegir el modelo te sugerimos sus versiones. Si la tuya no está, escríbela.
+  </p>
+</div>
+
+<script>
+  // Deja a la vista solo los modelos de la marca elegida.
+  import '@lib/selectDependiente';
+
+  /**
+   * Pide las versiones del modelo elegido y, al elegir una del catálogo,
+   * rellena su ficha. Sin este script el campo versión es lo que siempre fue:
+   * texto libre.
+   */
+  const modelo = document.getElementById('modelo_id') as HTMLSelectElement | null;
+  const version = document.getElementById('version') as HTMLInputElement | null;
+  const lista = document.getElementById('versiones') as HTMLDataListElement | null;
+
+  if (modelo && version && lista) {
+    type Version = {
+      version: string;
+      combustible: string | null;
+      transmision: string | null;
+      traccion: string | null;
+    };
+
+    let versiones: Version[] = [];
+
+    // Solo se rellena lo que el usuario no haya tocado: la ficha del catálogo es
+    // una ayuda, no una corrección. Un auto con la caja cambiada lo sabe su
+    // dueño, no el catálogo.
+    const fichas = ['combustible', 'transmision', 'traccion'] as const;
+    const tocados = new Set<string>();
+    for (const nombre of fichas) {
+      document.getElementById(nombre)?.addEventListener('change', () => tocados.add(nombre));
+    }
+
+    const rellenar = () => {
+      const ficha = versiones.find((v) => v.version === version.value);
+      if (!ficha) return;
+
+      for (const nombre of fichas) {
+        const campo = document.getElementById(nombre);
+        if (!(campo instanceof HTMLSelectElement) || tocados.has(nombre)) continue;
+        const valor = ficha[nombre];
+        if (valor) campo.value = valor;
+      }
+    };
+
+    const cargar = async () => {
+      const anterior = versiones;
+      versiones = [];
+      lista.replaceChildren();
+      if (!modelo.value) return;
+
+      try {
+        const respuesta = await fetch(`/api/catalogo/versiones?modelo=${encodeURIComponent(modelo.value)}`);
+        if (!respuesta.ok) return;
+        versiones = await respuesta.json();
+      } catch {
+        // Sin red el campo sigue siendo escribible; no hay nada que avisar.
+        versiones = anterior;
+        return;
+      }
+
+      lista.replaceChildren(
+        ...versiones.map((v) => {
+          const opcion = document.createElement('option');
+          opcion.value = v.version;
+          return opcion;
+        }),
+      );
+      rellenar();
+    };
+
+    modelo.addEventListener('change', cargar);
+    version.addEventListener('change', rellenar);
+    cargar();
+  }
+</script>

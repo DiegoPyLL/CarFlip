@@ -11,7 +11,16 @@ function cuelgaDe(ruta: string, prefijos: string[]): boolean {
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
-  const ruta = context.url.pathname.replace(/\/+$/, '') || '/';
+  // Una sola forma por URL. Con el `trailingSlash: 'ignore'` que Astro trae por
+  // defecto, /avisos y /avisos/ respondían las dos 200 y cada una se declaraba
+  // canónica de sí misma: dos URLs para la misma página. Va antes que todo lo
+  // demás para no resolver sesión ni consultar nada por una URL que se descarta.
+  const { pathname, search } = context.url;
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    return context.redirect(pathname.replace(/\/+$/, '') + search, 301);
+  }
+
+  const ruta = pathname;
   const requiereSesion = cuelgaDe(ruta, PRIVADAS) || cuelgaDe(ruta, SOLO_ADMIN);
 
   // Nonce de la CSP: se genera antes de renderizar para que `Base.astro` lo
