@@ -1,0 +1,1196 @@
+{
+  "_comentario": [
+    "Catálogo curado de marcas, modelos y versiones del mercado chileno de autos usados.",
+    "Lo carga `scripts/catalogo/cargar_catalogo.py` a las tablas catalogo_modelos y",
+    "catalogo_versiones. Ampliar el catálogo es editar este archivo y volver a correr el",
+    "script: la carga es idempotente.",
+    "",
+    "Reglas para editar:",
+    "- `marca` y `modelo` van en su grafía canónica; es la que termina escrita en el aviso.",
+    "- Dos modelos de una misma marca no pueden producir el mismo slug (`slugModelo`).",
+    "- `versiones` es opcional. Un modelo sin versiones sigue siendo publicable: el campo",
+    "  versión admite texto libre, solo pierde el autocompletado de la ficha.",
+    "- combustible, transmision y traccion salen de las listas cerradas de",
+    "  `web/src/lib/publicaciones/opciones.ts`; cualquier otro valor lo rechaza el script.",
+    "- Los nombres de versión se escriben como se nombran acá (motor y caja incluidos):",
+    "  así la ficha se lee del propio nombre y no hay que inventarla."
+  ],
+  "marcas": [
+    {
+      "marca": "Toyota",
+      "modelos": [
+        {
+          "modelo": "Yaris",
+          "versiones": [
+            { "version": "XLI 1.5 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "XLI 1.5 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "XEI 1.5 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "XEI 1.5 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "XS 1.5 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Yaris Cross",
+          "versiones": [
+            { "version": "XLI 1.5 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "XEI 1.5 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "HEV 1.5 Aut.", "combustible": "Híbrido", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Corolla",
+          "versiones": [
+            { "version": "GLI 1.8 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "GLI 1.8 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "XEI 1.8 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "SEG 2.0 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "HEV 1.8 Aut.", "combustible": "Híbrido", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Corolla Cross",
+          "versiones": [
+            { "version": "XLI 2.0 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "XEI 2.0 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "HEV 1.8 Aut.", "combustible": "Híbrido", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "SEG HEV 1.8 Aut.", "combustible": "Híbrido", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Hilux",
+          "versiones": [
+            { "version": "DX 2.4 Diésel Mec. 4x2", "combustible": "Diésel", "transmision": "Manual", "traccion": "Trasera" },
+            { "version": "DX 2.4 Diésel Mec. 4x4", "combustible": "Diésel", "transmision": "Manual", "traccion": "4x4" },
+            { "version": "SR 2.4 Diésel Mec. 4x4", "combustible": "Diésel", "transmision": "Manual", "traccion": "4x4" },
+            { "version": "SRV 2.8 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "SRX 2.8 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "GR-Sport 2.8 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        {
+          "modelo": "RAV4",
+          "versiones": [
+            { "version": "LE 2.0 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "XLE 2.0 Aut. 4x4", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "Limited 2.5 Aut. 4x4", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "HEV 2.5 Aut. 4x4", "combustible": "Híbrido", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        {
+          "modelo": "Land Cruiser Prado",
+          "versiones": [
+            { "version": "TX 2.8 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "VX 2.8 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        { "modelo": "Land Cruiser" },
+        { "modelo": "Land Cruiser 70" },
+        { "modelo": "Fortuner" },
+        { "modelo": "4Runner" },
+        { "modelo": "Highlander" },
+        { "modelo": "C-HR" },
+        { "modelo": "Prius" },
+        { "modelo": "Camry" },
+        { "modelo": "Avanza" },
+        { "modelo": "Rush" },
+        { "modelo": "Raize" },
+        { "modelo": "Etios" },
+        { "modelo": "Agya" },
+        { "modelo": "Hiace" },
+        { "modelo": "Proace" },
+        { "modelo": "Tacoma" },
+        { "modelo": "Tundra" },
+        { "modelo": "Sienna" },
+        { "modelo": "Auris" },
+        { "modelo": "Aygo" },
+        { "modelo": "bZ4X" }
+      ]
+    },
+    {
+      "marca": "Chevrolet",
+      "modelos": [
+        {
+          "modelo": "Sail",
+          "versiones": [
+            { "version": "LS 1.5 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "LT 1.5 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "LT 1.5 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "LTZ 1.5 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Onix",
+          "versiones": [
+            { "version": "LS 1.0 Turbo Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "LT 1.0 Turbo Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "Premier 1.0 Turbo Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Spark",
+          "versiones": [
+            { "version": "GT LS 1.2 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "GT LT 1.2 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Groove",
+          "versiones": [
+            { "version": "LS 1.5 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "LT 1.5 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "Premier 1.5 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Tracker",
+          "versiones": [
+            { "version": "LS 1.2 Turbo Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "LT 1.2 Turbo Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "Premier 1.2 Turbo Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "D-Max",
+          "versiones": [
+            { "version": "2.5 Diésel Mec. 4x2", "combustible": "Diésel", "transmision": "Manual", "traccion": "Trasera" },
+            { "version": "LS 3.0 Diésel Mec. 4x4", "combustible": "Diésel", "transmision": "Manual", "traccion": "4x4" },
+            { "version": "LT 3.0 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "High Country 3.0 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        { "modelo": "Montana" },
+        { "modelo": "Captiva" },
+        { "modelo": "Equinox" },
+        { "modelo": "Traverse" },
+        { "modelo": "Trailblazer" },
+        { "modelo": "Tahoe" },
+        { "modelo": "Suburban" },
+        { "modelo": "Silverado" },
+        { "modelo": "Colorado" },
+        { "modelo": "Cruze" },
+        { "modelo": "Aveo" },
+        { "modelo": "Prisma" },
+        { "modelo": "Orlando" },
+        { "modelo": "Camaro" },
+        { "modelo": "Corvette" },
+        { "modelo": "N300" },
+        { "modelo": "N400" },
+        { "modelo": "Blazer" },
+        { "modelo": "Bolt EV" }
+      ]
+    },
+    {
+      "marca": "Hyundai",
+      "modelos": [
+        {
+          "modelo": "Accent",
+          "versiones": [
+            { "version": "GL 1.4 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "GL 1.6 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "GLS 1.6 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "Value 1.4 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Grand i10",
+          "versiones": [
+            { "version": "GL 1.2 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "GLS 1.2 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Creta",
+          "versiones": [
+            { "version": "GL 1.5 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "GL 1.5 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "Value 1.5 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "Limited 1.5 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Tucson",
+          "versiones": [
+            { "version": "GL 2.0 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "GLS 2.0 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "Limited 2.0 Aut. 4x4", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "CRDi 2.0 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        {
+          "modelo": "Santa Fe",
+          "versiones": [
+            { "version": "GLS 2.4 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "CRDi 2.2 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "Limited 2.2 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        { "modelo": "i10" },
+        { "modelo": "i20" },
+        { "modelo": "i30" },
+        { "modelo": "Elantra" },
+        { "modelo": "Sonata" },
+        { "modelo": "Venue" },
+        { "modelo": "Bayon" },
+        { "modelo": "Kona" },
+        { "modelo": "Palisade" },
+        { "modelo": "Staria" },
+        { "modelo": "H1" },
+        { "modelo": "H100" },
+        { "modelo": "Porter" },
+        { "modelo": "Veloster" },
+        { "modelo": "Ioniq" },
+        { "modelo": "Ioniq 5" },
+        { "modelo": "Ioniq 6" }
+      ]
+    },
+    {
+      "marca": "Kia",
+      "modelos": [
+        {
+          "modelo": "Morning",
+          "versiones": [
+            { "version": "LX 1.0 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "EX 1.2 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "EX 1.2 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Rio",
+          "versiones": [
+            { "version": "LX 1.4 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "EX 1.4 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "EX 1.4 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "SX 1.6 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Sportage",
+          "versiones": [
+            { "version": "LX 2.0 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "EX 2.0 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "EX 2.0 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "SX 1.6 Turbo Aut. 4x4", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        {
+          "modelo": "Seltos",
+          "versiones": [
+            { "version": "LX 1.6 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "EX 1.6 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "SX 1.6 Turbo Aut. 4x4", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        {
+          "modelo": "Sorento",
+          "versiones": [
+            { "version": "EX 2.2 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "SX 2.2 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        { "modelo": "Picanto" },
+        { "modelo": "Cerato" },
+        { "modelo": "K3" },
+        { "modelo": "Soul" },
+        { "modelo": "Stonic" },
+        { "modelo": "Niro" },
+        { "modelo": "Carens" },
+        { "modelo": "Carnival" },
+        { "modelo": "Frontier" },
+        { "modelo": "K2500" },
+        { "modelo": "K2700" },
+        { "modelo": "Optima" },
+        { "modelo": "EV5" },
+        { "modelo": "EV6" }
+      ]
+    },
+    {
+      "marca": "Nissan",
+      "modelos": [
+        {
+          "modelo": "Versa",
+          "versiones": [
+            { "version": "Sense 1.6 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "Sense 1.6 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "Advance 1.6 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "Exclusive 1.6 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Navara",
+          "versiones": [
+            { "version": "SE 2.3 Diésel Mec. 4x2", "combustible": "Diésel", "transmision": "Manual", "traccion": "Trasera" },
+            { "version": "SE 2.3 Diésel Mec. 4x4", "combustible": "Diésel", "transmision": "Manual", "traccion": "4x4" },
+            { "version": "LE 2.3 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        {
+          "modelo": "Qashqai",
+          "versiones": [
+            { "version": "Sense 2.0 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "Advance 2.0 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "Exclusive 2.0 Aut. 4x4", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        {
+          "modelo": "Kicks",
+          "versiones": [
+            { "version": "Sense 1.6 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "Advance 1.6 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "Exclusive 1.6 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        { "modelo": "March" },
+        { "modelo": "Note" },
+        { "modelo": "Tiida" },
+        { "modelo": "Sentra" },
+        { "modelo": "Altima" },
+        { "modelo": "Juke" },
+        { "modelo": "X-Trail" },
+        { "modelo": "Murano" },
+        { "modelo": "Pathfinder" },
+        { "modelo": "Patrol" },
+        { "modelo": "Terrano" },
+        { "modelo": "Frontier" },
+        { "modelo": "NP300" },
+        { "modelo": "Urvan" },
+        { "modelo": "Leaf" },
+        { "modelo": "Ariya" },
+        { "modelo": "370Z" },
+        { "modelo": "GT-R" }
+      ]
+    },
+    {
+      "marca": "Suzuki",
+      "modelos": [
+        {
+          "modelo": "Swift",
+          "versiones": [
+            { "version": "GA 1.2 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "GL 1.2 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "GL 1.2 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "GLX 1.2 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Baleno",
+          "versiones": [
+            { "version": "GL 1.4 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "GLX 1.4 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Vitara",
+          "versiones": [
+            { "version": "GL 1.6 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "GLX 1.6 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "GLX 1.6 Aut. 4x4", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        {
+          "modelo": "Grand Vitara",
+          "versiones": [
+            { "version": "GL 2.0 Mec. 4x4", "combustible": "Bencina", "transmision": "Manual", "traccion": "4x4" },
+            { "version": "GLX 2.4 Aut. 4x4", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        {
+          "modelo": "Jimny",
+          "versiones": [
+            { "version": "GL 1.5 Mec. 4x4", "combustible": "Bencina", "transmision": "Manual", "traccion": "4x4" },
+            { "version": "GLX 1.5 Aut. 4x4", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        { "modelo": "Alto" },
+        { "modelo": "Celerio" },
+        { "modelo": "Ignis" },
+        { "modelo": "S-Presso" },
+        { "modelo": "Fronx" },
+        { "modelo": "S-Cross" },
+        { "modelo": "Ertiga" },
+        { "modelo": "XL7" },
+        { "modelo": "Eeco" },
+        { "modelo": "APV" },
+        { "modelo": "SX4" },
+        { "modelo": "Kizashi" }
+      ]
+    },
+    {
+      "marca": "Mazda",
+      "modelos": [
+        {
+          "modelo": "Mazda 3",
+          "versiones": [
+            { "version": "V 2.0 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "V 2.0 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "R 2.0 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "GT 2.5 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Mazda 2",
+          "versiones": [
+            { "version": "V 1.5 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "V 1.5 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "GT 1.5 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "CX-5",
+          "versiones": [
+            { "version": "R 2.0 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "R 2.5 Aut. 4x4", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "GT 2.5 Aut. 4x4", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "GT 2.2 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        {
+          "modelo": "BT-50",
+          "versiones": [
+            { "version": "3.0 Diésel Mec. 4x2", "combustible": "Diésel", "transmision": "Manual", "traccion": "Trasera" },
+            { "version": "3.0 Diésel Mec. 4x4", "combustible": "Diésel", "transmision": "Manual", "traccion": "4x4" },
+            { "version": "3.0 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        { "modelo": "Mazda 6" },
+        { "modelo": "CX-3" },
+        { "modelo": "CX-30" },
+        { "modelo": "CX-50" },
+        { "modelo": "CX-60" },
+        { "modelo": "CX-9" },
+        { "modelo": "CX-90" },
+        { "modelo": "MX-5" },
+        { "modelo": "MX-30" }
+      ]
+    },
+    {
+      "marca": "Mitsubishi",
+      "modelos": [
+        {
+          "modelo": "L200",
+          "versiones": [
+            { "version": "Katana 2.4 Diésel Mec. 4x2", "combustible": "Diésel", "transmision": "Manual", "traccion": "Trasera" },
+            { "version": "Katana 2.4 Diésel Mec. 4x4", "combustible": "Diésel", "transmision": "Manual", "traccion": "4x4" },
+            { "version": "Katana 2.4 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "Dakar 2.4 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        {
+          "modelo": "Montero Sport",
+          "versiones": [
+            { "version": "GLX 2.4 Diésel Aut. 4x2", "combustible": "Diésel", "transmision": "Automática", "traccion": "Trasera" },
+            { "version": "GLS 2.4 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        { "modelo": "Montero" },
+        { "modelo": "ASX" },
+        { "modelo": "Outlander" },
+        { "modelo": "Eclipse Cross" },
+        { "modelo": "Xpander" },
+        { "modelo": "Lancer" },
+        { "modelo": "Mirage" },
+        { "modelo": "Space Star" },
+        { "modelo": "Colt" },
+        { "modelo": "Xforce" }
+      ]
+    },
+    {
+      "marca": "Ford",
+      "modelos": [
+        {
+          "modelo": "Ranger",
+          "versiones": [
+            { "version": "XL 2.2 Diésel Mec. 4x2", "combustible": "Diésel", "transmision": "Manual", "traccion": "Trasera" },
+            { "version": "XL 2.2 Diésel Mec. 4x4", "combustible": "Diésel", "transmision": "Manual", "traccion": "4x4" },
+            { "version": "XLT 3.2 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "Limited 2.0 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "Raptor 2.0 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        {
+          "modelo": "Escape",
+          "versiones": [
+            { "version": "S 2.5 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "SE 2.0 Turbo Aut. 4x4", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "Titanium 2.0 Turbo Aut. 4x4", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        { "modelo": "Fiesta" },
+        { "modelo": "Focus" },
+        { "modelo": "Ecosport" },
+        { "modelo": "Territory" },
+        { "modelo": "Bronco" },
+        { "modelo": "Bronco Sport" },
+        { "modelo": "Explorer" },
+        { "modelo": "Edge" },
+        { "modelo": "Expedition" },
+        { "modelo": "F-150" },
+        { "modelo": "Maverick" },
+        { "modelo": "Transit" },
+        { "modelo": "Mustang" },
+        { "modelo": "Mustang Mach-E" }
+      ]
+    },
+    {
+      "marca": "Peugeot",
+      "modelos": [
+        {
+          "modelo": "208",
+          "versiones": [
+            { "version": "Active 1.2 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "Allure 1.2 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "GT 1.2 Turbo Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "2008",
+          "versiones": [
+            { "version": "Active 1.2 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "Allure 1.2 Turbo Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "GT 1.2 Turbo Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        { "modelo": "206" },
+        { "modelo": "207" },
+        { "modelo": "301" },
+        { "modelo": "307" },
+        { "modelo": "308" },
+        { "modelo": "3008" },
+        { "modelo": "408" },
+        { "modelo": "5008" },
+        { "modelo": "Partner" },
+        { "modelo": "Rifter" },
+        { "modelo": "Expert" },
+        { "modelo": "Boxer" },
+        { "modelo": "Landtrek" }
+      ]
+    },
+    {
+      "marca": "Renault",
+      "modelos": [
+        {
+          "modelo": "Kwid",
+          "versiones": [
+            { "version": "Life 1.0 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "Zen 1.0 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "Intens 1.0 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        {
+          "modelo": "Duster",
+          "versiones": [
+            { "version": "Life 1.6 Mec.", "combustible": "Bencina", "transmision": "Manual", "traccion": "Delantera" },
+            { "version": "Zen 1.3 Turbo Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "Intens 1.3 Turbo Aut. 4x4", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        { "modelo": "Sandero" },
+        { "modelo": "Stepway" },
+        { "modelo": "Logan" },
+        { "modelo": "Symbol" },
+        { "modelo": "Clio" },
+        { "modelo": "Megane" },
+        { "modelo": "Fluence" },
+        { "modelo": "Captur" },
+        { "modelo": "Koleos" },
+        { "modelo": "Oroch" },
+        { "modelo": "Alaskan" },
+        { "modelo": "Kangoo" },
+        { "modelo": "Master" },
+        { "modelo": "Trafic" }
+      ]
+    },
+    {
+      "marca": "Volkswagen",
+      "modelos": [
+        {
+          "modelo": "Amarok",
+          "versiones": [
+            { "version": "Trendline 2.0 Diésel Mec. 4x2", "combustible": "Diésel", "transmision": "Manual", "traccion": "Trasera" },
+            { "version": "Trendline 2.0 Diésel Mec. 4x4", "combustible": "Diésel", "transmision": "Manual", "traccion": "4x4" },
+            { "version": "Highline 2.0 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "V6 3.0 Diésel Aut. 4x4", "combustible": "Diésel", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        {
+          "modelo": "T-Cross",
+          "versiones": [
+            { "version": "Trendline 1.6 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "Comfortline 1.6 Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" },
+            { "version": "Highline 1.4 Turbo Aut.", "combustible": "Bencina", "transmision": "Automática", "traccion": "Delantera" }
+          ]
+        },
+        { "modelo": "Gol" },
+        { "modelo": "Polo" },
+        { "modelo": "Virtus" },
+        { "modelo": "Voyage" },
+        { "modelo": "Golf" },
+        { "modelo": "Jetta" },
+        { "modelo": "Vento" },
+        { "modelo": "Passat" },
+        { "modelo": "Bora" },
+        { "modelo": "Nivus" },
+        { "modelo": "Taos" },
+        { "modelo": "Tiguan" },
+        { "modelo": "Touareg" },
+        { "modelo": "Teramont" },
+        { "modelo": "Saveiro" },
+        { "modelo": "Caddy" },
+        { "modelo": "Transporter" },
+        { "modelo": "Crafter" },
+        { "modelo": "Beetle" },
+        { "modelo": "ID.4" }
+      ]
+    },
+    {
+      "marca": "Citroën",
+      "modelos": [
+        { "modelo": "C3" },
+        { "modelo": "C3 Aircross" },
+        { "modelo": "C4" },
+        { "modelo": "C4 Cactus" },
+        { "modelo": "C5 Aircross" },
+        { "modelo": "C-Elysée" },
+        { "modelo": "Berlingo" },
+        { "modelo": "Jumpy" },
+        { "modelo": "Jumper" },
+        { "modelo": "Basalt" }
+      ]
+    },
+    {
+      "marca": "Honda",
+      "modelos": [
+        { "modelo": "Fit" },
+        { "modelo": "City" },
+        { "modelo": "Civic" },
+        { "modelo": "Accord" },
+        { "modelo": "HR-V" },
+        { "modelo": "CR-V" },
+        { "modelo": "BR-V" },
+        { "modelo": "WR-V" },
+        { "modelo": "Pilot" },
+        { "modelo": "Odyssey" },
+        { "modelo": "Ridgeline" }
+      ]
+    },
+    {
+      "marca": "Subaru",
+      "modelos": [
+        {
+          "modelo": "XV",
+          "versiones": [
+            { "version": "2.0 Aut. AWD", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "Limited 2.0 Aut. AWD", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        {
+          "modelo": "Forester",
+          "versiones": [
+            { "version": "2.0 Aut. AWD", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" },
+            { "version": "Limited 2.5 Aut. AWD", "combustible": "Bencina", "transmision": "Automática", "traccion": "4x4" }
+          ]
+        },
+        { "modelo": "Impreza" },
+        { "modelo": "Legacy" },
+        { "modelo": "Outback" },
+        { "modelo": "Crosstrek" },
+        { "modelo": "Ascent" },
+        { "modelo": "WRX" },
+        { "modelo": "BRZ" },
+        { "modelo": "Solterra" }
+      ]
+    },
+    {
+      "marca": "Chery",
+      "modelos": [
+        { "modelo": "QQ" },
+        { "modelo": "Tiggo 2" },
+        { "modelo": "Tiggo 3" },
+        { "modelo": "Tiggo 4" },
+        { "modelo": "Tiggo 5" },
+        { "modelo": "Tiggo 7" },
+        { "modelo": "Tiggo 8" },
+        { "modelo": "Arrizo 5" },
+        { "modelo": "Arrizo 6" },
+        { "modelo": "Fulwin" }
+      ]
+    },
+    {
+      "marca": "MG",
+      "modelos": [
+        { "modelo": "MG 3" },
+        { "modelo": "MG 5" },
+        { "modelo": "MG 6" },
+        { "modelo": "ZS" },
+        { "modelo": "HS" },
+        { "modelo": "RX5" },
+        { "modelo": "RX8" },
+        { "modelo": "GT" },
+        { "modelo": "Extender" },
+        { "modelo": "MG4" }
+      ]
+    },
+    {
+      "marca": "Great Wall",
+      "modelos": [
+        { "modelo": "Wingle 5" },
+        { "modelo": "Wingle 6" },
+        { "modelo": "Wingle 7" },
+        { "modelo": "Poer" },
+        { "modelo": "Voleex C30" },
+        { "modelo": "Hover" },
+        { "modelo": "Steed" }
+      ]
+    },
+    {
+      "marca": "Haval",
+      "modelos": [
+        { "modelo": "H1" },
+        { "modelo": "H2" },
+        { "modelo": "H6" },
+        { "modelo": "H9" },
+        { "modelo": "Jolion" },
+        { "modelo": "Dargo" }
+      ]
+    },
+    {
+      "marca": "JAC",
+      "modelos": [
+        { "modelo": "S2" },
+        { "modelo": "S3" },
+        { "modelo": "S4" },
+        { "modelo": "S7" },
+        { "modelo": "T6" },
+        { "modelo": "T8" },
+        { "modelo": "J4" },
+        { "modelo": "X200" },
+        { "modelo": "Sunray" }
+      ]
+    },
+    {
+      "marca": "Changan",
+      "modelos": [
+        { "modelo": "Alsvin" },
+        { "modelo": "CS15" },
+        { "modelo": "CS35" },
+        { "modelo": "CS55" },
+        { "modelo": "CS75" },
+        { "modelo": "CS95" },
+        { "modelo": "Eado" },
+        { "modelo": "Hunter" },
+        { "modelo": "Star Truck" }
+      ]
+    },
+    {
+      "marca": "BAIC",
+      "modelos": [
+        { "modelo": "X25" },
+        { "modelo": "X35" },
+        { "modelo": "X55" },
+        { "modelo": "X65" },
+        { "modelo": "D20" },
+        { "modelo": "Senova" }
+      ]
+    },
+    {
+      "marca": "Dongfeng",
+      "modelos": [
+        { "modelo": "S30" },
+        { "modelo": "H30" },
+        { "modelo": "AX4" },
+        { "modelo": "AX7" },
+        { "modelo": "Rich" },
+        { "modelo": "Glory 580" }
+      ]
+    },
+    {
+      "marca": "DFSK",
+      "modelos": [
+        { "modelo": "Glory 330" },
+        { "modelo": "Glory 500" },
+        { "modelo": "Glory 560" },
+        { "modelo": "Glory 580" },
+        { "modelo": "K01" },
+        { "modelo": "C31" },
+        { "modelo": "C35" }
+      ]
+    },
+    {
+      "marca": "Foton",
+      "modelos": [
+        { "modelo": "Tunland" },
+        { "modelo": "Terracota" },
+        { "modelo": "Gratour" },
+        { "modelo": "Sauvana" },
+        { "modelo": "View" },
+        { "modelo": "Aumark" }
+      ]
+    },
+    {
+      "marca": "Maxus",
+      "modelos": [
+        { "modelo": "T60" },
+        { "modelo": "T70" },
+        { "modelo": "T90" },
+        { "modelo": "D60" },
+        { "modelo": "D90" },
+        { "modelo": "V80" },
+        { "modelo": "G10" },
+        { "modelo": "eDeliver 3" }
+      ]
+    },
+    {
+      "marca": "Jetour",
+      "modelos": [
+        { "modelo": "X70" },
+        { "modelo": "Dashing" },
+        { "modelo": "T2" }
+      ]
+    },
+    {
+      "marca": "Omoda",
+      "modelos": [
+        { "modelo": "C5" },
+        { "modelo": "E5" }
+      ]
+    },
+    {
+      "marca": "Jaecoo",
+      "modelos": [
+        { "modelo": "J7" },
+        { "modelo": "J8" }
+      ]
+    },
+    {
+      "marca": "BYD",
+      "modelos": [
+        { "modelo": "Dolphin" },
+        { "modelo": "Seal" },
+        { "modelo": "Song" },
+        { "modelo": "Yuan" },
+        { "modelo": "Atto 3" },
+        { "modelo": "Han" },
+        { "modelo": "Tang" },
+        { "modelo": "Shark" },
+        { "modelo": "F0" }
+      ]
+    },
+    {
+      "marca": "Geely",
+      "modelos": [
+        { "modelo": "Coolray" },
+        { "modelo": "Emgrand" },
+        { "modelo": "Azkarra" },
+        { "modelo": "Okavango" },
+        { "modelo": "Starray" }
+      ]
+    },
+    {
+      "marca": "Fiat",
+      "modelos": [
+        { "modelo": "Uno" },
+        { "modelo": "Palio" },
+        { "modelo": "Siena" },
+        { "modelo": "Argo" },
+        { "modelo": "Cronos" },
+        { "modelo": "Mobi" },
+        { "modelo": "Pulse" },
+        { "modelo": "Fastback" },
+        { "modelo": "Strada" },
+        { "modelo": "Toro" },
+        { "modelo": "Ducato" },
+        { "modelo": "Fiorino" },
+        { "modelo": "500" }
+      ]
+    },
+    {
+      "marca": "Jeep",
+      "modelos": [
+        { "modelo": "Renegade" },
+        { "modelo": "Compass" },
+        { "modelo": "Cherokee" },
+        { "modelo": "Grand Cherokee" },
+        { "modelo": "Wrangler" },
+        { "modelo": "Gladiator" },
+        { "modelo": "Commander" },
+        { "modelo": "Avenger" }
+      ]
+    },
+    {
+      "marca": "RAM",
+      "modelos": [
+        { "modelo": "700" },
+        { "modelo": "1000" },
+        { "modelo": "1200" },
+        { "modelo": "1500" },
+        { "modelo": "2500" },
+        { "modelo": "Rampage" }
+      ]
+    },
+    {
+      "marca": "Dodge",
+      "modelos": [
+        { "modelo": "Journey" },
+        { "modelo": "Durango" },
+        { "modelo": "Ram" },
+        { "modelo": "Charger" },
+        { "modelo": "Challenger" }
+      ]
+    },
+    {
+      "marca": "Mercedes-Benz",
+      "modelos": [
+        { "modelo": "Clase A" },
+        { "modelo": "Clase B" },
+        { "modelo": "Clase C" },
+        { "modelo": "Clase E" },
+        { "modelo": "Clase S" },
+        { "modelo": "CLA" },
+        { "modelo": "GLA" },
+        { "modelo": "GLB" },
+        { "modelo": "GLC" },
+        { "modelo": "GLE" },
+        { "modelo": "GLS" },
+        { "modelo": "Clase G" },
+        { "modelo": "Clase X" },
+        { "modelo": "Sprinter" },
+        { "modelo": "Vito" },
+        { "modelo": "Citan" },
+        { "modelo": "EQA" },
+        { "modelo": "EQC" }
+      ]
+    },
+    {
+      "marca": "BMW",
+      "modelos": [
+        { "modelo": "Serie 1" },
+        { "modelo": "Serie 2" },
+        { "modelo": "Serie 3" },
+        { "modelo": "Serie 4" },
+        { "modelo": "Serie 5" },
+        { "modelo": "Serie 7" },
+        { "modelo": "X1" },
+        { "modelo": "X2" },
+        { "modelo": "X3" },
+        { "modelo": "X4" },
+        { "modelo": "X5" },
+        { "modelo": "X6" },
+        { "modelo": "X7" },
+        { "modelo": "Z4" },
+        { "modelo": "i3" },
+        { "modelo": "iX" },
+        { "modelo": "iX3" }
+      ]
+    },
+    {
+      "marca": "Audi",
+      "modelos": [
+        { "modelo": "A1" },
+        { "modelo": "A3" },
+        { "modelo": "A4" },
+        { "modelo": "A5" },
+        { "modelo": "A6" },
+        { "modelo": "A7" },
+        { "modelo": "A8" },
+        { "modelo": "Q2" },
+        { "modelo": "Q3" },
+        { "modelo": "Q5" },
+        { "modelo": "Q7" },
+        { "modelo": "Q8" },
+        { "modelo": "TT" },
+        { "modelo": "e-tron" }
+      ]
+    },
+    {
+      "marca": "Volvo",
+      "modelos": [
+        { "modelo": "S60" },
+        { "modelo": "S90" },
+        { "modelo": "V40" },
+        { "modelo": "V60" },
+        { "modelo": "XC40" },
+        { "modelo": "XC60" },
+        { "modelo": "XC90" },
+        { "modelo": "EX30" }
+      ]
+    },
+    {
+      "marca": "Land Rover",
+      "modelos": [
+        { "modelo": "Defender" },
+        { "modelo": "Discovery" },
+        { "modelo": "Discovery Sport" },
+        { "modelo": "Freelander" },
+        { "modelo": "Range Rover" },
+        { "modelo": "Range Rover Sport" },
+        { "modelo": "Range Rover Evoque" },
+        { "modelo": "Range Rover Velar" }
+      ]
+    },
+    {
+      "marca": "Jaguar",
+      "modelos": [
+        { "modelo": "XE" },
+        { "modelo": "XF" },
+        { "modelo": "F-Pace" },
+        { "modelo": "E-Pace" },
+        { "modelo": "I-Pace" },
+        { "modelo": "F-Type" }
+      ]
+    },
+    {
+      "marca": "Porsche",
+      "modelos": [
+        { "modelo": "911" },
+        { "modelo": "718 Cayman" },
+        { "modelo": "718 Boxster" },
+        { "modelo": "Macan" },
+        { "modelo": "Cayenne" },
+        { "modelo": "Panamera" },
+        { "modelo": "Taycan" }
+      ]
+    },
+    {
+      "marca": "MINI",
+      "modelos": [
+        { "modelo": "Cooper" },
+        { "modelo": "Cooper S" },
+        { "modelo": "Countryman" },
+        { "modelo": "Clubman" },
+        { "modelo": "Paceman" }
+      ]
+    },
+    {
+      "marca": "Lexus",
+      "modelos": [
+        { "modelo": "CT" },
+        { "modelo": "IS" },
+        { "modelo": "ES" },
+        { "modelo": "GS" },
+        { "modelo": "UX" },
+        { "modelo": "NX" },
+        { "modelo": "RX" },
+        { "modelo": "GX" },
+        { "modelo": "LX" }
+      ]
+    },
+    {
+      "marca": "Infiniti",
+      "modelos": [
+        { "modelo": "Q50" },
+        { "modelo": "Q60" },
+        { "modelo": "QX50" },
+        { "modelo": "QX60" },
+        { "modelo": "QX70" },
+        { "modelo": "QX80" }
+      ]
+    },
+    {
+      "marca": "Alfa Romeo",
+      "modelos": [
+        { "modelo": "Giulietta" },
+        { "modelo": "Giulia" },
+        { "modelo": "Stelvio" },
+        { "modelo": "Tonale" },
+        { "modelo": "MiTo" }
+      ]
+    },
+    {
+      "marca": "Opel",
+      "modelos": [
+        { "modelo": "Corsa" },
+        { "modelo": "Astra" },
+        { "modelo": "Crossland" },
+        { "modelo": "Grandland" },
+        { "modelo": "Mokka" },
+        { "modelo": "Combo" }
+      ]
+    },
+    {
+      "marca": "SEAT",
+      "modelos": [
+        { "modelo": "Ibiza" },
+        { "modelo": "León" },
+        { "modelo": "Arona" },
+        { "modelo": "Ateca" },
+        { "modelo": "Tarraco" },
+        { "modelo": "Toledo" }
+      ]
+    },
+    {
+      "marca": "Škoda",
+      "modelos": [
+        { "modelo": "Fabia" },
+        { "modelo": "Octavia" },
+        { "modelo": "Rapid" },
+        { "modelo": "Superb" },
+        { "modelo": "Kamiq" },
+        { "modelo": "Karoq" },
+        { "modelo": "Kodiaq" }
+      ]
+    },
+    {
+      "marca": "KGM",
+      "modelos": [
+        { "modelo": "Tivoli" },
+        { "modelo": "Korando" },
+        { "modelo": "Rexton" },
+        { "modelo": "Musso" },
+        { "modelo": "Actyon" },
+        { "modelo": "Torres" }
+      ]
+    },
+    {
+      "marca": "Isuzu",
+      "modelos": [
+        { "modelo": "D-Max" },
+        { "modelo": "MU-X" },
+        { "modelo": "NPR" },
+        { "modelo": "NQR" }
+      ]
+    },
+    {
+      "marca": "Tesla",
+      "modelos": [
+        { "modelo": "Model 3" },
+        { "modelo": "Model Y" },
+        { "modelo": "Model S" },
+        { "modelo": "Model X" }
+      ]
+    },
+    {
+      "marca": "Mahindra",
+      "modelos": [
+        { "modelo": "Pik Up" },
+        { "modelo": "Scorpio" },
+        { "modelo": "XUV500" },
+        { "modelo": "KUV100" }
+      ]
+    },
+    {
+      "marca": "Chrysler",
+      "modelos": [
+        { "modelo": "300C" },
+        { "modelo": "Town & Country" },
+        { "modelo": "Pacifica" }
+      ]
+    },
+    {
+      "marca": "GMC",
+      "modelos": [
+        { "modelo": "Sierra" },
+        { "modelo": "Yukon" },
+        { "modelo": "Acadia" },
+        { "modelo": "Terrain" }
+      ]
+    },
+    {
+      "marca": "Daihatsu",
+      "modelos": [
+        { "modelo": "Terios" },
+        { "modelo": "Bego" },
+        { "modelo": "Sirion" },
+        { "modelo": "Materia" }
+      ]
+    }
+  ]
+}

@@ -57,34 +57,7 @@ const requerido = 'text-sm text-scarlet-signal';
 </div>
 
 <script>
-  // Los <optgroup> salen del DOM y viven en este Map: se devuelven cuando su
-  // región es la elegida. Así la lista no se duplica en el bundle, se reusa la
-  // que ya vino en el HTML. Sin este script el select queda como está servido.
-  for (const comuna of document.querySelectorAll<HTMLSelectElement>('select[data-comunas-de]')) {
-    const region = document.getElementById(comuna.dataset.comunasDe!);
-    if (!(region instanceof HTMLSelectElement)) continue;
-
-    const grupos = new Map(
-      [...comuna.querySelectorAll('optgroup')].map((g): [string, HTMLOptGroupElement] => [g.label, g]),
-    );
-
-    const sincronizar = () => {
-      const elegido = grupos.get(region.value);
-      for (const grupo of grupos.values()) if (grupo !== elegido) grupo.remove();
-      if (elegido && !elegido.isConnected) comuna.append(elegido);
-
-      // Al quitar el <option> seleccionado el navegador deja el select en -1:
-      // volver al placeholder evita mandar un par incoherente al cambiar de
-      // región. Sin región elegida no hay nada que ofrecer, así que se apaga.
-      if (!comuna.value) comuna.selectedIndex = 0;
-      comuna.disabled = !elegido;
-    };
-
-    region.addEventListener('change', sincronizar);
-    sincronizar();
-
-    // Al recargar o volver atrás el navegador repone el valor de la región sin
-    // disparar `change`: sin esto la lista de comunas quedaría en la anterior.
-    window.addEventListener('pageshow', sincronizar);
-  }
+  // Sin este import el select queda como está servido: las 346 comunas juntas,
+  // que sigue siendo usable.
+  import '@lib/selectDependiente';
 </script>
