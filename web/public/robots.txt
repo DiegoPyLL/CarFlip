@@ -15,7 +15,6 @@ Disallow: /registro
 Disallow: /cuenta
 Disallow: /api/
 
-# El index ya declara los sitemaps de avisos y marcas (ver astro.config.mjs), así
-# que basta con apuntar a él: repetirlos aquí sería una segunda lista que
-# mantener sincronizada a mano.
 Sitemap: https://carflip.cl/sitemap-index.xml
+Sitemap: https://carflip.cl/sitemap-avisos.xml
+Sitemap: https://carflip.cl/sitemap-marcas.xml
