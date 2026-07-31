@@ -8,15 +8,17 @@
  *   </select>
  *
  * El HTML trae todos los `<optgroup>`, así que el formulario funciona servido
- * tal cual: se elige la comuna —o el modelo— de la lista completa. Este script
- * solo deja a la vista el grupo que corresponde a lo elegido arriba, que es lo
- * que evita recorrer el país entero para encontrar Ñuñoa.
+ * tal cual: se elige la comuna de la lista completa. Este script solo deja a la
+ * vista el grupo que corresponde a lo elegido arriba, que es lo que evita
+ * recorrer el país entero para encontrar Ñuñoa.
  *
  * Los grupos que sobran salen del DOM y viven en un Map: la lista no se duplica
  * en el bundle, se reusa la que ya vino en el HTML.
  *
- * Se monta solo al importarse. Lo importan `CamposUbicacion` y `CamposVehiculo`;
- * como es el mismo módulo, se ejecuta una vez aunque los dos estén en la página.
+ * Se monta solo al importarse. Hoy lo usa `CamposUbicacion` con región y comuna;
+ * está escrito genérico porque el par marca/modelo del catálogo es la misma
+ * cascada. Como es un único módulo, se ejecuta una vez aunque en la página haya
+ * varios pares.
  */
 
 function montar() {
@@ -38,11 +40,6 @@ function montar() {
       // padre. Sin nada elegido arriba no hay qué ofrecer, así que se apaga.
       if (!dependiente.value) dependiente.selectedIndex = 0;
       dependiente.disabled = !elegido;
-
-      // Quien dependa de este select —el datalist de versiones— necesita
-      // enterarse de que su valor pudo cambiar, y `selectedIndex` no dispara
-      // eventos por sí solo.
-      dependiente.dispatchEvent(new Event('change', { bubbles: true }));
     };
 
     padre.addEventListener('change', sincronizar);

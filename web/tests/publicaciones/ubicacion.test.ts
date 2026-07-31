@@ -2,6 +2,7 @@ import { experimental_AstroContainer as AstroContainer } from 'astro/container';
 import { describe, expect, it } from 'vitest';
 
 import CamposUbicacion from '../../src/components/cuenta/CamposUbicacion.astro';
+import fuenteSelectDependiente from '../../src/lib/selectDependiente?raw';
 import { camposDelFormulario } from '../../src/lib/publicaciones/formulario';
 import { COMUNAS_POR_REGION, REGIONES, comunaEnRegion } from '../../src/lib/publicaciones/opciones';
 
@@ -126,8 +127,19 @@ describe('CamposUbicacion, el HTML servido', () => {
 
   it('enlaza comuna con región para el filtrado en el cliente', async () => {
     const html = await render();
-    expect(html).toContain('data-comunas-de="region"');
+    expect(html).toContain('data-grupos-de="region"');
     expect(html).toContain('id="region"');
     expect(html).not.toContain('selected');
+  });
+
+  // Este par —marcado y script— se rompió una vez al generalizar el script a
+  // `selectDependiente`: el atributo pasó a `data-grupos-de` y el marcado se
+  // quedó en `data-comunas-de`, con lo que el selector dejó de encontrar nada y
+  // la cascada murió en silencio. Afirmar el nombre a mano no sirve de red,
+  // porque es justo lo que quedó desactualizado; se saca del script.
+  it('emite el atributo que el script consulta, no uno parecido', async () => {
+    const selector = fuenteSelectDependiente.match(/select\[(data-[a-z-]+)\]/)?.[1];
+    expect(selector).toBeDefined();
+    expect(await render()).toContain(`${selector}="region"`);
   });
 });
