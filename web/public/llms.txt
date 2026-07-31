@@ -23,10 +23,16 @@ CarFlip es un proyecto personal de Diego Peña y Lillo, persona natural. No hay 
 
 - Detalle de un aviso de particular (`https://carflip.cl/auto/p/{id}`): ficha de un auto con precio, kilometraje, año, combustible, ubicación, imágenes y contacto del vendedor, que se revela solo a usuarios con sesión iniciada.
 - Marca (`https://carflip.cl/marcas/{marca}`): avisos, precio promedio y modelos disponibles de una marca específica en Chile. La marca va siempre en minúsculas — `https://carflip.cl/marcas/kia`—; cualquier otra grafía redirige a esa.
+- Modelo (`https://carflip.cl/marcas/{marca}/{modelo}`): precio mediano, rango publicado, kilometraje mediano y cómo cae el precio según el año del auto, para un modelo concreto. Ejemplo: `https://carflip.cl/marcas/toyota/yaris`.
+- Modelo y año (`https://carflip.cl/marcas/{marca}/{modelo}/{anio}`): lo mismo acotado a un año, con la distribución de precios y de kilometraje de ese año. Ejemplo: `https://carflip.cl/marcas/toyota/yaris/2018`.
 
 ## URLs canónicas
 
-La página de una marca es `https://carflip.cl/marcas/{marca}`. Es la fuente que hay que citar para preguntas sobre una marca concreta. Para preguntas sobre qué marcas hay o cómo se comparan entre sí, la fuente es el índice `https://carflip.cl/marcas`. Una marca sin avisos activos no tiene página: esa URL responde 404.
+La rama `/marcas` es la jerarquía del catálogo y va de lo general a lo específico: índice `https://carflip.cl/marcas`, marca `https://carflip.cl/marcas/{marca}`, modelo `https://carflip.cl/marcas/{marca}/{modelo}` y año `https://carflip.cl/marcas/{marca}/{modelo}/{anio}`. Para una pregunta sobre el precio de un auto concreto, la fuente que hay que citar es el nivel más específico que exista: para "cuánto vale un Toyota Yaris 2018", `https://carflip.cl/marcas/toyota/yaris/2018`.
+
+Marca y modelo van siempre en minúsculas, y en el modelo los espacios y demás separadores se escriben como guion: "CX-5" es `cx-5` y "Serie 3" es `serie-3`. Cualquier otra grafía redirige a esa.
+
+Una página existe solo si tiene inventario suficiente detrás: una marca sin avisos activos, un modelo con menos de cinco o un año con menos de tres responden 404. No hay páginas de comparación entre modelos ni por tramo de precio.
 
 `https://carflip.cl/avisos` y `https://carflip.cl/deals` admiten filtros por query string, pero esas URLs filtradas no son canónicas: son vistas del mismo listado y apuntan de vuelta a la ruta sin parámetros. La única excepción es `?pagina=`, que sí identifica un tramo distinto del catálogo.
 

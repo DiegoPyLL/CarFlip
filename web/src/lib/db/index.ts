@@ -6,7 +6,9 @@ export { obtenerDeals, obtenerFiltrosDeals } from './deals';
 export {
   obtenerDatosMercado,
   obtenerDatosMarca,
+  obtenerDatosModelo,
   obtenerMarcas,
+  obtenerPaginasDeMarca,
   obtenerHistoriaMercado,
   consultarMercado,
   posicionMercado,
@@ -15,6 +17,7 @@ export type {
   EstadisticaMarca,
   EstadisticaModelo,
   DatosMercado,
+  DatosModelo,
   BucketHistograma,
   PrecioAnio,
   PuntoDia,

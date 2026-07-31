@@ -1,6 +1,19 @@
 import { supabase } from './client';
+import { obtenerAvisosModelo } from './avisos';
 import { FUENTES, TABLA_POR_FUENTE, soloPublicados } from './fuentes';
-import { agruparMarcas, type MarcaListada } from '../marcas';
+import {
+  MIN_AVISOS_ANIO,
+  MIN_AVISOS_MODELO,
+  aPrecio,
+  agruparMarcas,
+  paginasAnio,
+  paginasModelo,
+  promedio,
+  slugModelo,
+  type AnioListado,
+  type MarcaListada,
+  type ModeloListado,
+} from '../marcas';
 import type { Aviso } from '../tipos';
 
 export interface EstadisticaMarca {
@@ -73,10 +86,6 @@ function percentil(ordenados: number[], p: number): number {
   const hi = Math.ceil(idx);
   if (lo === hi) return ordenados[lo];
   return ordenados[lo] + (ordenados[hi] - ordenados[lo]) * (idx - lo);
-}
-
-function promedio(valores: number[]): number | null {
-  return valores.length ? valores.reduce((a, b) => a + b, 0) / valores.length : null;
 }
 
 // Cuenta `valores` en los tramos definidos por `edges` (n+1 bordes → n tramos).
@@ -464,83 +473,69 @@ export function posicionMercado(
   return { pct, etiqueta: 'En rango de mercado', glifo: '≈' };
 }
 
+/** Una fila del catálogo, con lo que agregan la página de marca y las de modelo. */
+type FilaMarca = {
+  marca: string | null;
+  modelo: string | null;
+  precio: string | null;
+  anio: number | null;
+  km: number | null;
+};
+
+/**
+ * Las filas publicadas de una marca, de todas las fuentes.
+ *
+ * La marca va por `ilike` sin comodines —coincidencia exacta, sin distinguir
+ * mayúsculas—: el slug de la URL viene en minúsculas y el catálogo la escribe
+ * como quiere. Un `%marca%` haría que /marcas/mini arrastrara "Mini Cooper".
+ */
+async function filasDeMarca(marca: string): Promise<FilaMarca[]> {
+  const porFuente = await Promise.all(
+    FUENTES.map(async (f) => {
+      const { data } = await soloPublicados(
+        supabase.from(TABLA_POR_FUENTE[f]).select('marca, modelo, precio, anio, km'),
+        f,
+      )
+        .ilike('marca', marca)
+        .limit(5000);
+      return (data ?? []) as FilaMarca[];
+    }),
+  );
+  return porFuente.flat();
+}
+
 export async function obtenerDatosMarca(marca: string): Promise<{
-  modelos: EstadisticaModelo[];
+  /** Los 12 modelos más listados. `total` decide cuáles tienen página propia. */
+  modelos: ModeloListado[];
   distribucion: { etiqueta: string; min: number; max: number; total: number }[];
   precio_promedio: number | null;
   precio_minimo: number | null;
   precio_maximo: number | null;
   total: number;
-  anios: { anio: number; total: number; precio_promedio: number | null }[];
+  anios: AnioListado[];
   /** La marca con la grafía del catálogo: la URL viene en minúsculas y el `ilike` no la distingue. */
   nombre: string;
 }> {
-  type Fila = { marca: string | null; modelo: string | null; precio: string | null; anio: number | null };
-
-  async function fetchFuente(f: Aviso['fuente']): Promise<Fila[]> {
-    const { data } = await soloPublicados(
-      supabase.from(TABLA_POR_FUENTE[f]).select('marca, modelo, precio, anio'),
-      f,
-    )
-      .ilike('marca', marca)
-      .limit(5000);
-    return (data ?? []) as Fila[];
-  }
-
-  const resultados = await Promise.all(FUENTES.map((f) => fetchFuente(f)));
-  const rows = resultados.flat();
+  const rows = await filasDeMarca(marca);
 
   // Sin filas la marca no existe en el catálogo y la página no se llega a
   // renderizar, así que el valor de reserva solo cubre el tipo.
   const nombre = rows.find((r) => r.marca)?.marca ?? marca;
 
-  // Modelos
-  const modeloMap = new Map<string, { total: number; precios: number[] }>();
-  for (const row of rows) {
-    if (!row.modelo) continue;
-    const entry = modeloMap.get(row.modelo) ?? { total: 0, precios: [] };
-    entry.total++;
-    if (row.precio) entry.precios.push(parseFloat(row.precio));
-    modeloMap.set(row.modelo, entry);
-  }
-
-  const modelos: EstadisticaModelo[] = Array.from(modeloMap.entries())
-    .map(([modelo, { total, precios }]) => ({
-      modelo,
-      marca: nombre,
-      total,
-      precio_promedio: precios.length ? precios.reduce((a, b) => a + b, 0) / precios.length : null,
-    }))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 12);
+  // Los modelos salen de la misma función que decide qué páginas de modelo
+  // existen, con el mínimo en 1 para listarlos todos: así el enlace del hub y la
+  // página que abre no pueden discrepar sobre el slug ni sobre el recuento.
+  const modelos = paginasModelo(rows, 1).slice(0, 12);
+  // Idem para los años, que acá se listan completos y en la página de modelo se
+  // filtran por inventario.
+  const anios = paginasAnio(rows, 1).slice(0, 15);
 
   // Stats globales de la marca
-  const todosPrecios = rows
-    .map(r => r.precio ? parseFloat(r.precio) : null)
-    .filter((p): p is number => p !== null);
+  const todosPrecios = rows.map((r) => aPrecio(r.precio)).filter((p): p is number => p !== null);
 
-  const precio_promedio = todosPrecios.length ? todosPrecios.reduce((a, b) => a + b, 0) / todosPrecios.length : null;
+  const precio_promedio = promedio(todosPrecios);
   const precio_minimo   = todosPrecios.length ? Math.min(...todosPrecios) : null;
   const precio_maximo   = todosPrecios.length ? Math.max(...todosPrecios) : null;
-
-  // Distribución por año
-  const anioMap = new Map<number, { total: number; precios: number[] }>();
-  for (const row of rows) {
-    if (!row.anio) continue;
-    const entry = anioMap.get(row.anio) ?? { total: 0, precios: [] };
-    entry.total++;
-    if (row.precio) entry.precios.push(parseFloat(row.precio));
-    anioMap.set(row.anio, entry);
-  }
-
-  const anios = Array.from(anioMap.entries())
-    .map(([anio, { total, precios }]) => ({
-      anio,
-      total,
-      precio_promedio: precios.length ? precios.reduce((a, b) => a + b, 0) / precios.length : null,
-    }))
-    .sort((a, b) => b.anio - a.anio)
-    .slice(0, 15);
 
   // Distribución de precios
   const brackets = [
@@ -551,15 +546,134 @@ export async function obtenerDatosMarca(marca: string): Promise<{
     { etiqueta: 'Más de $35M',min: 35_000_000, max: Infinity },
   ];
 
-  const distribucion = brackets.map(b => ({
+  const distribucion = brackets.map((b) => ({
     ...b,
-    total: rows.filter(r => {
-      const p = r.precio ? parseFloat(r.precio) : null;
-      return p !== null && p >= b.min && p < b.max;
-    }).length,
+    total: todosPrecios.filter((p) => p >= b.min && p < b.max).length,
   }));
 
   return { modelos, distribucion, precio_promedio, precio_minimo, precio_maximo, total: rows.length, anios, nombre };
+}
+
+export interface DatosModelo {
+  /** Grafías del catálogo, no los slugs de la URL ("Toyota", "Yaris"). */
+  marca: string;
+  modelo: string;
+  slugMarca: string;
+  slugModelo: string;
+  /** El año de la vista, o `null` en la página del modelo completo. */
+  anio: number | null;
+  total: number;
+  precio_promedio: number | null;
+  precio_mediano: number | null;
+  precio_minimo: number | null;
+  precio_maximo: number | null;
+  km_mediano: number | null;
+  /** Los años del modelo con página propia, incluido el de la vista. */
+  anios: AnioListado[];
+  histogramaPrecio: BucketHistograma[];
+  histogramaKm: BucketHistograma[];
+  /** Curva de depreciación del modelo. Vacía en la vista de un año. */
+  precioPorAnio: PrecioAnio[];
+  avisos: Aviso[];
+}
+
+/**
+ * Los datos de /marcas/{marca}/{modelo} y de /marcas/{marca}/{modelo}/{anio}.
+ *
+ * Devuelve `null` cuando la página no existe —modelo desconocido, o inventario
+ * bajo el mínimo—, y con eso la página responde 404. Es la misma decisión que ya
+ * toma la de marca con `total === 0`: una URL sin contenido detrás no se sirve.
+ *
+ * El modelo se resuelve por slug sobre las filas de la marca en vez de con un
+ * `ilike` sobre el modelo, porque el slug no es reversible: "Serie 3" y "Serie-3"
+ * dan el mismo, y la página tiene que traer los avisos de ambas grafías.
+ */
+export async function obtenerDatosModelo(
+  marcaSlug: string,
+  modeloSlug: string,
+  anio?: number,
+): Promise<DatosModelo | null> {
+  const filas = await filasDeMarca(marcaSlug);
+
+  const modelo = paginasModelo(filas, MIN_AVISOS_MODELO).find((m) => m.slug === modeloSlug);
+  if (!modelo) return null;
+
+  const delModelo = filas.filter((f) => f.modelo && slugModelo(f.modelo) === modeloSlug);
+  const anios = paginasAnio(delModelo, MIN_AVISOS_ANIO);
+
+  // La vista de un año existe solo si ese año tiene página, así que el rango del
+  // año no se valida aparte: /marcas/toyota/yaris/99999 no está en la lista.
+  if (anio !== undefined && !anios.some((a) => a.anio === anio)) return null;
+
+  const vista = anio !== undefined ? delModelo.filter((f) => f.anio === anio) : delModelo;
+
+  const precios = vista.map((f) => aPrecio(f.precio)).filter((p): p is number => p !== null);
+  const preciosOrdenados = [...precios].sort((a, b) => a - b);
+  const kms = vista.map((f) => f.km).filter((k): k is number => k !== null && k >= 0);
+
+  return {
+    marca: filas.find((f) => f.marca)?.marca ?? marcaSlug,
+    modelo: modelo.nombre,
+    slugMarca: marcaSlug,
+    slugModelo: modeloSlug,
+    anio: anio ?? null,
+    total: vista.length,
+    precio_promedio: promedio(precios),
+    precio_mediano: precios.length ? percentil(preciosOrdenados, 0.5) : null,
+    precio_minimo: precios.length ? preciosOrdenados[0] : null,
+    precio_maximo: precios.length ? preciosOrdenados[preciosOrdenados.length - 1] : null,
+    km_mediano: kms.length ? percentil([...kms].sort((a, b) => a - b), 0.5) : null,
+    anios,
+    histogramaPrecio: histograma(precios, EDGES_PRECIO, etiquetaPrecio),
+    histogramaKm: histograma(kms, EDGES_KM, etiquetaKm),
+    precioPorAnio: anio !== undefined ? [] : curvaPorAnio(delModelo),
+    avisos: await obtenerAvisosModelo(marcaSlug, modelo.grafias, anio),
+  };
+}
+
+/**
+ * Qué páginas de modelo y de año existen bajo una marca.
+ *
+ * La consume sitemap-marcas.xml. Sale de las mismas funciones que usa la página
+ * para decidir si responde 200 o 404, así que el sitemap no puede declarar una
+ * URL muerta ni omitir una viva.
+ */
+export async function obtenerPaginasDeMarca(
+  marca: string,
+): Promise<{ slug: string; anios: number[] }[]> {
+  const filas = await filasDeMarca(marca);
+
+  return paginasModelo(filas, MIN_AVISOS_MODELO).map(({ slug }) => ({
+    slug,
+    anios: paginasAnio(
+      filas.filter((f) => f.modelo && slugModelo(f.modelo) === slug),
+      MIN_AVISOS_ANIO,
+    ).map((a) => a.anio),
+  }));
+}
+
+/** Percentiles de precio por año de un modelo: su curva de depreciación. */
+function curvaPorAnio(filas: FilaMarca[]): PrecioAnio[] {
+  const porAnio = new Map<number, number[]>();
+  for (const fila of filas) {
+    const precio = aPrecio(fila.precio);
+    if (!fila.anio || fila.anio < ANIO_MIN || precio === null) continue;
+    porAnio.set(fila.anio, [...(porAnio.get(fila.anio) ?? []), precio]);
+  }
+
+  return Array.from(porAnio.entries())
+    .filter(([, precios]) => precios.length >= MIN_POR_ANIO)
+    .map(([anio, precios]) => {
+      const ordenados = precios.sort((a, b) => a - b);
+      return {
+        anio,
+        p25: percentil(ordenados, 0.25),
+        mediana: percentil(ordenados, 0.5),
+        p75: percentil(ordenados, 0.75),
+        total: ordenados.length,
+      };
+    })
+    .sort((a, b) => a.anio - b.anio);
 }
 
 /**
