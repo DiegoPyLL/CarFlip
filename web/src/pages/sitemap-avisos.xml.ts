@@ -35,11 +35,16 @@ export const GET: APIRoute = async ({ site, url }) => {
     );
   }
 
+  // `actualizado_en` es nullable en el esquema: sin la guarda, un NULL se
+  // convierte en 1970 y le dice a Google que el aviso lleva medio siglo sin
+  // cambiar. Mejor omitir el dato que publicar uno falso.
   const entradas = (data ?? [])
-    .map(
-      ({ id, actualizado_en }) =>
-        `<url><loc>${origen}/auto/p/${id}</loc><lastmod>${new Date(actualizado_en).toISOString()}</lastmod></url>`,
-    )
+    .map(({ id, actualizado_en }) => {
+      const fecha = actualizado_en ? new Date(actualizado_en) : null;
+      const lastmod =
+        fecha && !Number.isNaN(fecha.getTime()) ? `<lastmod>${fecha.toISOString()}</lastmod>` : '';
+      return `<url><loc>${origen}/auto/p/${id}</loc>${lastmod}</url>`;
+    })
     .join('');
 
   return new Response(

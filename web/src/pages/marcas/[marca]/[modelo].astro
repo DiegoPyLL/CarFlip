@@ -1,0 +1,220 @@
+---
+import Migas from '@components/Migas.astro';
+import CardAviso from '@components/avisos/CardAviso.astro';
+import { cabeceraCls, enlaceCls, filaCls, panelCls, pistaCls } from '@components/mercado/estilos';
+import Base from '@layouts/Base.astro';
+import { obtenerDatosModelo } from '@lib/db';
+import { formatearKm, formatearPrecio } from '@lib/formato';
+import { slugModelo } from '@lib/marcas';
+
+const { marca, modelo } = Astro.params;
+if (!marca || !modelo) return Astro.rewrite('/404');
+
+// Una sola forma por recurso, igual que en la página de marca: la minúscula para
+// la marca y el slug para el modelo. Cualquier otra grafía redirige a ella, así
+// que /marcas/Toyota/Yaris y /marcas/toyota/yaris no son dos páginas idénticas
+// con canónicas distintas. Un modelo que se queda sin slug no tiene URL.
+const slugMarca = marca.toLowerCase();
+const slug = slugModelo(modelo);
+if (!slug) return Astro.rewrite('/404');
+if (marca !== slugMarca || modelo !== slug) {
+  return Astro.redirect(`/marcas/${encodeURIComponent(slugMarca)}/${encodeURIComponent(slug)}`, 301);
+}
+
+// `null` cuando el modelo no existe en el catálogo de la marca o no llega al
+// mínimo de avisos: una página con dos autos no es la página de un modelo.
+const datos = await obtenerDatosModelo(slugMarca, slug);
+if (!datos) return Astro.rewrite('/404');
+
+const { marca: nombreMarca, modelo: nombreModelo } = datos;
+const titulo = `${nombreMarca} ${nombreModelo}`;
+const rutaMarca = `/marcas/${encodeURIComponent(slugMarca)}`;
+
+const maxAnio = Math.max(...datos.anios.map((a) => a.total), 1);
+const maxPrecio = Math.max(...datos.histogramaPrecio.map((b) => b.total), 1);
+
+// La curva de depreciación se dibuja sobre el rango real de precios del modelo,
+// no sobre cero: con precios de $8M a $12M, una escala desde cero aplasta la
+// curva contra el techo y no se ve la caída, que es todo el punto del gráfico.
+const medianas = datos.precioPorAnio.map((p) => p.mediana);
+const pisoCurva = medianas.length ? Math.min(...medianas) : 0;
+const techoCurva = medianas.length ? Math.max(...medianas) : 1;
+const alturaCurva = (valor: number) =>
+  techoCurva === pisoCurva ? 50 : ((valor - pisoCurva) / (techoCurva - pisoCurva)) * 80 + 10;
+
+const descripcion = [
+  `${datos.total} avisos de ${titulo} en Chile.`,
+  datos.precio_mediano ? `Precio mediano ${formatearPrecio(Math.round(datos.precio_mediano))}.` : null,
+  'Compara precios por año y kilometraje.',
+]
+  .filter(Boolean)
+  .join(' ');
+---
+
+<Base titulo={`${titulo} — Precios y avisos en Chile`} descripcion={descripcion}>
+  <Migas
+    migas={[
+      { nombre: 'Marcas', href: '/marcas' },
+      { nombre: nombreMarca, href: rutaMarca },
+      { nombre: nombreModelo },
+    ]}
+  />
+
+  <div class="mb-section">
+    <p class="text-base uppercase tracking-widest mb-element">Modelo</p>
+    <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block">{titulo}</h1>
+
+    <div class="flex flex-wrap gap-x-block gap-y-element">
+      <div>
+        <p class="text-base">Avisos activos</p>
+        <p class="text-base text-ink tabular-nums">{datos.total.toLocaleString('es-CL')}</p>
+      </div>
+      {datos.precio_mediano && (
+        <div>
+          <p class="text-base">Precio mediano</p>
+          <p class="text-base text-ink tabular-nums">{formatearPrecio(Math.round(datos.precio_mediano))}</p>
+        </div>
+      )}
+      {datos.precio_minimo && datos.precio_maximo && (
+        <div>
+          <p class="text-base">Rango publicado</p>
+          <p class="text-base text-ink tabular-nums">
+            {formatearPrecio(Math.round(datos.precio_minimo))} — {formatearPrecio(Math.round(datos.precio_maximo))}
+          </p>
+        </div>
+      )}
+      {datos.km_mediano !== null && (
+        <div>
+          <p class="text-base">Kilometraje mediano</p>
+          <p class="text-base text-ink tabular-nums">{formatearKm(Math.round(datos.km_mediano))}</p>
+        </div>
+      )}
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-element mb-section">
+    <div class="space-y-element">
+      {datos.anios.length > 0 && (
+        <section class={panelCls}>
+          <div class={cabeceraCls}>
+            <h2 class="text-base text-ink">Avisos por año</h2>
+            <p class="text-base">Cada año con stock suficiente tiene su propia página</p>
+          </div>
+          <div class="divide-y divide-line">
+            {datos.anios.map((a) => (
+              <div class={filaCls}>
+                <a
+                  href={`${rutaMarca}/${encodeURIComponent(slug)}/${a.anio}`}
+                  class={`${enlaceCls} w-12 shrink-0 tabular-nums`}
+                >
+                  {a.anio}
+                </a>
+                <div class="flex-1 min-w-0">
+                  <div class={pistaCls}>
+                    <div class="h-full bg-ink" style={`width: ${(a.total / maxAnio * 100).toFixed(1)}%`} />
+                  </div>
+                </div>
+                <span class="text-base tabular-nums w-10 text-right shrink-0">{a.total}</span>
+                <span class="text-base tabular-nums w-28 text-right shrink-0 hidden sm:block">
+                  {a.precio_promedio ? formatearPrecio(Math.round(a.precio_promedio)) : '—'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {datos.precioPorAnio.length > 1 && (
+        <section class={panelCls}>
+          <div class={cabeceraCls}>
+            <h2 class="text-base text-ink">Cómo cae el precio con los años</h2>
+            <p class="text-base">Precio mediano publicado por año del auto</p>
+          </div>
+          <div class="p-element">
+            <div class="flex items-end gap-1 h-32" role="presentation">
+              {datos.precioPorAnio.map((p) => (
+                <div class="flex-1 flex flex-col justify-end items-center gap-1 min-w-0">
+                  <div class="w-full bg-ink" style={`height: ${alturaCurva(p.mediana).toFixed(1)}%`} />
+                </div>
+              ))}
+            </div>
+            <table class="w-full mt-element text-base">
+              <caption class="sr-only">Precio mediano de {titulo} por año</caption>
+              <thead>
+                <tr class="text-left">
+                  <th scope="col" class="font-normal">Año</th>
+                  <th scope="col" class="font-normal text-right">Mediana</th>
+                  <th scope="col" class="font-normal text-right hidden sm:table-cell">Rango habitual</th>
+                  <th scope="col" class="font-normal text-right">Avisos</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-line">
+                {datos.precioPorAnio.map((p) => (
+                  <tr>
+                    <td class="py-2 text-ink tabular-nums">{p.anio}</td>
+                    <td class="py-2 text-ink tabular-nums text-right">
+                      {formatearPrecio(Math.round(p.mediana))}
+                    </td>
+                    <td class="py-2 tabular-nums text-right hidden sm:table-cell">
+                      {formatearPrecio(Math.round(p.p25))} — {formatearPrecio(Math.round(p.p75))}
+                    </td>
+                    <td class="py-2 tabular-nums text-right">{p.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+    </div>
+
+    <div class="space-y-element">
+      <section class={panelCls}>
+        <div class={cabeceraCls}>
+          <h2 class="text-base text-ink">Distribución de precios</h2>
+          <p class="text-base">Avisos por tramo</p>
+        </div>
+        <div class="p-element space-y-2">
+          {datos.histogramaPrecio.filter((b) => b.total > 0).map((b) => (
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-base text-ink tabular-nums">{b.etiqueta}</span>
+                <span class="text-base tabular-nums">{b.total}</span>
+              </div>
+              <div class={pistaCls}>
+                <div class="h-full bg-ink" style={`width: ${(b.total / maxPrecio * 100).toFixed(1)}%`} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div class={`${panelCls} p-element`}>
+        <p class="text-sm uppercase tracking-wider mb-element">Explorar</p>
+        <div class="flex flex-col gap-2">
+          <a href={rutaMarca} class={`${enlaceCls} flex items-center justify-between py-1`}>
+            <span>Todos los {nombreMarca}</span>
+            <span aria-hidden="true">→</span>
+          </a>
+          <a href="/marcas" class={`${enlaceCls} flex items-center justify-between py-1`}>
+            <span>Todas las marcas</span>
+            <span aria-hidden="true">→</span>
+          </a>
+          <a href="/mercado" class={`${enlaceCls} flex items-center justify-between py-1`}>
+            <span>Estadísticas de mercado</span>
+            <span aria-hidden="true">→</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {datos.avisos.length > 0 && (
+    <section>
+      <h2 class="text-2xl text-ink mb-element">Últimos {titulo} publicados</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-element">
+        {datos.avisos.map((aviso) => <CardAviso aviso={aviso} />)}
+      </div>
+    </section>
+  )}
+</Base>

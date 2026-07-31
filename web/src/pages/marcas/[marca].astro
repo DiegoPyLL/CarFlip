@@ -1,9 +1,12 @@
 ---
 import Base from '@layouts/Base.astro';
+import Migas from '@components/Migas.astro';
 import CardAviso from '@components/avisos/CardAviso.astro';
+import { cabeceraCls, enlaceCls, filaCls, panelCls, pistaCls } from '@components/mercado/estilos';
 import { obtenerAvisos } from '@lib/db/avisos';
 import { obtenerDatosMarca } from '@lib/db/mercado';
 import { formatearPrecio } from '@lib/formato';
+import { MIN_AVISOS_MODELO } from '@lib/marcas';
 
 const { marca } = Astro.params;
 
@@ -40,14 +43,7 @@ const maxModelo = datos.modelos[0]?.total ?? 1;
 const maxAnio   = datos.anios[0]?.total ?? 1;
 const maxDist   = Math.max(...datos.distribucion.map(d => d.total), 1);
 
-// Mismas clases compartidas que /mercado: el borde hairline es toda la estructura.
-const panelCls    = 'bg-surface border border-line';
-const cabeceraCls = 'p-element border-b border-line';
-const filaCls     = 'flex items-center gap-element p-element hover:bg-canvas transition-colors';
-// `w-full overflow-hidden` es necesario: sin ancho explícito, el % de la barra
-// interior queda indeterminado durante el sizing intrínseco y dispara el layout.
-const pistaCls    = 'h-px w-full bg-line overflow-hidden';
-const enlaceCls   = 'text-base text-ink hover: transition-colors';
+const rutaMarca = `/marcas/${encodeURIComponent(slug)}`;
 ---
 
 <Base
@@ -55,14 +51,7 @@ const enlaceCls   = 'text-base text-ink hover: transition-colors';
   descripcion={`${datos.total} avisos de ${nombreMarca} en Chile. Precio promedio ${formatearPrecio(datos.precio_promedio ? Math.round(datos.precio_promedio) : null)}. Compara modelos, años y precios.`}
 >
 
-  <!-- Breadcrumb -->
-  <nav class="text-base  mb-block flex items-center gap-2">
-    <a href="/avisos" class="hover:text-ink transition-colors">Avisos</a>
-    <span aria-hidden="true">/</span>
-    <a href="/marcas" class="hover:text-ink transition-colors">Marcas</a>
-    <span aria-hidden="true">/</span>
-    <span class="text-ink">{nombreMarca}</span>
-  </nav>
+  <Migas migas={[{ nombre: 'Marcas', href: '/marcas' }, { nombre: nombreMarca }]} />
 
   <!-- Header -->
   <div class="mb-section">
@@ -113,11 +102,16 @@ const enlaceCls   = 'text-base text-ink hover: transition-colors';
               </span>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center justify-between mb-2">
+                  <!-- Los modelos con stock suficiente tienen página propia; el
+                       resto sigue enlazando al listado filtrado, que no es
+                       indexable pero es el único destino que existe. -->
                   <a
-                    href={`/avisos?marca=${encodeURIComponent(nombreMarca)}&modelo=${encodeURIComponent(m.modelo)}`}
+                    href={m.total >= MIN_AVISOS_MODELO
+                      ? `${rutaMarca}/${encodeURIComponent(m.slug)}`
+                      : `/avisos?marca=${encodeURIComponent(nombreMarca)}&modelo=${encodeURIComponent(m.nombre)}`}
                     class={`${enlaceCls} truncate`}
                   >
-                    {m.modelo}
+                    {m.nombre}
                   </a>
                   <span class="text-base  tabular-nums ml-3 shrink-0">
                     {m.total.toLocaleString('es-CL')}
@@ -157,12 +151,11 @@ const enlaceCls   = 'text-base text-ink hover: transition-colors';
           <div class="divide-y divide-line">
             {datos.anios.map(a => (
               <div class={filaCls}>
-                <a
-                  href={`/avisos?marca=${encodeURIComponent(nombreMarca)}&anio=${a.anio}`}
-                  class={`${enlaceCls} w-12 shrink-0 tabular-nums`}
-                >
-                  {a.anio}
-                </a>
+                <!-- Sin enlace a propósito: marca + año no tiene página, así que
+                     el único destino sería un listado filtrado que canonicaliza a
+                     /avisos. Los años se enlazan desde la página del modelo, que
+                     es donde sí existen. -->
+                <span class="text-base text-ink w-12 shrink-0 tabular-nums">{a.anio}</span>
                 <div class="flex-1 min-w-0">
                   <div class={pistaCls}>
                     <div

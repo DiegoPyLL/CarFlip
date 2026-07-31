@@ -1,0 +1,173 @@
+---
+import Migas from '@components/Migas.astro';
+import CardAviso from '@components/avisos/CardAviso.astro';
+import { cabeceraCls, enlaceCls, panelCls, pistaCls } from '@components/mercado/estilos';
+import Base from '@layouts/Base.astro';
+import { aEntero } from '@lib/campos';
+import { obtenerDatosModelo } from '@lib/db';
+import { formatearKm, formatearPrecio } from '@lib/formato';
+import { slugModelo } from '@lib/marcas';
+
+const { marca, modelo, anio } = Astro.params;
+if (!marca || !modelo || !anio) return Astro.rewrite('/404');
+
+// El año va sin ceros a la izquierda ni separadores: "2018" y nada más. `aEntero`
+// acepta "2.018", que sería una segunda URL para el mismo año, así que se exige
+// que el texto coincida con el número que produce.
+const anioNum = aEntero(anio);
+if (anioNum === null || String(anioNum) !== anio) return Astro.rewrite('/404');
+
+const slugMarca = marca.toLowerCase();
+const slug = slugModelo(modelo);
+if (!slug) return Astro.rewrite('/404');
+if (marca !== slugMarca || modelo !== slug) {
+  return Astro.redirect(
+    `/marcas/${encodeURIComponent(slugMarca)}/${encodeURIComponent(slug)}/${anioNum}`,
+    301,
+  );
+}
+
+// `null` también cuando el año no tiene stock suficiente: el rango del año no se
+// valida aparte porque solo existen los que están en el catálogo.
+const datos = await obtenerDatosModelo(slugMarca, slug, anioNum);
+if (!datos) return Astro.rewrite('/404');
+
+const { marca: nombreMarca, modelo: nombreModelo } = datos;
+const titulo = `${nombreMarca} ${nombreModelo} ${anioNum}`;
+const rutaMarca = `/marcas/${encodeURIComponent(slugMarca)}`;
+const rutaModelo = `${rutaMarca}/${encodeURIComponent(slug)}`;
+
+const otrosAnios = datos.anios.filter((a) => a.anio !== anioNum);
+const maxPrecio = Math.max(...datos.histogramaPrecio.map((b) => b.total), 1);
+const maxKm = Math.max(...datos.histogramaKm.map((b) => b.total), 1);
+
+const descripcion = [
+  `${datos.total} avisos de ${titulo} en Chile.`,
+  datos.precio_mediano ? `Precio mediano ${formatearPrecio(Math.round(datos.precio_mediano))}.` : null,
+  datos.km_mediano !== null ? `Kilometraje mediano ${formatearKm(Math.round(datos.km_mediano))}.` : null,
+]
+  .filter(Boolean)
+  .join(' ');
+
+const histogramas = [
+  { titulo: 'Distribución de precios', nota: 'Avisos por tramo', datos: datos.histogramaPrecio, max: maxPrecio },
+  { titulo: 'Distribución de kilometraje', nota: 'Avisos por tramo', datos: datos.histogramaKm, max: maxKm },
+];
+---
+
+<Base titulo={`${titulo} — Precios y avisos en Chile`} descripcion={descripcion}>
+  <Migas
+    migas={[
+      { nombre: 'Marcas', href: '/marcas' },
+      { nombre: nombreMarca, href: rutaMarca },
+      { nombre: nombreModelo, href: rutaModelo },
+      { nombre: String(anioNum) },
+    ]}
+  />
+
+  <div class="mb-section">
+    <p class="text-base uppercase tracking-widest mb-element">Modelo y año</p>
+    <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block">{titulo}</h1>
+
+    <div class="flex flex-wrap gap-x-block gap-y-element">
+      <div>
+        <p class="text-base">Avisos activos</p>
+        <p class="text-base text-ink tabular-nums">{datos.total.toLocaleString('es-CL')}</p>
+      </div>
+      {datos.precio_mediano && (
+        <div>
+          <p class="text-base">Precio mediano</p>
+          <p class="text-base text-ink tabular-nums">{formatearPrecio(Math.round(datos.precio_mediano))}</p>
+        </div>
+      )}
+      {datos.precio_minimo && datos.precio_maximo && (
+        <div>
+          <p class="text-base">Rango publicado</p>
+          <p class="text-base text-ink tabular-nums">
+            {formatearPrecio(Math.round(datos.precio_minimo))} — {formatearPrecio(Math.round(datos.precio_maximo))}
+          </p>
+        </div>
+      )}
+      {datos.km_mediano !== null && (
+        <div>
+          <p class="text-base">Kilometraje mediano</p>
+          <p class="text-base text-ink tabular-nums">{formatearKm(Math.round(datos.km_mediano))}</p>
+        </div>
+      )}
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-element mb-section">
+    <div class="space-y-element">
+      {histogramas.map(({ titulo: tituloPanel, nota, datos: tramos, max }) => (
+        <section class={panelCls}>
+          <div class={cabeceraCls}>
+            <h2 class="text-base text-ink">{tituloPanel}</h2>
+            <p class="text-base">{nota}</p>
+          </div>
+          <div class="p-element space-y-2">
+            {tramos.filter((b) => b.total > 0).map((b) => (
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-base text-ink tabular-nums">{b.etiqueta}</span>
+                  <span class="text-base tabular-nums">{b.total}</span>
+                </div>
+                <div class={pistaCls}>
+                  <div class="h-full bg-ink" style={`width: ${(b.total / max * 100).toFixed(1)}%`} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+
+    <div class="space-y-element">
+      {otrosAnios.length > 0 && (
+        <div class={`${panelCls} p-element`}>
+          <p class="text-sm uppercase tracking-wider mb-element">Otros años del {nombreModelo}</p>
+          <div class="flex flex-col gap-2">
+            {otrosAnios.map((a) => (
+              <a
+                href={`${rutaModelo}/${a.anio}`}
+                class={`${enlaceCls} flex items-center justify-between py-1`}
+              >
+                <span class="tabular-nums">{a.anio}</span>
+                <span class="tabular-nums">
+                  {a.precio_promedio ? formatearPrecio(Math.round(a.precio_promedio)) : `${a.total} avisos`}
+                </span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div class={`${panelCls} p-element`}>
+        <p class="text-sm uppercase tracking-wider mb-element">Explorar</p>
+        <div class="flex flex-col gap-2">
+          <a href={rutaModelo} class={`${enlaceCls} flex items-center justify-between py-1`}>
+            <span>Todos los {nombreModelo}</span>
+            <span aria-hidden="true">→</span>
+          </a>
+          <a href={rutaMarca} class={`${enlaceCls} flex items-center justify-between py-1`}>
+            <span>Todos los {nombreMarca}</span>
+            <span aria-hidden="true">→</span>
+          </a>
+          <a href="/mercado" class={`${enlaceCls} flex items-center justify-between py-1`}>
+            <span>Estadísticas de mercado</span>
+            <span aria-hidden="true">→</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {datos.avisos.length > 0 && (
+    <section>
+      <h2 class="text-2xl text-ink mb-element">Últimos {titulo} publicados</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-element">
+        {datos.avisos.map((aviso) => <CardAviso aviso={aviso} />)}
+      </div>
+    </section>
+  )}
+</Base>

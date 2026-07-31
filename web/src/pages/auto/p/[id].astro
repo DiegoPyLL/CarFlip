@@ -5,7 +5,8 @@ import PatenteChilena from '@components/avisos/PatenteChilena.astro';
 import PosicionMercado from '@components/avisos/PosicionMercado.astro';
 import IconoTraccion from '@components/filtros/IconoTraccion.astro';
 import Base from '@layouts/Base.astro';
-import { rutaInterna, urlEntrar } from '@lib/auth/servidor';
+import { urlEntrar } from '@lib/auth/servidor';
+import { volverAlListado } from '@lib/enlaces';
 import { formatearFecha, formatearKm, formatearPrecio, signosDelta } from '@lib/formato';
 import { scriptJsonLd } from '@lib/jsonLd';
 import { resolverUrlImagen } from '@lib/cdn';
@@ -49,7 +50,11 @@ const textoWhatsapp = encodeURIComponent(
   `Hola, vi tu ${aviso.titulo} en CarFlip (${urlAbsoluta}). ¿Sigue disponible?`,
 );
 
-const volver = rutaInterna(Astro.url.searchParams.get('back'), '/avisos');
+// El destino de vuelta depende del `Referer`, así que la misma URL no sirve la
+// misma respuesta a todo el mundo: sin `Vary` una caché compartida podría dar el
+// listado de otro visitante.
+Astro.response.headers.append('Vary', 'Referer');
+const volver = volverAlListado(Astro.request.headers.get('referer'), Astro.url.origin);
 const mensajeError = mensajeDeError(Astro.url.searchParams.get('error'));
 const reportado = Astro.url.searchParams.has('reportado');
 
