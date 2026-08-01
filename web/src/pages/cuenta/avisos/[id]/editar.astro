@@ -1,11 +1,14 @@
 ---
+import AvisoEstado from '@components/cuenta/AvisoEstado.astro';
 import FormularioAviso from '@components/cuenta/FormularioAviso.astro';
+import Notificacion from '@components/Notificacion.astro';
 import SubidorFotos from '@components/cuenta/SubidorFotos.astro';
 import Normalizacion from '@components/Normalizacion.astro';
 import Base from '@layouts/Base.astro';
 import { listarFotos, obtenerAvisoPropio } from '@lib/publicaciones/consultas';
 import { mensajeDeError } from '@lib/publicaciones/limites';
 import { ETIQUETA_ESTADO } from '@lib/publicaciones/opciones';
+import { botonPeligroCls, enlaceCls, volverCls } from '@lib/ui';
 
 const usuario = Astro.locals.usuario;
 const supabase = Astro.locals.supabase;
@@ -26,7 +29,7 @@ const mensajeError = mensajeDeError(Astro.url.searchParams.get('error'));
 
 <Base titulo="Editar publicación" descripcion="Edita tu publicación en CarFlip." noindex>
   <div class="max-w-3xl mx-auto">
-    <a href="/cuenta/avisos" class="text-base underline underline-offset-4 hover:text-ink transition-colors duration-150">
+    <a href="/cuenta/avisos" class={volverCls}>
       <span aria-hidden="true">←</span> Mis publicaciones
     </a>
 
@@ -36,22 +39,14 @@ const mensajeError = mensajeDeError(Astro.url.searchParams.get('error'));
     </div>
 
     {creado && (
-      <div class="mb-element px-6 py-2.5 border border-line-strong text-base text-ink" role="status">
+      <Notificacion volver={Astro.url.pathname}>
         Tu aviso ya está publicado. Agrégale fotos para que rinda mejor en el listado.
-      </div>
+      </Notificacion>
     )}
 
-    {guardado && (
-      <div class="mb-element px-6 py-2.5 border border-line-strong text-base text-ink" role="status">
-        Cambios guardados.
-      </div>
-    )}
+    {guardado && <Notificacion volver={Astro.url.pathname}>Cambios guardados.</Notificacion>}
 
-    {mensajeError && (
-      <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
-        {mensajeError}
-      </div>
-    )}
+    {mensajeError && <AvisoEstado tono="error">{mensajeError}</AvisoEstado>}
 
     <div class="mb-block">
       <SubidorFotos avisoId={id} fotos={fotos} />
@@ -64,16 +59,11 @@ const mensajeError = mensajeDeError(Astro.url.searchParams.get('error'));
       <h2 class="text-2xl text-ink mb-element">Eliminar</h2>
       <p class="text-base leading-relaxed max-w-xl mb-element">
         Se borra la publicación y sus fotos, sin vuelta atrás. Si solo quieres sacarla del listado,
-        pausala desde <a href="/cuenta/avisos" class="text-ink underline underline-offset-4">Mis publicaciones</a>.
+        pausala desde <a href="/cuenta/avisos" class={enlaceCls}>Mis publicaciones</a>.
       </p>
       <form method="POST" action={`/api/publicacion/${id}`}>
         <input type="hidden" name="accion" value="eliminar" />
-        <button
-          type="submit"
-          class="inline-flex items-center gap-2 text-base text-ink border border-scarlet-signal px-6 py-2.5 hover:bg-scarlet-signal hover:text-ink-on-accent transition-colors duration-150 cursor-pointer"
-        >
-          Eliminar publicación
-        </button>
+        <button type="submit" class={botonPeligroCls}>Eliminar publicación</button>
       </form>
     </div>
   </div>

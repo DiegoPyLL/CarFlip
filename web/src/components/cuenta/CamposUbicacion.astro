@@ -7,6 +7,7 @@
  * elegida, que es lo que evita recorrer el país entero para encontrar Ñuñoa.
  */
 import { COMUNAS_POR_REGION, REGIONES } from '@lib/publicaciones/opciones';
+import { campoCls, errorCls, labelCls, requeridoCls } from '@lib/ui';
 
 interface Props {
   region?: string;
@@ -14,30 +15,25 @@ interface Props {
 }
 
 const { region, comuna } = Astro.props;
-
-const inputCls =
-  'w-full bg-field border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
-const labelCls = 'flex items-baseline justify-between text-base text-ink mb-2';
-const requerido = 'text-sm text-scarlet-signal';
 ---
 
 <div>
-  <label for="region" class={labelCls}>Región <span class={requerido}>*Requerido</span></label>
-  <select id="region" name="region" required class={`${inputCls} campo`} aria-describedby="err-region">
+  <label for="region" class={labelCls}>Región <span class={requeridoCls}>*Requerido</span></label>
+  <select id="region" name="region" required class={`${campoCls} campo`} aria-describedby="err-region">
     <option value="">Selecciona…</option>
     {REGIONES.map((r) => <option value={r} selected={region === r}>{r}</option>)}
   </select>
-  <p id="err-region" class="campo-error text-sm text-scarlet-signal mt-1.5">Selecciona la región.</p>
+  <p id="err-region" class={errorCls}>Selecciona la región.</p>
 </div>
 
 <div>
-  <label for="comuna" class={labelCls}>Comuna <span class={requerido}>*Requerido</span></label>
+  <label for="comuna" class={labelCls}>Comuna <span class={requeridoCls}>*Requerido</span></label>
   <select
     id="comuna"
     name="comuna"
     required
     data-grupos-de="region"
-    class={`${inputCls} campo disabled:opacity-50`}
+    class={`${campoCls} campo disabled:opacity-50`}
     aria-describedby="err-comuna"
   >
     <option value="">Selecciona…</option>
@@ -53,7 +49,7 @@ const requerido = 'text-sm text-scarlet-signal';
       ))
     }
   </select>
-  <p id="err-comuna" class="campo-error text-sm text-scarlet-signal mt-1.5">Selecciona la comuna.</p>
+  <p id="err-comuna" class={errorCls}>Selecciona la comuna.</p>
 </div>
 
 <script>

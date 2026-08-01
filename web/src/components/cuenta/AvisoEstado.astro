@@ -1,0 +1,23 @@
+---
+// Banner de estado del área privada: el mismo bloque estaba copiado ocho veces
+// entre /cuenta, /cuenta/avisos y /cuenta/seguridad.
+//
+// Dos tonos y nada más. Un error lleva borde escarlata y se anuncia como
+// `alert`; el resto es un estado con borde de control y `status`. El color no
+// comunica nada por su cuenta: lo que pasó lo dice el texto.
+interface Props {
+  tono?: 'estado' | 'error';
+}
+
+const { tono = 'estado' } = Astro.props;
+---
+
+<div
+  role={tono === 'error' ? 'alert' : 'status'}
+  class:list={[
+    'mb-element px-6 py-2.5 border text-base text-ink',
+    tono === 'error' ? 'border-scarlet-signal' : 'border-line-strong',
+  ]}
+>
+  <slot />
+</div>

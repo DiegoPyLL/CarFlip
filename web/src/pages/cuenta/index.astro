@@ -1,12 +1,22 @@
 ---
-import Base from '@layouts/Base.astro';
-import NavCuenta from '@components/cuenta/NavCuenta.astro';
+import Cuenta from '@layouts/Cuenta.astro';
+import AvisoEstado from '@components/cuenta/AvisoEstado.astro';
+import Notificacion from '@components/Notificacion.astro';
 import Normalizacion from '@components/Normalizacion.astro';
 import CamposUbicacion from '@components/cuenta/CamposUbicacion.astro';
 import FilaAviso from '@components/cuenta/FilaAviso.astro';
 import { listarAvisosPropios, obtenerPerfil, revelacionesPorAviso } from '@lib/publicaciones/consultas';
 import { PALABRA_ELIMINAR, mensajeDeError, perfilCompleto } from '@lib/publicaciones/limites';
 import { PATRON } from '@lib/regex';
+import {
+  botonCls,
+  botonPeligroCls,
+  campoCls,
+  enlaceCls,
+  errorCls,
+  labelCls,
+  requeridoCls,
+} from '@lib/ui';
 
 // El middleware ya redirige a /entrar si no hay sesión; la comprobación se
 // repite aquí para que el tipo de `usuario` sea no nulo en el template.
@@ -31,69 +41,76 @@ const vistas = avisos.reduce((total, a) => total + a.vistas, 0);
 const contactos = [...revelaciones.values()].reduce((total, n) => total + n, 0);
 const recientes = avisos.slice(0, 3);
 
+// Estado de la cuenta. Antes eran dos banners permanentes encima del contenido,
+// y un aviso que está siempre no es un aviso: es información. Su lugar es el
+// módulo que resume la cuenta, junto a lo que habilita —publicar—, y no
+// empujando el resto de la página fuera de la vista.
+const estado = [
+  usuario.emailConfirmado
+    ? { listo: true, texto: 'Correo confirmado' }
+    : { listo: false, texto: 'Confirma tu correo para poder publicar' },
+  completo
+    ? { listo: true, texto: 'Nombre y teléfono cargados' }
+    : { listo: false, texto: 'Completa tu nombre y teléfono para poder publicar' },
+];
+
+// Las dos métricas subordinadas del bento; la dominante (avisos publicados) va
+// dentro del módulo grande, junto al saludo.
 const metricas = [
-  { etiqueta: 'Avisos publicados', valor: `${publicados}`, nota: 'activos ahora mismo' },
   { etiqueta: 'Vistas', valor: vistas.toLocaleString('es-CL'), nota: 'en todas tus publicaciones' },
-  { etiqueta: 'Contactos revelados', valor: contactos.toLocaleString('es-CL'), nota: 'compradores que pidieron tu teléfono' },
+  {
+    etiqueta: 'Contactos revelados',
+    valor: contactos.toLocaleString('es-CL'),
+    nota: 'compradores que pidieron tu teléfono',
+  },
 ];
 
 const guardado = Astro.url.searchParams.has('guardado');
 const mensajeError = mensajeDeError(Astro.url.searchParams.get('error'));
 
-const inputCls =
-  'w-full bg-field border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
-const botonCls =
-  'inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150';
-const enlaceCls =
-  'text-base text-ink underline underline-offset-4 hover:text-ink/70 transition-colors duration-150';
+// Las anclas del rail apuntan acá: el margen de scroll deja el título libre de
+// la barra fija en vez de que quede tapado al saltar.
+const anclaCls = 'scroll-mt-24';
 ---
 
-<Base titulo="Mi cuenta" descripcion="Tu cuenta en CarFlip." noindex>
-  <header class="mb-block">
-    <p class="text-base text-ink/70 uppercase tracking-widest mb-element">Tu cuenta</p>
-    <h1 class="text-5xl sm:text-7xl text-ink leading-none text-balance">
-      {nombre ? `Hola, ${nombre}.` : 'Hola!.'}
-    </h1>
-    <p class="text-base text-ink/70 mt-element break-all">
-      {usuario.email}
-      {usuario.rol === 'admin' && (
-        <>
-          {' · '}<a href="/dashboard" class="text-ink underline underline-offset-4">Panel de administración</a>
-        </>
-      )}
-    </p>
-  </header>
+<Cuenta titulo="Mi cuenta" descripcion="Tu cuenta en CarFlip." usuario={usuario}>
+  {mensajeError && <AvisoEstado tono="error">{mensajeError}</AvisoEstado>}
+  {guardado && <Notificacion volver={Astro.url.pathname}>Datos guardados.</Notificacion>}
 
-  <NavCuenta />
+  <!-- Bento: un módulo dominante —saludo, avisos publicados, estado y el CTA
+       del área— y dos subordinados con el rendimiento. -->
+  <div class="grid gap-element lg:grid-cols-3 mb-block">
+    <section class="bg-surface border border-line p-element lg:p-block lg:col-span-2 lg:row-span-2 flex flex-col">
+      <h1 class="text-5xl sm:text-7xl text-ink leading-none text-balance">
+        {nombre ? `Hola, ${nombre}.` : 'Hola.'}
+      </h1>
 
-  {mensajeError && (
-    <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
-      {mensajeError}
-    </div>
-  )}
+      <p class="text-3xl text-ink tabular-nums leading-none mt-block">{publicados}</p>
+      <p class="text-sm text-ink/70 uppercase tracking-wider mt-2">
+        {publicados === 1 ? 'aviso publicado' : 'avisos publicados'}
+      </p>
 
-  {guardado && (
-    <div class="mb-element px-6 py-2.5 border border-line-strong text-base text-ink" role="status">
-      Datos guardados.
-    </div>
-  )}
+      <!-- El sobrante de alto del módulo lo absorbe la lista, no el botón: con
+           `mt-auto` en el botón, un módulo sin espacio libre dejaba el CTA pegado
+           al último ítem del estado. Así el aire de `mt-block` está garantizado y
+           el CTA igual queda al pie cuando el módulo estira. -->
+      <ul class="mt-element space-y-2 lg:mb-auto">
+        {estado.map(({ listo, texto }) => (
+          <li class="flex items-baseline gap-2 text-base text-ink">
+            <span aria-hidden="true" class="text-ink/70">{listo ? '✓' : '→'}</span>
+            {texto}
+          </li>
+        ))}
+      </ul>
 
-  {!usuario.emailConfirmado && (
-    <div class="mb-element px-6 py-2.5 border border-line-strong text-base text-ink" role="status">
-      Confirma tu correo para poder publicar. Revisa el mensaje que te enviamos.
-    </div>
-  )}
+      <a href="/cuenta/avisos/nuevo" class={`${botonCls} self-start mt-block`}>
+        Publicar un auto
+        <span aria-hidden="true">→</span>
+      </a>
+    </section>
 
-  {!completo && (
-    <div class="mb-element px-6 py-2.5 border border-line-strong text-base text-ink" role="status">
-      Completa tu nombre y teléfono para poder publicar avisos.
-    </div>
-  )}
-
-  <!-- Resumen de actividad -->
-  <div class="grid sm:grid-cols-3 bg-surface border border-line divide-y sm:divide-y-0 sm:divide-x divide-line mb-block">
     {metricas.map(({ etiqueta, valor, nota }) => (
-      <div class="p-element">
+      <div class="bg-surface border border-line p-element">
         <p class="text-sm text-ink/70 uppercase tracking-wider">{etiqueta}</p>
         <p class="text-3xl text-ink tabular-nums leading-none mt-3">{valor}</p>
         <p class="text-sm text-ink/70 mt-2">{nota}</p>
@@ -102,7 +119,7 @@ const enlaceCls =
   </div>
 
   <!-- Publicaciones recientes -->
-  <section class="mb-block">
+  <section id="publicaciones" class={`mb-block ${anclaCls}`}>
     <div class="flex flex-wrap items-baseline justify-between gap-element mb-element">
       <h2 class="text-2xl text-ink">Tus publicaciones</h2>
       {avisos.length > 0 && (
@@ -113,46 +130,41 @@ const enlaceCls =
     {avisos.length === 0 ? (
       <div class="bg-surface border border-line p-block">
         <p class="text-2xl text-ink mb-element">Todavía no publicaste ningún auto.</p>
-        <p class="text-base text-ink/70 leading-relaxed max-w-xl mb-element">
+        <p class="text-base text-ink/70 leading-relaxed max-w-xl">
           Publica el tuyo y aparecerá en el listado junto al resto de los avisos del sitio.
         </p>
-        <a href="/cuenta/avisos/nuevo" class={botonCls}>
-          Publicar un auto
-          <span aria-hidden="true">→</span>
-        </a>
       </div>
     ) : (
-      <>
-        <ul class="bg-surface border border-line divide-y divide-line">
-          {recientes.map((aviso) => (
-            <FilaAviso aviso={aviso} contactos={revelaciones.get(aviso.id) ?? 0}>
-              {aviso.estado === 'publicado' && (
-                <a href={`/auto/p/${aviso.id}`} class={enlaceCls}>Ver aviso</a>
-              )}
-            </FilaAviso>
-          ))}
-        </ul>
-        <a href="/cuenta/avisos/nuevo" class={`${botonCls} mt-element`}>
-          Publicar un auto
-          <span aria-hidden="true">→</span>
-        </a>
-      </>
+      <ul class="bg-surface border border-line divide-y divide-line">
+        {recientes.map((aviso) => (
+          <FilaAviso aviso={aviso} contactos={revelaciones.get(aviso.id) ?? 0}>
+            {aviso.estado === 'publicado' && (
+              <a href={`/auto/p/${aviso.id}`} class={enlaceCls}>Ver aviso</a>
+            )}
+          </FilaAviso>
+        ))}
+      </ul>
     )}
   </section>
 
-  <!-- Datos de contacto -->
-  <section class="mb-block max-w-3xl">
+  <!-- Datos de contacto. El formulario va sobre el plano de acento, igual que
+       los de /cuenta/seguridad y los de sesión. -->
+  <section id="datos" class={`mb-block max-w-3xl ${anclaCls}`}>
     <h2 class="text-2xl text-ink mb-element">Tus datos de contacto</h2>
     <p class="text-base text-ink/70 leading-relaxed mb-element">
       Tu teléfono solo lo ven los compradores que hayan iniciado sesión, y únicamente en tus
       publicaciones. Nunca aparece en el HTML público ni se comparte con terceros.
     </p>
 
-    <form method="POST" action="/api/cuenta/perfil" class="space-y-element">
+    <form
+      method="POST"
+      action="/api/cuenta/perfil"
+      class="bg-accent bloque-acento p-element space-y-element"
+    >
       <div class="grid gap-element sm:grid-cols-2">
         <div>
-          <label for="nombre" class="flex items-baseline justify-between text-base text-ink mb-2">
-            Nombre Completo<span class="text-sm text-scarlet-signal">*Requerido</span>
+          <label for="nombre" class={labelCls}>
+            Nombre Completo<span class={requeridoCls}>*Requerido</span>
           </label>
           <input
             type="text"
@@ -166,16 +178,16 @@ const enlaceCls =
             value={perfil?.nombre ?? ''}
             data-normaliza="texto"
             aria-describedby="err-nombre"
-            class={`${inputCls} campo`}
+            class={`${campoCls} campo`}
           />
-          <p id="err-nombre" class="campo-error text-sm text-scarlet-signal mt-1.5">
+          <p id="err-nombre" class={errorCls}>
             Ingresa tu nombre: solo letras y espacios.
           </p>
         </div>
 
         <div>
-          <label for="telefono" class="flex items-baseline justify-between text-base text-ink mb-2">
-            Teléfono <span class="text-sm text-scarlet-signal">*Requerido</span>
+          <label for="telefono" class={labelCls}>
+            Teléfono <span class={requeridoCls}>*Requerido</span>
           </label>
           <input
             type="tel"
@@ -190,9 +202,9 @@ const enlaceCls =
             value={perfil?.telefono ?? ''}
             data-normaliza="telefono"
             aria-describedby="err-telefono"
-            class={`${inputCls} campo tabular-nums`}
+            class={`${campoCls} campo tabular-nums`}
           />
-          <p id="err-telefono" class="campo-error text-sm text-scarlet-signal mt-1.5">
+          <p id="err-telefono" class={errorCls}>
             Ingresa un móvil chileno válido.
           </p>
         </div>
@@ -200,30 +212,34 @@ const enlaceCls =
         <CamposUbicacion region={perfil?.region ?? undefined} comuna={perfil?.comuna ?? undefined} />
       </div>
 
-      <button type="submit" class={`${botonCls} cursor-pointer`}>
+      <button type="submit" class={botonCls}>
         Guardar datos
         <span aria-hidden="true">→</span>
       </button>
     </form>
   </section>
 
-  <!-- Sesión y baja. El borrado va plegado: es la acción menos frecuente y la
-       única irreversible, así que no compite por atención con el resto.
-       Derecho de supresión (Ley 21.719). Sin diálogo de confirmación en JS:
-       escribir la palabra es la barrera, y funciona sin JavaScript. -->
-  <section class="max-w-3xl space-y-element">
-    <h2 class="text-2xl text-ink">Sesión</h2>
-
-    <form method="POST" action="/api/auth/salir">
-      <button type="submit" class={`${botonCls} cursor-pointer`}>
-        Cerrar sesión
-        <span aria-hidden="true">→</span>
-      </button>
-    </form>
-
-    <details class="bg-surface border border-line">
-      <summary class="p-element cursor-pointer text-base text-ink">Eliminar tu cuenta</summary>
-      <div class="p-element border-t border-line">
+  <!-- Baja de cuenta. Va plegada: es la acción menos frecuente y la única
+       irreversible, así que no compite por atención con el resto. Derecho de
+       supresión (Ley 21.719). Sin diálogo de confirmación en JS: escribir la
+       palabra es la barrera, y funciona sin JavaScript. -->
+  <section class="max-w-3xl">
+    <details class="desplegable group bg-surface border border-line open:border-ink hover:border-ink transition-colors duration-200">
+      <summary class="flex items-start justify-between gap-element p-element cursor-pointer">
+        <span class="text-base text-ink">Eliminar tu cuenta</span>
+        <svg
+          class="shrink-0 mt-1.5 transition-transform duration-200 group-open:rotate-45"
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          stroke="currentColor"
+          stroke-width="1"
+          aria-hidden="true"
+        >
+          <path d="M0 8h16M8 0v16" />
+        </svg>
+      </summary>
+      <div class="p-element pt-0">
         <p class="text-base text-ink/70 leading-relaxed mb-element">
           Se borran tu perfil, tus publicaciones, sus fotos y el registro de contactos revelados.
           Es inmediato y no se puede deshacer. Para confirmar, escribe {PALABRA_ELIMINAR}.
@@ -243,23 +259,17 @@ const enlaceCls =
               title={`Escribe ${PALABRA_ELIMINAR} en mayúsculas.`}
               placeholder={PALABRA_ELIMINAR}
               aria-describedby="err-confirmacion"
-              class={`${inputCls} campo`}
+              class={`${campoCls} campo`}
             />
-            <p id="err-confirmacion" class="campo-error text-sm text-scarlet-signal mt-1.5">
+            <p id="err-confirmacion" class={errorCls}>
               Escribe {PALABRA_ELIMINAR} en mayúsculas para confirmar.
             </p>
           </div>
-          <button
-            type="submit"
-            class="text-base text-ink border border-scarlet-signal px-6 py-2.5 hover:bg-scarlet-signal hover:text-ink-on-accent transition-colors duration-150 cursor-pointer"
-          >
-            Eliminar mi cuenta
-          </button>
+          <button type="submit" class={botonPeligroCls}>Eliminar mi cuenta</button>
         </form>
       </div>
     </details>
   </section>
 
-
   <Normalizacion />
-</Base>
+</Cuenta>

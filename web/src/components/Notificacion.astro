@@ -1,0 +1,55 @@
+---
+// Confirmación de una acción recién completada: "Datos guardados",
+// "Publicación eliminada". Reemplaza al banner en flujo, que se quedaba en
+// pantalla para siempre y no tenía cómo cerrarse.
+//
+// Entra deslizándose desde detrás de la barra y se retira sola a los 6s
+// (global.css, `.notificacion`). Va `fixed` con `z-10` —la barra es `z-20`— por
+// dos razones: emerge desde detrás de ella, y al no ocupar flujo no mueve el
+// contenido ni al llegar ni al irse.
+//
+// La ✕ enlaza a la misma página sin el parámetro que la disparó, así que además
+// de cerrarla limpia la querystring: un refresco ya no la revive. Es un enlace
+// y no un botón con JS, como el resto del sitio.
+//
+// Va sobre el plano de acento —el mismo del rail de cuenta y del footer— y no
+// sobre `surface`: en gris se confundía con una tarjeta más de la página, y el
+// acento es el único color de chrome del sistema. El borde a blanco 15% es lo
+// que la delimita en tema oscuro, donde el acento casi coincide con el canvas.
+//
+// El error no usa este componente: se lee sin apuro y no debe desaparecer solo
+// (ver AvisoEstado).
+interface Props {
+  volver: string;
+}
+
+const { volver } = Astro.props;
+---
+
+<div class="fixed inset-x-0 top-20 z-10 flex justify-center px-4 pointer-events-none">
+  <div
+    role="status"
+    class="notificacion pointer-events-auto max-w-xl flex items-center gap-element bg-accent border border-ink-on-accent/15 pl-6 pr-2 py-2.5 text-base text-ink-on-accent"
+  >
+    <p><slot /></p>
+    <a
+      href={volver}
+      aria-label="Cerrar el aviso"
+      class="shrink-0 h-10 w-10 flex items-center justify-center text-ink-on-accent hover:opacity-70 transition-opacity duration-150"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        aria-hidden="true"
+      >
+        <path d="M6 6l12 12M18 6L6 18" />
+      </svg>
+    </a>
+  </div>
+</div>

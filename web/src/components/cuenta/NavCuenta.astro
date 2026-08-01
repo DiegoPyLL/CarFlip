@@ -1,39 +1,178 @@
 ---
-// Barra de sección del área de cuenta: deja a la vista que hay más de una
-// página y en cuál estás. Antes lo único que unía /cuenta con /cuenta/avisos
-// era un enlace suelto al pie del formulario.
-// El subrayado activo es de 1px, como el resto de los bordes del sistema; el
-// `-mb-px` lo monta sobre el borde del contenedor para que se lea como pestaña.
-const ruta = Astro.url.pathname.replace(/\/+$/, '') || '/';
+// Rail del área privada. Antes era una barra de pestañas que iba *debajo* del
+// H1 de 72px, así que lo primero de cada página era el título y no la
+// estructura. Ahora la navegación es una columna persistente que muestra las
+// tres secciones a la vez, quién eres y la salida de sesión.
+//
+// Es el único plano de color del área, y no estrena token: `bg-accent` con los
+// overrides compartidos de `.bloque-acento` —azul de marca en claro, casi negro
+// en oscuro— es el mismo bloque que ya identifica al footer, a /entrar y a los
+// formularios de /cuenta/seguridad.
+//
+// Bajo lg: los enlaces envuelven en una fila; nada de scroll horizontal, que
+// chocaría con el `overflow-x: hidden` del body. Desde lg: la columna se fija
+// bajo la barra con el mismo `top-20` que usa FiltrosSidebar.
+interface Props {
+  usuario: NonNullable<App.Locals['usuario']>;
+}
 
-const pestanas = [
-  { href: '/cuenta', texto: 'Resumen' },
-  { href: '/cuenta/avisos', texto: 'Mis publicaciones' },
-  { href: '/cuenta/seguridad', texto: 'Seguridad' },
+const { usuario } = Astro.props;
+
+const normalizar = (ruta: string) => ruta.replace(/\/+$/, '') || '/';
+
+const ruta = normalizar(Astro.url.pathname);
+
+// Las anclas son atajos a los bloques de la propia página: solo se pintan bajo
+// su sección cuando está activa, y solo desde lg:, donde hay columna que las
+// sostenga. En móvil la página es corta y saltar no aporta.
+const secciones = [
+  {
+    href: '/cuenta',
+    texto: 'Resumen',
+    anclas: [
+      { href: '/cuenta#publicaciones', texto: 'Tus publicaciones' },
+      { href: '/cuenta#datos', texto: 'Datos de contacto' },
+    ],
+  },
+  { href: '/cuenta/avisos', texto: 'Mis publicaciones', anclas: [] },
+  { href: '/cuenta/seguridad', texto: 'Seguridad', anclas: [] },
 ];
 
 // Las subrutas de un aviso (nuevo, editar) siguen resaltando "Mis publicaciones".
-const esActiva = (href: string) =>
+const cubre = (href: string, ruta: string) =>
   ruta === href || (href !== '/cuenta' && ruta.startsWith(`${href}/`));
+
+const esActiva = (href: string) => cubre(href, ruta);
+
+const seccionDe = (ruta: string) => secciones.findIndex(({ href }) => cubre(href, ruta));
+
+// Cuántas filas separan la sección de la que se viene de la que se abre: es el
+// trecho que el plano blanco recorre al entrar (ver <style>). El dato sale del
+// `Referer` —que en navegaciones del mismo origen llega con la ruta completa,
+// según el `Referrer-Policy` del middleware— porque en un sitio de páginas
+// completas nada del documento anterior sobrevive para que el CSS lo compare.
+//
+// 0 es "sin viaje": se llega de fuera del área, sin cabecera, o se recarga la
+// misma sección. La cabecera es del cliente y no se audita más allá de esto: lo
+// único que sale de acá es un entero acotado por el largo de `secciones`.
+const anterior = Astro.request.headers.get('referer');
+const rutaAnterior =
+  anterior && URL.canParse(anterior) ? new URL(anterior) : null;
+const desde =
+  rutaAnterior?.origin === Astro.url.origin ? seccionDe(normalizar(rutaAnterior.pathname)) : -1;
+const hasta = seccionDe(ruta);
+const filas = desde < 0 || hasta < 0 ? 0 : desde - hasta;
+
+// La sección activa se marca invirtiendo el bloque —fondo blanco, tinta negra—,
+// que es lo mismo que `.bloque-acento` ya le hace a los botones con caja que
+// viven sobre este plano. El blanco es un `<span>` aparte y no el fondo del
+// enlace porque es lo único que se mueve: el texto va encima y se queda quieto.
+const enlaceCls = 'relative block px-2 py-3 lg:px-element text-base transition-colors duration-150';
+const activoCls = 'text-ink-on-inverse';
+const reposoCls = 'text-ink-on-accent hover:underline underline-offset-4';
 ---
 
-<nav aria-label="Secciones de tu cuenta" class="border-b border-line mb-block">
-  <ul class="flex flex-wrap gap-x-8 -mb-px">
-    {pestanas.map(({ href, texto }) => (
-      <li>
-        <a
-          href={href}
-          aria-current={esActiva(href) ? 'page' : undefined}
-          class:list={[
-            'inline-flex py-3 text-base border-b transition-colors duration-200',
-            esActiva(href)
-              ? 'text-ink border-ink'
-              : 'text-ink/70 border-transparent hover:text-ink',
-          ]}
-        >
-          {texto}
-        </a>
-      </li>
-    ))}
-  </ul>
-</nav>
+<div class="flex flex-col gap-element lg:sticky lg:top-20 lg:self-start">
+  <div class="bg-accent bloque-acento">
+    <div class="p-element border-b border-ink-on-accent/15">
+      <p class="text-sm text-ink-on-accent uppercase tracking-widest">Tu cuenta</p>
+      <p class="text-base text-ink-on-accent break-all mt-1">{usuario.email}</p>
+    </div>
+
+    <nav aria-label="Secciones de tu cuenta">
+      <ul class="p-element flex flex-wrap gap-x-4 gap-y-1 lg:block lg:px-0 lg:py-2">
+        {secciones.map(({ href, texto, anclas }) => (
+          <li>
+            <a
+              href={href}
+              aria-current={esActiva(href) ? 'page' : undefined}
+              class:list={[enlaceCls, esActiva(href) ? activoCls : reposoCls]}
+            >
+              {esActiva(href) && (
+                <span
+                  class:list={['absolute inset-0 bg-ink-on-accent', filas !== 0 && 'rail-viaja']}
+                  style={filas !== 0 ? `--filas: ${filas}` : undefined}
+                />
+              )}
+              <span class="relative">{texto}</span>
+            </a>
+
+            {esActiva(href) && anclas.length > 0 && (
+              <ul class="hidden lg:block py-1">
+                {anclas.map((ancla) => (
+                  <li>
+                    <a
+                      href={ancla.href}
+                      class="block pl-8 pr-element py-2 text-base text-ink-on-accent hover:underline underline-offset-4"
+                    >
+                      {ancla.texto}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
+
+        {usuario.rol === 'admin' && (
+          <li>
+            <a href="/dashboard" class:list={[enlaceCls, reposoCls]}>Panel de administración</a>
+          </li>
+        )}
+      </ul>
+    </nav>
+  </div>
+
+  <!-- Cerrar sesión al pie del rail y no dentro de una página: es la acción que
+       se busca desde cualquier sección del área. Va en su propio bloque, con el
+       gutter del sistema de por medio: pegado al de navegación parecía una
+       sección más de la cuenta en vez de la salida.
+       Sin relleno escarlata: cerrar sesión no destruye nada —se vuelve a entrar
+       con la misma clave— y el escarlata está reservado al estado de un control
+       y a la acción irreversible (DESIGN.md §12). Lo que lo separa del rail es
+       el plano y el borde, que es el idioma del resto de los botones del sitio. -->
+  <form method="POST" action="/api/auth/salir">
+    <button
+      type="submit"
+      class="w-full border border-line-strong p-element text-left text-base text-ink hover:border-ink transition-colors duration-150 cursor-pointer"
+    >
+      Cerrar sesión
+    </button>
+  </form>
+</div>
+
+<!--
+  El plano blanco entra desplazándose desde la fila que ocupaba en la sección
+  anterior, en vez de desaparecer de una fila y reaparecer en otra. Se mueve el
+  cuadro y nada más: el texto vive fuera de él y se queda quieto, y el contenido
+  de la página se reemplaza al instante.
+
+  El recorrido se mide en filas y no en píxeles: el plano cubre exactamente su
+  fila, así que un `100%` de su propio alto es una sección, y la medida sigue
+  valiendo aunque cambien la tipografía o el `py-3`. `--filas` lo escribe el
+  servidor (arriba). Las anclas de la sección activa no descuadran la cuenta
+  porque cuelgan siempre *bajo* el plano, nunca sobre él.
+
+  No se usa `@view-transition`: la foto de la transición se pinta por encima del
+  documento, así que el plano taparía las etiquetas durante todo el trayecto —y
+  fundiría además la página entera, que es justo lo que no debe moverse.
+
+  Movimiento sobre el chrome, no sobre el contenido: el mismo permiso —y la
+  misma curva de 240ms— con que la barra de navegación se retrae (DESIGN.md §3).
+  Solo desde lg:, donde el rail es una columna y las filas se apilan; bajo ese
+  ancho es una fila envuelta y `translateY` no significaría nada. Con movimiento
+  reducido, el plano aparece quieto en su sección.
+-->
+<style>
+  @media (prefers-reduced-motion: no-preference) and (min-width: 64rem) {
+    .rail-viaja {
+      animation: rail-viaje 240ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    @keyframes rail-viaje {
+      from {
+        transform: translateY(calc(var(--filas) * 100%));
+      }
+    }
+  }
+</style>

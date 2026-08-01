@@ -1,9 +1,10 @@
 ---
-import Base from '@layouts/Base.astro';
-import NavCuenta from '@components/cuenta/NavCuenta.astro';
+import Cuenta from '@layouts/Cuenta.astro';
+import AvisoEstado from '@components/cuenta/AvisoEstado.astro';
 import CampoContrasena from '@components/auth/CampoContrasena.astro';
 import { avisoDeSeguridad, mensajeDeSeguridad } from '@lib/auth/seguridad';
 import { PATRON } from '@lib/regex';
+import { botonCls, campoCls, enlaceAcentoCls, errorCls, labelCls, requeridoCls } from '@lib/ui';
 
 // El middleware ya redirige a /entrar si no hay sesión; la comprobación se
 // repite aquí para que el tipo de `usuario` sea no nulo en el template.
@@ -25,34 +26,17 @@ const pideNonce =
   error === 'reautenticar' ||
   error === 'nonce_invalido' ||
   Astro.url.searchParams.get('estado') === 'nonce_enviado';
-
-const inputCls =
-  'w-full bg-field border border-line-strong px-4 py-2.5 text-base text-ink focus:outline-hidden focus:border-scarlet-signal transition-colors duration-150';
-const botonCls =
-  'inline-flex items-center gap-2 text-base text-ink border border-ink px-6 py-2.5 hover:bg-ink hover:text-canvas transition-colors duration-150 cursor-pointer';
-const enlaceCls =
-  'text-base text-ink-on-accent underline underline-offset-4 hover:opacity-70 transition-opacity duration-150 cursor-pointer';
 ---
 
-<Base titulo="Seguridad" descripcion="Cambia tu correo y tu contraseña en CarFlip." noindex>
-  <header class="mb-block">
-    <p class="text-base text-ink/70 uppercase tracking-widest mb-element">Tu cuenta</p>
-    <h1 class="text-5xl sm:text-7xl text-ink leading-none text-balance">Seguridad.</h1>
-  </header>
+<Cuenta
+  titulo="Seguridad"
+  descripcion="Cambia tu correo y tu contraseña en CarFlip."
+  usuario={usuario}
+>
+  <h1 class="text-5xl sm:text-7xl text-ink leading-none text-balance mb-block">Seguridad.</h1>
 
-  <NavCuenta />
-
-  {mensajeError && (
-    <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
-      {mensajeError}
-    </div>
-  )}
-
-  {aviso && (
-    <div class="mb-element px-6 py-2.5 border border-line-strong text-base text-ink" role="status">
-      {aviso}
-    </div>
-  )}
+  {mensajeError && <AvisoEstado tono="error">{mensajeError}</AvisoEstado>}
+  {aviso && <AvisoEstado>{aviso}</AvisoEstado>}
 
   <!-- Correo -->
   <section class="mb-block max-w-3xl">
@@ -72,8 +56,8 @@ const enlaceCls =
         <form method="POST" action="/api/cuenta/correo/confirmar" class="space-y-element">
           <div class="grid gap-element sm:grid-cols-2">
             <div>
-              <label for="codigo-actual" class="flex items-baseline justify-between text-base text-ink mb-2">
-                Código de tu correo actual <span class="text-sm text-scarlet-signal">*Requerido</span>
+              <label for="codigo-actual" class={labelCls}>
+                Código de tu correo actual <span class={requeridoCls}>*Requerido</span>
               </label>
               <input
                 type="text"
@@ -85,16 +69,16 @@ const enlaceCls =
                 maxlength="8"
                 autocomplete="off"
                 aria-describedby="err-codigo-actual"
-                class={`${inputCls} campo tracking-[0.4em]`}
+                class={`${campoCls} campo tracking-[0.4em]`}
               />
-              <p id="err-codigo-actual" class="campo-error text-sm text-scarlet-signal mt-1.5">
+              <p id="err-codigo-actual" class={errorCls}>
                 Son los ocho dígitos que llegaron a {usuario.email}.
               </p>
             </div>
 
             <div>
-              <label for="codigo-nuevo" class="flex items-baseline justify-between text-base text-ink mb-2">
-                Código del correo nuevo <span class="text-sm text-scarlet-signal">*Requerido</span>
+              <label for="codigo-nuevo" class={labelCls}>
+                Código del correo nuevo <span class={requeridoCls}>*Requerido</span>
               </label>
               <input
                 type="text"
@@ -106,9 +90,9 @@ const enlaceCls =
                 maxlength="8"
                 autocomplete="off"
                 aria-describedby="err-codigo-nuevo"
-                class={`${inputCls} campo tracking-[0.4em]`}
+                class={`${campoCls} campo tracking-[0.4em]`}
               />
-              <p id="err-codigo-nuevo" class="campo-error text-sm text-scarlet-signal mt-1.5">
+              <p id="err-codigo-nuevo" class={errorCls}>
                 Son los ocho dígitos que llegaron a {correoPendiente}.
               </p>
             </div>
@@ -127,7 +111,7 @@ const enlaceCls =
               sin anidar formularios, que el HTML no permite. La dirección de
               destino la pone el servidor desde la sesión.
             -->
-            <button type="submit" form="reenviar-codigos" name="reenviar" value="1" class={enlaceCls}>
+            <button type="submit" form="reenviar-codigos" name="reenviar" value="1" class={enlaceAcentoCls}>
               Enviarme códigos nuevos
             </button>
           </div>
@@ -145,9 +129,9 @@ const enlaceCls =
     -->
     <form method="POST" action="/api/cuenta/correo" class="bg-accent bloque-acento p-element space-y-element">
       <div>
-        <label for="email" class="flex items-baseline justify-between text-base text-ink mb-2">
+        <label for="email" class={labelCls}>
           {correoPendiente ? '¿Te equivocaste? Escribe otra dirección' : 'Correo nuevo'}
-          <span class="text-sm text-scarlet-signal">*Requerido</span>
+          <span class={requeridoCls}>*Requerido</span>
         </label>
         <input
           type="email"
@@ -157,9 +141,9 @@ const enlaceCls =
           maxlength="200"
           autocomplete="email"
           aria-describedby="err-email"
-          class={`${inputCls} campo`}
+          class={`${campoCls} campo`}
         />
-        <p id="err-email" class="campo-error text-sm text-scarlet-signal mt-1.5">
+        <p id="err-email" class={errorCls}>
           Ingresa un correo electrónico válido.
         </p>
       </div>
@@ -203,8 +187,8 @@ const enlaceCls =
 
       {pideNonce && (
         <div>
-          <label for="nonce" class="flex items-baseline justify-between text-base text-ink mb-2">
-            Código de confirmación <span class="text-sm text-scarlet-signal">*Requerido</span>
+          <label for="nonce" class={labelCls}>
+            Código de confirmación <span class={requeridoCls}>*Requerido</span>
           </label>
           <input
             type="text"
@@ -216,9 +200,9 @@ const enlaceCls =
             maxlength="8"
             autocomplete="one-time-code"
             aria-describedby="err-nonce"
-            class={`${inputCls} campo tracking-[0.4em]`}
+            class={`${campoCls} campo tracking-[0.4em]`}
           />
-          <p id="err-nonce" class="campo-error text-sm text-scarlet-signal mt-1.5">
+          <p id="err-nonce" class={errorCls}>
             Son los ocho dígitos que llegaron a {usuario.email}.
           </p>
         </div>
@@ -236,7 +220,7 @@ const enlaceCls =
           tecleada a un endpoint que ni la lee.
         -->
         {pideNonce && (
-          <button type="submit" form="reenviar-nonce" class={enlaceCls}>
+          <button type="submit" form="reenviar-nonce" class={enlaceAcentoCls}>
             Enviarme un código nuevo
           </button>
         )}
@@ -245,4 +229,4 @@ const enlaceCls =
 
     {pideNonce && <form id="reenviar-nonce" method="POST" action="/api/cuenta/reautenticar"></form>}
   </section>
-</Base>
+</Cuenta>

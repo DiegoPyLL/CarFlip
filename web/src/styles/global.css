@@ -14,8 +14,9 @@
   footer o de una barra de filtros desentona contra un canvas gris.
 
   Contrastes verificados sobre su propio fondo (scripts de la skill dataviz):
-    claro  → sobre canvas   ink 21:1    · ink/70 8.45:1 · line-strong 4.54:1
-             sobre surface  ink 19.09:1 · ink/70 8.19:1 · line-strong 4.13:1
+    claro  → sobre canvas   ink 19.16:1 · ink/70 7.60:1 · line-strong 4.26:1
+             sobre surface  ink 17.86:1 · ink/70 7.41:1 · line-strong 3.97:1
+             sobre field    ink 19.99:1 · line-strong 4.44:1
              sobre accent   blanco 5.07:1
     oscuro → sobre canvas   ink 16.10:1 · ink/70 8.48:1 · line-strong 4.66:1
              sobre surface  ink 13.58:1 · ink/70 7.46:1 · line-strong 3.93:1
@@ -23,30 +24,47 @@
              sobre accent   blanco 18.10:1
   Todo texto queda sobre el piso de 7:1 (AAA) que exige DESIGN.md, salvo el
   blanco sobre el azul de tema claro, que cumple AA. El escarlata solo alcanza
-  AA de texto en claro (4.85:1) y en oscuro queda bajo AA (3.32:1), así que
+  AA de texto en claro (4.64:1) y en oscuro queda bajo AA (3.32:1), así que
   está restringido a bordes y objetos gráficos.
 */
 :root {
   color-scheme: light;
 
-  --c-canvas: #ffffff;
-  --c-surface: #f4f4f4;
+  /* Papel y tinta, no pantalla y negro puro: el blanco absoluto con gris neutro
+     encima es lo que hacía que el tema claro se leyera como una caja de diálogo
+     del sistema. El canvas baja a un blanco cálido y el resto de la escalera
+     mantiene la misma temperatura, así que la página tiene un tono propio en vez
+     de ninguno. El campo de texto se queda en blanco puro: al ser ahora el plano
+     más claro del tema, se distingue de lo que lo rodea sin depender solo de su
+     borde. La tinta es un negro cálido —no #000— que sobre el papel conserva
+     19:1 y le quita el filo al texto largo. */
+  --c-canvas: #fbfaf7;
+  --c-surface: #f4f2ec;
   --c-field: #ffffff;
-  --c-ink: #000000;
-  --c-muted: #5f5f5f;
-  --c-line: #dcdcdc;
-  --c-line-strong: #767676;
+  --c-ink: #0a0806;
+  --c-muted: #6b665e;
+  --c-line: #e5e1d8;
+  --c-line-strong: #7c776f;
   --c-scarlet: #e4002b;
 
   /* Plano de acento: solo válido como fondo de bloque (footer, hero de
      /quienes-somos, módulos de búsqueda y formularios de sesión), nunca como
      texto sobre canvas — ver DESIGN.md. El texto que va encima usa
      --c-ink-on-accent (blanco fijo) en vez de --c-ink, que en tema claro sería
-     negro y perdería contraste sobre él.
+     casi negro y perdería contraste sobre él.
      El azul se profundizó desde el pedido originalmente (#43a8ee, solo 2.6:1
-     con blanco) para que el texto blanco llegue a AA (5.07:1). */
+     con blanco) para que el texto blanco llegue a AA (5.07:1). Es el tono de
+     marca y no se toca: es el único plano cromático del sistema. */
   --c-accent: #1873b3;
   --c-ink-on-accent: #ffffff;
+
+  /* Tinta del bloque invertido que vive sobre el plano de acento: la pestaña
+     activa del rail de cuenta, el botón con caja y el chip seleccionado. Es el
+     espejo de --c-ink-on-accent y va fija en ambos temas por la misma razón que
+     aquella: el bloque que la lleva siempre es blanco. No sirve `ink`, que en
+     tema oscuro sería blanco sobre blanco, ni `accent`, que en tema claro
+     dejaba texto azul sobre blanco. Negro sobre blanco rinde 21:1. */
+  --c-ink-on-inverse: #000000;
 
   /* Paleta de datos: presupuesto cromático EXCLUSIVO de gráficos (/mercado y
      futuras vistas de estadística). No aplica al chrome del producto, que sigue
@@ -116,6 +134,7 @@
   --color-viz-3: var(--c-viz-3);
   --color-viz-4: var(--c-viz-4);
   --color-ink-on-accent: var(--c-ink-on-accent);
+  --color-ink-on-inverse: var(--c-ink-on-inverse);
   --color-sun-signal: var(--c-sun);
   --color-sun-line: var(--c-sun-line);
   --color-moon-signal: var(--c-moon);
@@ -302,6 +321,69 @@ h3 {
   }
 }
 
+/*
+  Anclas: el salto a un `id` de la misma página se desliza en vez de teletrans-
+  portar. Lo hace el navegador —cero JS, como el cambio de tema— y los destinos
+  llevan su propio `scroll-mt-*` para no quedar bajo la barra fija.
+
+  Vive dentro del media query: con `prefers-reduced-motion` la regla no existe y
+  el salto vuelve a ser instantáneo, que es lo que pide quien lo desactivó.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/*
+  Notificación de acción completada ("Datos guardados", "Publicación
+  eliminada"). Entra deslizándose desde detrás de la barra —va `fixed` con un
+  z-index menor que ella— y se retira sola a los 6 segundos; la ✕ del componente
+  la cierra antes enlazando a la misma página sin el parámetro.
+
+  Al estar fuera del flujo no reserva alto, así que ni al entrar ni al irse
+  mueve el contenido: el layout shift queda en 0. `visibility: hidden` en el
+  fotograma final la saca del orden de tabulación una vez retirada.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  .notificacion {
+    animation:
+      entrar-notificacion 240ms cubic-bezier(0.22, 1, 0.36, 1),
+      salir-notificacion 240ms ease-in 6s forwards;
+  }
+
+  @keyframes entrar-notificacion {
+    from {
+      opacity: 0;
+      transform: translateY(-100%);
+    }
+  }
+
+  @keyframes salir-notificacion {
+    to {
+      opacity: 0;
+      transform: translateY(-100%);
+      visibility: hidden;
+    }
+  }
+}
+
+/* Con movimiento reducido la notificación se retira igual —irse no es
+   decoración, es lo que evita que se quede para siempre— pero sin desplazarse
+   ni fundirse: aparece y desaparece seca. */
+@media (prefers-reduced-motion: reduce) {
+  .notificacion {
+    animation: ocultar-notificacion 1ms linear 6s forwards;
+  }
+
+  @keyframes ocultar-notificacion {
+    to {
+      opacity: 0;
+      visibility: hidden;
+    }
+  }
+}
+
 /* Capa de movimiento (DESIGN.md §3): opacidad 0→1 · 200ms · ease-out.
    Sin delay, sin desplazamiento, sin stagger.
 
@@ -485,10 +567,12 @@ h3 {
    borde-ink") aparece tanto en un `<button>` (Entrar) como en un `<a>`
    (Continuar con Google), y ambos deben invertir a blanco sólido igual. El
    enlace "Enviarme un enlace por correo", que comparte el mismo `<form>`, no
-   lleva `border-ink` — es un enlace subrayado y se recolorea aparte. */
+   lleva `border-ink` — es un enlace subrayado y se recolorea aparte.
+   La tinta es `ink-on-inverse` y no `accent`: el azul de marca sobre el blanco
+   del botón se leía apagado, y el negro fijo sirve en los dos temas. */
 .bloque-acento .border-ink {
   background-color: var(--color-ink-on-accent);
-  color: var(--color-accent);
+  color: var(--color-ink-on-inverse);
   border-color: var(--color-ink-on-accent);
 }
 
@@ -508,10 +592,11 @@ h3 {
 
 /* El chip seleccionado usa peer-checked:bg-ink, que es negro en claro y
    blanco en oscuro (chipCls, definido para fondo canvas). Acá se fija en
-   blanco en ambos temas, a juego con los demás campos del bloque. */
+   blanco en ambos temas, a juego con los demás campos del bloque, con la misma
+   tinta negra que el botón con caja. */
 .bloque-acento input:checked ~ span {
   background-color: var(--color-ink-on-accent);
-  color: var(--color-accent);
+  color: var(--color-ink-on-inverse);
   border-color: var(--color-ink-on-accent);
 }
 

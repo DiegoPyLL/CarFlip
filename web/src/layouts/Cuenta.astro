@@ -1,0 +1,26 @@
+---
+// Shell de las tres páginas del área privada: rail a la izquierda, contenido a
+// la derecha. Existe para que /cuenta, /cuenta/avisos y /cuenta/seguridad dejen
+// de repetir el mismo montaje de Base + NavCuenta y para que la navegación esté
+// a la vista antes que el título, que era el problema del layout anterior.
+//
+// `usuario` llega por props y no de `Astro.locals`: las páginas ya lo tienen
+// tipado no-nulo tras su guard de sesión.
+import Base from '@layouts/Base.astro';
+import NavCuenta from '@components/cuenta/NavCuenta.astro';
+
+interface Props {
+  titulo: string;
+  descripcion: string;
+  usuario: NonNullable<App.Locals['usuario']>;
+}
+
+const { titulo, descripcion, usuario } = Astro.props;
+---
+
+<Base titulo={titulo} descripcion={descripcion} noindex>
+  <div class="lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-block lg:items-start">
+    <NavCuenta usuario={usuario} />
+    <div class="min-w-0 mt-block lg:mt-0"><slot /></div>
+  </div>
+</Base>

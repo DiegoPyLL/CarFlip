@@ -1,9 +1,11 @@
 ---
+import AvisoEstado from '@components/cuenta/AvisoEstado.astro';
 import FormularioAviso from '@components/cuenta/FormularioAviso.astro';
 import Normalizacion from '@components/Normalizacion.astro';
 import Base from '@layouts/Base.astro';
 import { obtenerPerfil } from '@lib/publicaciones/consultas';
 import { mensajeDeError, perfilCompleto } from '@lib/publicaciones/limites';
+import { enlaceCls, volverCls } from '@lib/ui';
 
 const usuario = Astro.locals.usuario;
 if (!usuario || !Astro.locals.supabase) return Astro.redirect('/entrar?volver=/cuenta/avisos/nuevo');
@@ -15,13 +17,18 @@ const mensajeError = mensajeDeError(Astro.url.searchParams.get('error'));
 
 <Base titulo="Publicar un auto" descripcion="Publica tu auto en CarFlip." noindex>
   <div class="max-w-3xl mx-auto">
-    <h1 class="text-5xl sm:text-7xl text-ink leading-none mb-block text-balance">Publica tu auto.</h1>
+    <!-- La página vive fuera del rail de cuenta —es un formulario de pantalla
+         completa—, así que la vuelta al listado la da este enlace, igual que en
+         la edición. -->
+    <a href="/cuenta/avisos" class={volverCls}>
+      <span aria-hidden="true">←</span> Mis publicaciones
+    </a>
 
-    {mensajeError && (
-      <div class="mb-element px-6 py-2.5 border border-scarlet-signal text-base text-ink" role="alert">
-        {mensajeError}
-      </div>
-    )}
+    <h1 class="text-5xl sm:text-7xl text-ink leading-none mt-element mb-block text-balance">
+      Publica tu auto.
+    </h1>
+
+    {mensajeError && <AvisoEstado tono="error">{mensajeError}</AvisoEstado>}
 
     {listoParaPublicar ? (
       <>
@@ -40,7 +47,7 @@ const mensajeError = mensajeDeError(Astro.url.searchParams.get('error'));
           {!perfilCompleto(perfil) && (
             <li>
               Completa tu nombre y teléfono en
-              <a href="/cuenta" class="text-ink underline underline-offset-4">tu cuenta</a>. El
+              <a href="/cuenta#datos" class={enlaceCls}>tu cuenta</a>. El
               teléfono es el que verán los compradores con sesión iniciada.
             </li>
           )}
