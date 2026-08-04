@@ -1,11 +1,12 @@
-<p align="center">
-  <img src="carflip_logo.png" alt="CarFlip" width="100%">
-</p>
+<div align="center">
 
-<p align="center">
-  <strong>Un comparador de precios de autos usados en Chile.</strong><br>
-  <a href="https://carflip.cl">carflip.cl</a>
-</p>
+# CarFlip
+
+**Un comparador de precios de autos usados en Chile.**
+
+https://carflip.cl
+
+</div>
 
 ---
 
